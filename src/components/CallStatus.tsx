@@ -2,10 +2,10 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Phone, Video } from "lucide-react";
+import { Phone, Video, BellOff } from "lucide-react";
 
 type CallStatusProps = {
-  status: "idle" | "connecting" | "ringing" | "active" | "video-active" | "on-hold" | "ended" | "failed";
+  status: "idle" | "connecting" | "ringing" | "active" | "video-active" | "on-hold" | "ended" | "failed" | "dnd";
   duration?: string;
 };
 
@@ -23,6 +23,8 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
       case "ended":
         return "bg-gray-500 text-white";
       case "failed":
+        return "bg-softphone-error text-white";
+      case "dnd":
         return "bg-softphone-error text-white";
       default:
         return "bg-gray-200 text-gray-800";
@@ -47,6 +49,8 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
         return "Call Ended";
       case "failed":
         return "Call Failed";
+      case "dnd":
+        return "Do Not Disturb";
       default:
         return "Unknown";
     }
@@ -55,6 +59,8 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
   const getStatusIcon = () => {
     if (status === "video-active") {
       return <Video className="w-4 h-4 mr-1" />;
+    } else if (status === "dnd") {
+      return <BellOff className="w-4 h-4 mr-1" />;
     } else if (["active", "connecting", "ringing", "on-hold"].includes(status)) {
       return <Phone className="w-4 h-4 mr-1" />;
     }
@@ -67,7 +73,7 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
         {getStatusIcon()}
         {getStatusText()}
       </Badge>
-      {duration && (status === "active" || status === "video-active") && (
+      {duration && (status === "active" || status === "video-active" || status === "on-hold") && (
         <span className="text-sm font-medium text-gray-600">{duration}</span>
       )}
     </div>
