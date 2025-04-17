@@ -13,20 +13,28 @@ import Voicemail from "@/components/Voicemail";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { BellOff } from "lucide-react";
+import { BellOff, X, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import HomeWidgets from "@/components/HomeWidgets";
 
 type UserPresence = "available" | "away" | "busy" | "offline";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("dialpad");
+  const [activeTab, setActiveTab] = useState("home");
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "connecting">("disconnected");
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
+  const [isDialpadOpen, setIsDialpadOpen] = useState(false);
 
   const renderActiveTab = () => {
     switch (activeTab) {
+      case "home":
+        return <HomeWidgets setActiveTab={setActiveTab} />;
       case "dialpad":
         return <Dialpad />;
       case "history":
@@ -44,7 +52,7 @@ const Index = () => {
       case "settings":
         return <SIPConfig />;
       default:
-        return <Dialpad />;
+        return <HomeWidgets setActiveTab={setActiveTab} />;
     }
   };
 
@@ -97,7 +105,7 @@ const Index = () => {
           {/* Header */}
           <header className="p-4 border-b">
             <div className="flex justify-between items-center">
-              <h1 className="text-xl font-bold text-softphone-dark">SIP Softphone</h1>
+              <h1 className="text-xl font-bold text-softphone-dark">My Company</h1>
               
               <div className="flex items-center space-x-4">
                 {/* Presence indicator */}
@@ -136,6 +144,20 @@ const Index = () => {
                      connectionStatus === "connecting" ? "Connecting..." : "Disconnected"}
                   </span>
                 </div>
+
+                {/* Floating Dialpad Button */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button size="sm" className="rounded-full bg-softphone-primary">
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[380px] sm:w-[450px]">
+                    <div className="py-6">
+                      <Dialpad />
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
             </div>
           </header>
@@ -154,6 +176,16 @@ const Index = () => {
           </footer>
         </div>
       </div>
+
+      {/* Mobile Dialpad drawer */}
+      <Drawer>
+        <DrawerTrigger className="fixed bottom-6 right-6 md:hidden z-50 bg-softphone-primary text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg">
+          <Phone className="h-6 w-6" />
+        </DrawerTrigger>
+        <DrawerContent className="p-4">
+          <Dialpad />
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
