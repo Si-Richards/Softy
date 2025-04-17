@@ -2,12 +2,13 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Phone, X, Mic, MicOff } from "lucide-react";
+import { Phone, X, Mic, MicOff, Video } from "lucide-react";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
   const [muted, setMuted] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
 
   const dialpadButtons = [
     "1", "2", "3",
@@ -32,6 +33,7 @@ const Dialpad = () => {
     if (isCallActive) {
       // End call logic would go here
       setIsCallActive(false);
+      setIsVideoEnabled(false);
     } else if (number) {
       // Start call logic would go here
       setIsCallActive(true);
@@ -40,6 +42,10 @@ const Dialpad = () => {
 
   const toggleMute = () => {
     setMuted(!muted);
+  };
+
+  const toggleVideo = () => {
+    setIsVideoEnabled(!isVideoEnabled);
   };
 
   return (
@@ -88,13 +94,40 @@ const Dialpad = () => {
         </Button>
         
         {isCallActive && (
+          <>
+            <Button
+              size="lg"
+              variant={muted ? "destructive" : "outline"}
+              className="rounded-full w-16 h-16"
+              onClick={toggleMute}
+            >
+              {muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+            </Button>
+            
+            <Button
+              size="lg"
+              variant={isVideoEnabled ? "default" : "outline"}
+              className={`rounded-full w-16 h-16 ${isVideoEnabled ? "bg-softphone-accent" : ""}`}
+              onClick={toggleVideo}
+            >
+              <Video className="h-6 w-6" />
+            </Button>
+          </>
+        )}
+        
+        {!isCallActive && (
           <Button
             size="lg"
-            variant={muted ? "destructive" : "outline"}
-            className="rounded-full w-16 h-16"
-            onClick={toggleMute}
+            variant="outline"
+            className="rounded-full w-16 h-16 border-softphone-accent text-softphone-accent hover:bg-softphone-accent hover:text-white"
+            onClick={() => {
+              if (number) {
+                setIsCallActive(true);
+                setIsVideoEnabled(true);
+              }
+            }}
           >
-            {muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+            <Video className="h-6 w-6" />
           </Button>
         )}
       </div>

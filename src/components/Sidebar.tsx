@@ -2,7 +2,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Phone, Clock, Users, Settings, Volume2 } from "lucide-react";
+import { Phone, Clock, Users, Settings, Volume2, Video, MessageSquare } from "lucide-react";
 
 interface SidebarProps {
   activeTab: string;
@@ -14,6 +14,7 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     { id: "dialpad", label: "Dialpad", icon: <Phone className="w-5 h-5" /> },
     { id: "history", label: "Call History", icon: <Clock className="w-5 h-5" /> },
     { id: "contacts", label: "Contacts", icon: <Users className="w-5 h-5" /> },
+    { id: "messages", label: "Messages", icon: <MessageSquare className="w-5 h-5" /> },
     { id: "audio", label: "Audio", icon: <Volume2 className="w-5 h-5" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
   ];

@@ -2,9 +2,10 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Phone, Video } from "lucide-react";
 
 type CallStatusProps = {
-  status: "idle" | "connecting" | "ringing" | "active" | "on-hold" | "ended" | "failed";
+  status: "idle" | "connecting" | "ringing" | "active" | "video-active" | "on-hold" | "ended" | "failed";
   duration?: string;
 };
 
@@ -12,6 +13,7 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
   const getStatusColor = () => {
     switch (status) {
       case "active":
+      case "video-active":
         return "bg-softphone-success text-white";
       case "connecting":
       case "ringing":
@@ -36,7 +38,9 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
       case "ringing":
         return "Ringing...";
       case "active":
-        return "In Call";
+        return "Voice Call";
+      case "video-active":
+        return "Video Call";
       case "on-hold":
         return "On Hold";
       case "ended":
@@ -48,12 +52,22 @@ const CallStatus = ({ status, duration }: CallStatusProps) => {
     }
   };
 
+  const getStatusIcon = () => {
+    if (status === "video-active") {
+      return <Video className="w-4 h-4 mr-1" />;
+    } else if (["active", "connecting", "ringing", "on-hold"].includes(status)) {
+      return <Phone className="w-4 h-4 mr-1" />;
+    }
+    return null;
+  };
+
   return (
     <div className="flex items-center space-x-2">
-      <Badge className={cn("py-1 px-3", getStatusColor())}>
+      <Badge className={cn("py-1 px-3 flex items-center", getStatusColor())}>
+        {getStatusIcon()}
         {getStatusText()}
       </Badge>
-      {duration && status === "active" && (
+      {duration && (status === "active" || status === "video-active") && (
         <span className="text-sm font-medium text-gray-600">{duration}</span>
       )}
     </div>

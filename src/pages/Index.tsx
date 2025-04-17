@@ -7,6 +7,7 @@ import Contacts from "@/components/Contacts";
 import AudioSettings from "@/components/AudioSettings";
 import SIPConfig from "@/components/SIPConfig";
 import CallStatus from "@/components/CallStatus";
+import Messages from "@/components/Messages";
 import { cn } from "@/lib/utils";
 
 const Index = () => {
@@ -21,6 +22,8 @@ const Index = () => {
         return <CallHistory />;
       case "contacts":
         return <Contacts />;
+      case "messages":
+        return <Messages />;
       case "audio":
         return <AudioSettings />;
       case "settings":
