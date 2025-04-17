@@ -32,6 +32,15 @@ export default {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
+                softphone: {
+                    primary: '#2563eb', // Royal blue
+                    secondary: '#f8fafc', // Light background
+                    accent: '#0ea5e9', // Bright blue highlights
+                    success: '#10b981', // Green for active calls
+                    error: '#ef4444', // Red for hangup/errors
+                    muted: '#94a3b8', // Subtle gray
+                    dark: '#1e293b', // Dark text
+                },
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
 					foreground: 'hsl(var(--destructive-foreground))'
