@@ -41,6 +41,27 @@ const callTypeData = [
 
 const pieColors = ["#2563eb", "#0ea5e9", "#ef4444", "#f59e0b"];
 
+const chartConfig = {
+  calls: { 
+    theme: {
+      light: '#2563eb',
+      dark: '#3b82f6'
+    }
+  },
+  incoming: {
+    color: '#2563eb'
+  },
+  outgoing: {
+    color: '#0ea5e9'
+  },
+  missed: {
+    color: '#ef4444'
+  },
+  voicemail: {
+    color: '#f59e0b'
+  }
+};
+
 const Statistics = () => {
   const [timeRange, setTimeRange] = useState("daily");
   const [chartData, setChartData] = useState(mockCallData.daily);
@@ -109,14 +130,7 @@ const Statistics = () => {
           <CardContent className="pt-2">
             <ChartContainer 
               className="h-[300px]"
-              config={{
-                calls: { 
-                  theme: {
-                    light: '#2563eb',
-                    dark: '#3b82f6'
-                  }
-                }
-              }}
+              config={chartConfig}
             >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -140,7 +154,7 @@ const Statistics = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer className="h-[300px]">
+            <ChartContainer className="h-[300px]" config={chartConfig}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
