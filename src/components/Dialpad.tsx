@@ -1,8 +1,8 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Phone, X, Mic, MicOff, Video } from "lucide-react";
+import { Phone, X, Mic, MicOff, Video, Voicemail } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -31,11 +31,9 @@ const Dialpad = () => {
 
   const handleCall = () => {
     if (isCallActive) {
-      // End call logic would go here
       setIsCallActive(false);
       setIsVideoEnabled(false);
     } else if (number) {
-      // Start call logic would go here
       setIsCallActive(true);
     }
   };
@@ -46,6 +44,18 @@ const Dialpad = () => {
 
   const toggleVideo = () => {
     setIsVideoEnabled(!isVideoEnabled);
+  };
+
+  const { toast } = useToast();
+  const voicemailNumber = "*97";
+
+  const callVoicemail = () => {
+    setNumber(voicemailNumber);
+    setIsCallActive(true);
+    toast({
+      title: "Calling voicemail",
+      description: "Connecting to voicemail service...",
+    });
   };
 
   return (
@@ -93,7 +103,7 @@ const Dialpad = () => {
           <Phone className={`h-6 w-6 ${isCallActive ? "rotate-135" : ""}`} />
         </Button>
         
-        {isCallActive && (
+        {isCallActive ? (
           <>
             <Button
               size="lg"
@@ -113,22 +123,31 @@ const Dialpad = () => {
               <Video className="h-6 w-6" />
             </Button>
           </>
-        )}
-        
-        {!isCallActive && (
-          <Button
-            size="lg"
-            variant="outline"
-            className="rounded-full w-16 h-16 border-softphone-accent text-softphone-accent hover:bg-softphone-accent hover:text-white"
-            onClick={() => {
-              if (number) {
-                setIsCallActive(true);
-                setIsVideoEnabled(true);
-              }
-            }}
-          >
-            <Video className="h-6 w-6" />
-          </Button>
+        ) : (
+          <>
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full w-16 h-16"
+              onClick={callVoicemail}
+            >
+              <Voicemail className="h-6 w-6" />
+            </Button>
+            
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full w-16 h-16 border-softphone-accent text-softphone-accent hover:bg-softphone-accent hover:text-white"
+              onClick={() => {
+                if (number) {
+                  setIsCallActive(true);
+                  setIsVideoEnabled(true);
+                }
+              }}
+            >
+              <Video className="h-6 w-6" />
+            </Button>
+          </>
         )}
       </div>
     </div>
