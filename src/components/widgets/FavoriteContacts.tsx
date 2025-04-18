@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Phone, MessageSquare } from "lucide-react";
-import { mockContacts } from "../Contacts";
+import { mockContacts } from "../Contacts";  // Ensure this import is correct
 
 const FavoriteContacts = () => {
   const favoriteContacts = mockContacts.filter(contact => contact.favorite);

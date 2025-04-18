@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 type PresenceStatus = "available" | "away" | "busy" | "offline";
 
-interface Contact {
+export interface Contact {
   id: number;
   name: string;
   number: string;
@@ -20,6 +20,7 @@ interface Contact {
   countryCode?: string;
 }
 
+// Now explicitly exporting mockContacts
 export const mockContacts = [
   { 
     id: 1, 
@@ -239,3 +240,4 @@ const Contacts = () => {
 };
 
 export default Contacts;
+
