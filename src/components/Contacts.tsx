@@ -1,98 +1,15 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Phone, UserPlus, MessageSquare, Video, BellOff, Star } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-type PresenceStatus = "available" | "away" | "busy" | "offline";
-
-export interface Contact {
-  id: number;
-  name: string;
-  number: string;
-  favorite: boolean;
-  avatar: string | null;
-  presence: PresenceStatus;
-  countryCode?: string;
-}
-
-// Now explicitly exporting mockContacts
-export const mockContacts = [
-  { 
-    id: 1, 
-    name: "John Doe", 
-    number: "+1 (555) 123-4567", 
-    favorite: true,
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "available" as PresenceStatus,
-    countryCode: "US"
-  },
-  { 
-    id: 2, 
-    name: "Alice Smith", 
-    number: "+44 (555) 987-6543", 
-    favorite: true,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "busy" as PresenceStatus,
-    countryCode: "GB"
-  },
-  { 
-    id: 3, 
-    name: "Bob Johnson", 
-    number: "+1 (555) 456-7890", 
-    favorite: false,
-    avatar: null,
-    presence: "away" as PresenceStatus
-  },
-  { 
-    id: 4, 
-    name: "Carol Williams", 
-    number: "+1 (555) 567-8901", 
-    favorite: false,
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "available" as PresenceStatus
-  },
-  { 
-    id: 5, 
-    name: "David Brown", 
-    number: "+1 (555) 678-9012", 
-    favorite: false,
-    avatar: null,
-    presence: "offline" as PresenceStatus
-  },
-  { 
-    id: 6, 
-    name: "Emma Davis", 
-    number: "+1 (555) 789-0123", 
-    favorite: false,
-    avatar: "https://images.unsplash.com/photo-1629467057571-42d22d8f0cbd?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "available" as PresenceStatus
-  },
-  { 
-    id: 7, 
-    name: "Frank Miller", 
-    number: "+1 (555) 890-1234", 
-    favorite: false,
-    avatar: null,
-    presence: "busy" as PresenceStatus
-  },
-  { 
-    id: 8, 
-    name: "Grace Wilson", 
-    number: "+1 (555) 901-2345", 
-    favorite: false,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "away" as PresenceStatus
-  },
-].sort((a, b) => a.name.localeCompare(b.name));
+import { UserPlus } from "lucide-react";
+import ContactSearchBar from "./contacts/ContactSearchBar";
+import ContactItem from "./contacts/ContactItem";
+import { mockContacts } from "@/data/mockContacts";
+import { Contact } from "@/types/contacts";
 
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [contacts, setContacts] = useState(mockContacts);
+  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
   
   const toggleFavorite = (contactId: number) => {
     setContacts(contacts.map(contact => 
@@ -107,44 +24,6 @@ const Contacts = () => {
     contact.number.includes(searchTerm)
   );
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
-
-  const getPresenceColor = (presence: PresenceStatus) => {
-    switch (presence) {
-      case "available":
-        return "bg-softphone-success";
-      case "busy":
-        return "bg-softphone-error";
-      case "away":
-        return "bg-yellow-500";
-      case "offline":
-        return "bg-gray-400";
-      default:
-        return "bg-gray-400";
-    }
-  };
-
-  const getPresenceLabel = (presence: PresenceStatus) => {
-    switch (presence) {
-      case "available":
-        return "Available";
-      case "busy":
-        return "Busy";
-      case "away":
-        return "Away";
-      case "offline":
-        return "Offline";
-      default:
-        return "Unknown";
-    }
-  };
-
   return (
     <div className="w-full p-4">
       <div className="flex justify-between items-center mb-4">
@@ -155,78 +34,18 @@ const Contacts = () => {
         </Button>
       </div>
       
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-        <Input 
-          placeholder="Search contacts..." 
-          className="pl-10"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <ContactSearchBar 
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
       
       <div className="space-y-2">
-        {filteredContacts.map(contact => (
-          <div 
+        {filteredContacts.map((contact) => (
+          <ContactItem
             key={contact.id}
-            className="flex items-center p-3 rounded-lg hover:bg-gray-100"
-          >
-            <div className="relative">
-              <Avatar className="h-12 w-12 mr-3">
-                {contact.avatar ? (
-                  <AvatarImage src={contact.avatar} alt={contact.name} />
-                ) : (
-                  <AvatarFallback className="bg-softphone-accent text-white">
-                    {getInitials(contact.name)}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className={cn(
-                      "absolute bottom-0 right-1 w-3 h-3 rounded-full border-2 border-white",
-                      getPresenceColor(contact.presence)
-                    )}></div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {getPresenceLabel(contact.presence)}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
-            <div className="flex-1">
-              <div className="font-medium">{contact.name}</div>
-              <div className="text-sm text-gray-500">
-                <span className="mr-2">{contact.countryCode}</span>
-                {contact.number}
-              </div>
-            </div>
-            
-            <div className="flex space-x-1">
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                onClick={() => toggleFavorite(contact.id)}
-                className={cn(
-                  "text-gray-400 hover:text-yellow-500",
-                  contact.favorite && "text-yellow-500"
-                )}
-              >
-                <Star className={cn("h-4 w-4", contact.favorite && "fill-current")} />
-              </Button>
-              <Button size="icon" variant="ghost" className="text-softphone-success">
-                <Phone className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" className="text-softphone-accent">
-                <Video className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" className="text-softphone-primary">
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            contact={contact}
+            onToggleFavorite={toggleFavorite}
+          />
         ))}
         
         {filteredContacts.length === 0 && (
@@ -240,4 +59,3 @@ const Contacts = () => {
 };
 
 export default Contacts;
-

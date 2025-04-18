@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Phone, MessageSquare } from "lucide-react";
-import { mockContacts } from "../Contacts";  // Ensure this import is correct
+import { mockContacts } from "@/data/mockContacts";  // Updated import path
 
 const FavoriteContacts = () => {
   const favoriteContacts = mockContacts.filter(contact => contact.favorite);
