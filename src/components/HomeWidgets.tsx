@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Phone, Clock, Users, MessageSquare, Voicemail, ChartBar, Plus, X, GripHorizontal } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Dialpad from "@/components/Dialpad";
 
 interface HomeWidgetsProps {
@@ -27,7 +28,7 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
     { id: "call-stats", title: "Call Statistics", type: "statistics", icon: <ChartBar className="h-5 w-5" />, size: "small" },
   ]);
 
-  const availableWidgets = [
+  const availableWidgets: Widget[] = [
     { id: "recent-calls", title: "Recent Calls", type: "history", icon: <Clock className="h-5 w-5" />, size: "medium" },
     { id: "quick-contacts", title: "Quick Contacts", type: "contacts", icon: <Users className="h-5 w-5" />, size: "medium" },
     { id: "recent-messages", title: "Recent Messages", type: "messages", icon: <MessageSquare className="h-5 w-5" />, size: "small" },
@@ -57,10 +58,17 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
         <div className="flex space-x-2">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center gap-1">
-                <Plus className="h-4 w-4" />
-                Add Widget
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-1">
+                      <Plus className="h-4 w-4" />
+                      Add Widget
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Add a new widget to your dashboard</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </SheetTrigger>
             <SheetContent side="right">
               <h3 className="text-lg font-medium mb-4">Available Widgets</h3>
@@ -83,17 +91,24 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
             </SheetContent>
           </Sheet>
           
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button className="bg-softphone-primary">
-                <Phone className="h-4 w-4 mr-2" />
-                Dialpad
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0">
-              <Dialpad />
-            </PopoverContent>
-          </Popover>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button className="bg-softphone-primary">
+                      <Phone className="h-4 w-4 mr-2" />
+                      Dialpad
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0">
+                    <Dialpad />
+                  </PopoverContent>
+                </Popover>
+              </TooltipTrigger>
+              <TooltipContent>Open dialpad</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
       
@@ -114,35 +129,57 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
                   <CardTitle className="text-base">{widget.title}</CardTitle>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0" 
-                    onClick={() => handleWidgetClick(widget.type)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0 text-gray-500" 
-                    onClick={() => removeWidget(widget.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={() => handleWidgetClick(widget.type)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open {widget.title} page</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-gray-500" 
+                          onClick={() => removeWidget(widget.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remove widget</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
               <CardDescription>Quick access to {widget.title.toLowerCase()}</CardDescription>
             </CardHeader>
             <CardContent className="min-h-[100px] flex items-center justify-center">
-              <Button 
-                variant="outline" 
-                className="text-softphone-primary border-softphone-accent/50"
-                onClick={() => handleWidgetClick(widget.type)}
-              >
-                {widget.icon}
-                <span className="ml-2">Open {widget.title}</span>
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="text-softphone-primary border-softphone-accent/50"
+                      onClick={() => handleWidgetClick(widget.type)}
+                    >
+                      {widget.icon}
+                      <span className="ml-2">Open {widget.title}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Open {widget.title} page</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardContent>
           </Card>
         ))}
@@ -159,49 +196,63 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
               Your dashboard is empty. Click "Add Widget" to customize your home page with the information you need.
             </p>
           </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Widget
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <h3 className="text-lg font-medium mb-4">Available Widgets</h3>
-              <div className="grid gap-4">
-                {availableWidgets.map((widget) => (
-                  <Button
-                    key={widget.type}
-                    variant="outline"
-                    className="justify-start"
-                    onClick={() => {
-                      addWidget(widget.type);
-                    }}
-                  >
-                    {widget.icon}
-                    <span className="ml-2">{widget.title}</span>
-                  </Button>
-                ))}
-              </div>
-            </SheetContent>
-          </Sheet>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Widget
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right">
+                    <h3 className="text-lg font-medium mb-4">Available Widgets</h3>
+                    <div className="grid gap-4">
+                      {availableWidgets.map((widget) => (
+                        <Button
+                          key={widget.type}
+                          variant="outline"
+                          className="justify-start"
+                          onClick={() => {
+                            addWidget(widget.type);
+                          }}
+                        >
+                          {widget.icon}
+                          <span className="ml-2">{widget.title}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </TooltipTrigger>
+              <TooltipContent>Add your first widget to the dashboard</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )}
 
       {/* Global floating dialpad for mobile */}
       <div className="fixed bottom-6 right-6 md:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button size="lg" className="rounded-full h-14 w-14 bg-softphone-primary">
-              <Phone className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-[80%]">
-            <div className="pt-6">
-              <Dialpad />
-            </div>
-          </SheetContent>
-        </Sheet>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button size="lg" className="rounded-full h-14 w-14 bg-softphone-primary">
+                    <Phone className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[80%]">
+                  <div className="pt-6">
+                    <Dialpad />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </TooltipTrigger>
+            <TooltipContent>Open dialpad</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );
