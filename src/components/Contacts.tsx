@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Phone, UserPlus, MessageSquare, Video, BellOff } from "lucide-react";
+import { Search, Phone, UserPlus, MessageSquare, Video, BellOff, Star } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 type PresenceStatus = "available" | "away" | "busy" | "offline";
 
-const mockContacts = [
+export const mockContacts = [
   { 
     id: 1, 
     name: "John Doe", 
