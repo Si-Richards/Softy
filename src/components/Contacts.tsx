@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,16 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type PresenceStatus = "available" | "away" | "busy" | "offline";
+
+interface Contact {
+  id: number;
+  name: string;
+  number: string;
+  favorite: boolean;
+  avatar: string | null;
+  presence: PresenceStatus;
+  countryCode?: string;
+}
 
 export const mockContacts = [
   { 

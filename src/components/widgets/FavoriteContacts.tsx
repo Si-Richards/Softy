@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Phone, MessageSquare, Video } from "lucide-react";
+import { Phone, MessageSquare } from "lucide-react";
 import { mockContacts } from "../Contacts";
 
 const FavoriteContacts = () => {
