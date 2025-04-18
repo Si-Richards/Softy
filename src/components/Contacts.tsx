@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Types for presence status
 type PresenceStatus = "available" | "away" | "busy" | "offline";
 
-// Sample contacts data with avatars and presence status
 const mockContacts = [
   { 
     id: 1, 
@@ -19,15 +16,17 @@ const mockContacts = [
     number: "+1 (555) 123-4567", 
     favorite: true,
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "available" as PresenceStatus
+    presence: "available" as PresenceStatus,
+    countryCode: "US"
   },
   { 
     id: 2, 
     name: "Alice Smith", 
-    number: "+1 (555) 987-6543", 
+    number: "+44 (555) 987-6543", 
     favorite: true,
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120&h=120",
-    presence: "busy" as PresenceStatus
+    presence: "busy" as PresenceStatus,
+    countryCode: "GB"
   },
   { 
     id: 3, 
@@ -81,8 +80,17 @@ const mockContacts = [
 
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [contacts, setContacts] = useState(mockContacts);
   
-  const filteredContacts = mockContacts.filter(contact => 
+  const toggleFavorite = (contactId: number) => {
+    setContacts(contacts.map(contact => 
+      contact.id === contactId 
+        ? { ...contact, favorite: !contact.favorite }
+        : contact
+    ));
+  };
+  
+  const filteredContacts = contacts.filter(contact => 
     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.number.includes(searchTerm)
   );
@@ -178,10 +186,24 @@ const Contacts = () => {
             
             <div className="flex-1">
               <div className="font-medium">{contact.name}</div>
-              <div className="text-sm text-gray-500">{contact.number}</div>
+              <div className="text-sm text-gray-500">
+                <span className="mr-2">{contact.countryCode}</span>
+                {contact.number}
+              </div>
             </div>
             
             <div className="flex space-x-1">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={() => toggleFavorite(contact.id)}
+                className={cn(
+                  "text-gray-400 hover:text-yellow-500",
+                  contact.favorite && "text-yellow-500"
+                )}
+              >
+                <Star className={cn("h-4 w-4", contact.favorite && "fill-current")} />
+              </Button>
               <Button size="icon" variant="ghost" className="text-softphone-success">
                 <Phone className="h-4 w-4" />
               </Button>

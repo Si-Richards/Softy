@@ -12,15 +12,21 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
-  // Mock unread voicemail count - in a real app this would come from your state management
+  // Mock unread counts - in a real app these would come from your state management
   const unreadVoicemails = 3;
+  const unreadMessages = 5;
 
   const tabs = [
     { id: "home", label: "Home", icon: <Home className="w-5 h-5" /> },
     { id: "dialpad", label: "Dialpad", icon: <Phone className="w-5 h-5" /> },
     { id: "history", label: "Call History", icon: <Clock className="w-5 h-5" /> },
     { id: "contacts", label: "Contacts", icon: <Users className="w-5 h-5" /> },
-    { id: "messages", label: "Messages", icon: <MessageSquare className="w-5 h-5" /> },
+    { 
+      id: "messages", 
+      label: "Messages", 
+      icon: <MessageSquare className="w-5 h-5" />,
+      badge: unreadMessages
+    },
     { 
       id: "voicemail", 
       label: "Voicemail", 

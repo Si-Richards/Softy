@@ -1,4 +1,3 @@
-
 import React from "react";
 import { 
   Table, 
@@ -14,10 +13,28 @@ import {
   PhoneMissed 
 } from "lucide-react";
 
-// Sample call history data
+// Updated mock call history with country codes
 const mockCallHistory = [
-  { id: 1, number: "+1 (555) 123-4567", name: "John Doe", time: "10:30 AM", duration: "2:34", type: "incoming", status: "completed" },
-  { id: 2, number: "+1 (555) 987-6543", name: "Alice Smith", time: "Yesterday", duration: "0:45", type: "outgoing", status: "completed" },
+  { 
+    id: 1, 
+    number: "+1 (555) 123-4567", 
+    name: "John Doe", 
+    time: "10:30 AM", 
+    duration: "2:34", 
+    type: "incoming", 
+    status: "completed",
+    countryCode: "US"
+  },
+  { 
+    id: 2, 
+    number: "+44 (555) 987-6543", 
+    name: "Alice Smith", 
+    time: "Yesterday", 
+    duration: "0:45", 
+    type: "outgoing", 
+    status: "completed",
+    countryCode: "GB"
+  },
   { id: 3, number: "+1 (555) 456-7890", name: "Bob Johnson", time: "Yesterday", duration: "-", type: "missed", status: "missed" },
   { id: 4, number: "+1 (555) 567-8901", name: "Carol Williams", time: "2 days ago", duration: "5:12", type: "incoming", status: "completed" },
   { id: 5, number: "+1 (555) 678-9012", name: "David Brown", time: "3 days ago", duration: "1:03", type: "outgoing", status: "completed" },
@@ -56,7 +73,10 @@ const CallHistory = () => {
                 </TableCell>
                 <TableCell>
                   <div className="font-medium">{call.name}</div>
-                  <div className="text-sm text-gray-500">{call.number}</div>
+                  <div className="text-sm text-gray-500">
+                    <span className="mr-2">{call.countryCode}</span>
+                    {call.number}
+                  </div>
                 </TableCell>
                 <TableCell>{call.time}</TableCell>
                 <TableCell>{call.duration}</TableCell>

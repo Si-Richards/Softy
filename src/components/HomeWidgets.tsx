@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Dialpad from "@/components/Dialpad";
+import FavoriteContacts from "./widgets/FavoriteContacts";
 
 interface HomeWidgetsProps {
   setActiveTab: (tab: string) => void;
@@ -34,6 +34,13 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
     { id: "recent-messages", title: "Recent Messages", type: "messages", icon: <MessageSquare className="h-5 w-5" />, size: "small" },
     { id: "call-stats", title: "Call Statistics", type: "statistics", icon: <ChartBar className="h-5 w-5" />, size: "small" },
     { id: "voicemail", title: "Voicemail", type: "voicemail", icon: <Voicemail className="h-5 w-5" />, size: "small" },
+    { 
+      id: "favorite-contacts", 
+      title: "Favorite Contacts", 
+      type: "favorite-contacts", 
+      icon: <Users className="h-5 w-5" />, 
+      size: "medium" 
+    },
   ];
 
   const addWidget = (widgetType: string) => {
@@ -49,6 +56,33 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
 
   const handleWidgetClick = (type: string) => {
     setActiveTab(type);
+  };
+
+  const renderWidget = (widget: Widget) => {
+    switch (widget.type) {
+      case "favorite-contacts":
+        return <FavoriteContacts />;
+      default:
+        return (
+          <CardContent className="min-h-[100px] flex items-center justify-center">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="text-softphone-primary border-softphone-accent/50"
+                    onClick={() => handleWidgetClick(widget.type)}
+                  >
+                    {widget.icon}
+                    <span className="ml-2">Open {widget.title}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Open {widget.title} page</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardContent>
+        );
+    }
   };
 
   return (
@@ -164,23 +198,7 @@ const HomeWidgets = ({ setActiveTab }: HomeWidgetsProps) => {
               </div>
               <CardDescription>Quick access to {widget.title.toLowerCase()}</CardDescription>
             </CardHeader>
-            <CardContent className="min-h-[100px] flex items-center justify-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      className="text-softphone-primary border-softphone-accent/50"
-                      onClick={() => handleWidgetClick(widget.type)}
-                    >
-                      {widget.icon}
-                      <span className="ml-2">Open {widget.title}</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Open {widget.title} page</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </CardContent>
+            {renderWidget(widget)}
           </Card>
         ))}
       </div>
