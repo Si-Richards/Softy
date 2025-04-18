@@ -1,10 +1,10 @@
-
 import React, { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const mockCallData = {
   daily: [
@@ -71,7 +71,6 @@ const Statistics = () => {
     setChartData(mockCallData[value as keyof typeof mockCallData]);
   };
 
-  // Mock statistics data
   const stats = [
     { title: "Total Calls", value: "352", changePercent: "+12%" },
     { title: "Avg. Call Duration", value: "4m 23s", changePercent: "-2%" },
@@ -84,21 +83,35 @@ const Statistics = () => {
       <div className="mb-6 flex justify-between items-center">
         <h2 className="text-xl font-semibold">Call Statistics</h2>
         <div className="flex items-center gap-4">
-          <Select value={timeRange} onValueChange={handleTimeRangeChange}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Select timeframe" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm">Export Data</Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Select timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TooltipTrigger>
+              <TooltipContent>Select time range for statistics</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm">Export Data</Button>
+              </TooltipTrigger>
+              <TooltipContent>Export statistics data</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map((stat, index) => (
           <Card key={index}>
@@ -117,9 +130,7 @@ const Statistics = () => {
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bar Chart */}
         <Card>
           <CardHeader>
             <CardTitle>Call Volume</CardTitle>
@@ -129,11 +140,14 @@ const Statistics = () => {
           </CardHeader>
           <CardContent className="pt-2">
             <ChartContainer 
-              className="h-[300px]"
+              className="h-[350px] w-full"
               config={chartConfig}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <BarChart 
+                  data={chartData} 
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -145,7 +159,6 @@ const Statistics = () => {
           </CardContent>
         </Card>
 
-        {/* Pie Chart */}
         <Card>
           <CardHeader>
             <CardTitle>Call Types</CardTitle>

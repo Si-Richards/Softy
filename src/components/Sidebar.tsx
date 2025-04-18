@@ -1,7 +1,7 @@
-
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Home, Phone, Clock, Users, Settings, Volume2, Video, MessageSquare, ChartBar, Voicemail } from "lucide-react";
 
 interface SidebarProps {
@@ -24,22 +24,30 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
 
   return (
     <div className="h-full w-20 bg-softphone-dark flex flex-col items-center py-6 border-r border-gray-700">
-      {tabs.map((tab) => (
-        <Button
-          key={tab.id}
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "w-12 h-12 mb-4 rounded-xl flex flex-col justify-center items-center",
-            activeTab === tab.id
-              ? "bg-softphone-primary text-white"
-              : "text-gray-400 hover:text-white hover:bg-gray-700"
-          )}
-          onClick={() => setActiveTab(tab.id)}
-        >
-          {tab.icon}
-        </Button>
-      ))}
+      <TooltipProvider>
+        {tabs.map((tab) => (
+          <Tooltip key={tab.id}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "w-12 h-12 mb-4 rounded-xl flex flex-col justify-center items-center",
+                  activeTab === tab.id
+                    ? "bg-softphone-primary text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-700"
+                )}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {tab.label}
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </TooltipProvider>
     </div>
   );
 };
