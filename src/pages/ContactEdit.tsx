@@ -33,7 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 const phoneSchema = z.object({
-  id: z.number().optional(),
+  id: z.number(),
   type: z.string() as z.ZodType<PhoneType>,
   number: z.string().min(1, "Phone number is required"),
   countryCode: z.string().optional(),
@@ -96,7 +96,13 @@ const ContactEdit = () => {
         setValue("favorite", contact.favorite);
 
         if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-          setValue("phoneNumbers", contact.phoneNumbers);
+          const validPhoneNumbers = contact.phoneNumbers.map(phone => ({
+            ...phone,
+            id: phone.id,
+            type: phone.type,
+            number: phone.number
+          }));
+          setValue("phoneNumbers", validPhoneNumbers);
           const maxId = Math.max(...contact.phoneNumbers.map(p => p.id));
           setNextPhoneId(maxId + 1);
         } else {
@@ -127,11 +133,19 @@ const ContactEdit = () => {
       const currentContact = contacts.find(c => c.id === Number(id));
       if (!currentContact) return;
       
+      const phoneNumbersToSave: PhoneNumber[] = data.phoneNumbers.map(phone => ({
+        id: phone.id,
+        type: phone.type,
+        number: phone.number,
+        countryCode: phone.countryCode,
+        isPrimary: phone.isPrimary
+      }));
+      
       await updateContact({
         id: Number(id),
         name: data.name,
         favorite: data.favorite,
-        phoneNumbers: data.phoneNumbers,
+        phoneNumbers: phoneNumbersToSave,
         number: data.phoneNumbers.find(p => p.isPrimary)?.number || data.phoneNumbers[0].number,
         countryCode: data.phoneNumbers.find(p => p.isPrimary)?.countryCode || data.phoneNumbers[0].countryCode,
         presence: currentContact.presence,
