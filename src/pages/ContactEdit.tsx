@@ -1,57 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Form } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
-import { Contact, PhoneNumber, PhoneType } from "@/types/contacts";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-
-const phoneSchema = z.object({
-  id: z.number(),
-  type: z.string() as z.ZodType<PhoneType>,
-  number: z.string().min(1, "Phone number is required"),
-  countryCode: z.string().optional(),
-  isPrimary: z.boolean().optional(),
-});
-
-const contactSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  avatar: z.string().optional().nullable(),
-  company: z.string().optional().or(z.literal("")),
-  jobTitle: z.string().optional().or(z.literal("")),
-  notes: z.string().optional().or(z.literal("")),
-  favorite: z.boolean(),
-  phoneNumbers: z.array(phoneSchema).min(1, "At least one phone number is required"),
-});
-
-type FormValues = z.infer<typeof contactSchema>;
+import { PhoneNumberList } from "@/components/contacts/PhoneNumberList";
+import { ContactDetailsFields } from "@/components/contacts/ContactDetailsFields";
+import { contactSchema, FormValues } from "@/components/contacts/ContactEditForm";
 
 const ContactEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -133,7 +96,7 @@ const ContactEdit = () => {
       const currentContact = contacts.find(c => c.id === Number(id));
       if (!currentContact) return;
       
-      const phoneNumbersToSave: PhoneNumber[] = data.phoneNumbers.map(phone => ({
+      const phoneNumbersToSave = data.phoneNumbers.map(phone => ({
         id: phone.id,
         type: phone.type,
         number: phone.number,
@@ -165,19 +128,16 @@ const ContactEdit = () => {
   };
 
   const addPhoneNumber = () => {
-    const currentPhoneNumbers = form.getValues("phoneNumbers");
     setValue("phoneNumbers", [
-      ...currentPhoneNumbers,
+      ...phoneNumbers,
       { id: nextPhoneId, type: "mobile", number: "", countryCode: "+1", isPrimary: false },
     ]);
     setNextPhoneId(nextPhoneId + 1);
   };
 
   const removePhoneNumber = (index: number) => {
-    const currentPhoneNumbers = form.getValues("phoneNumbers");
-    const isRemovingPrimary = currentPhoneNumbers[index].isPrimary;
-    
-    const newPhoneNumbers = currentPhoneNumbers.filter((_, i) => i !== index);
+    const isRemovingPrimary = phoneNumbers[index].isPrimary;
+    const newPhoneNumbers = phoneNumbers.filter((_, i) => i !== index);
     
     if (isRemovingPrimary && newPhoneNumbers.length > 0) {
       newPhoneNumbers[0].isPrimary = true;
@@ -187,11 +147,11 @@ const ContactEdit = () => {
   };
 
   const setPrimaryPhoneNumber = (index: number) => {
-    const currentPhoneNumbers = [...form.getValues("phoneNumbers")];
-    currentPhoneNumbers.forEach((phone, i) => {
+    const current = [...phoneNumbers];
+    current.forEach((phone, i) => {
       phone.isPrimary = i === index;
     });
-    setValue("phoneNumbers", currentPhoneNumbers);
+    setValue("phoneNumbers", current);
   };
 
   if (isLoading) {
@@ -261,201 +221,17 @@ const ContactEdit = () => {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="john@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex items-center space-x-2">
-                <FormField
-                  control={form.control}
-                  name="favorite"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">Add to favorites</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Separator />
-              
-              <div>
-                <h3 className="text-lg font-medium mb-2">Phone Numbers</h3>
-                <div className="space-y-3">
-                  {phoneNumbers.map((phone, index) => (
-                    <div key={phone.id} className="flex items-center space-x-2">
-                      <div className="flex-grow grid gap-2 grid-cols-12">
-                        <div className="col-span-3">
-                          <Select
-                            value={phone.type}
-                            onValueChange={(value) => {
-                              const current = [...phoneNumbers];
-                              current[index].type = value as PhoneType;
-                              setValue("phoneNumbers", current);
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="mobile">Mobile</SelectItem>
-                              <SelectItem value="work">Work</SelectItem>
-                              <SelectItem value="home">Home</SelectItem>
-                              <SelectItem value="fax">Fax</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="col-span-2">
-                          <Input
-                            value={phone.countryCode || ""}
-                            onChange={(e) => {
-                              const current = [...phoneNumbers];
-                              current[index].countryCode = e.target.value;
-                              setValue("phoneNumbers", current);
-                            }}
-                            placeholder="+1"
-                          />
-                        </div>
-                        
-                        <div className="col-span-5">
-                          <Input
-                            value={phone.number}
-                            onChange={(e) => {
-                              const current = [...phoneNumbers];
-                              current[index].number = e.target.value;
-                              setValue("phoneNumbers", current);
-                            }}
-                            placeholder="Phone number"
-                          />
-                        </div>
-                        
-                        <div className="col-span-2 flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant={phone.isPrimary ? "default" : "outline"}
-                            className="w-full h-9 text-xs"
-                            onClick={() => setPrimaryPhoneNumber(index)}
-                            disabled={phone.isPrimary}
-                          >
-                            Primary
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removePhoneNumber(index)}
-                        disabled={phoneNumbers.length <= 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  {phoneNumbers.length < 5 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addPhoneNumber}
-                      className="mt-2"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Number
-                    </Button>
-                  )}
-                </div>
-                {form.formState.errors.phoneNumbers && (
-                  <p className="text-sm font-medium text-destructive mt-1">
-                    {form.formState.errors.phoneNumbers.message}
-                  </p>
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="company"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Company" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="jobTitle"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Job Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Job Title" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Add notes about this contact"
-                        className="min-h-24"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <ContactDetailsFields form={form} />
+            
+            <Separator />
+            
+            <PhoneNumberList
+              form={form}
+              phoneNumbers={phoneNumbers}
+              onAddPhoneNumber={addPhoneNumber}
+              onRemovePhoneNumber={removePhoneNumber}
+              onSetPrimaryPhoneNumber={setPrimaryPhoneNumber}
+            />
 
             <CardFooter className="flex justify-between px-0 pb-0">
               <Button variant="outline" type="button" onClick={() => navigate(-1)}>
