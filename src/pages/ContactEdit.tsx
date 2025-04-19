@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
@@ -33,7 +32,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
-// Define form schema
 const phoneSchema = z.object({
   id: z.number().optional(),
   type: z.string() as z.ZodType<PhoneType>,
@@ -77,7 +75,6 @@ const ContactEdit = () => {
   const { watch, setValue } = form;
   const phoneNumbers = watch("phoneNumbers");
 
-  // Generate initials from name
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -86,7 +83,6 @@ const ContactEdit = () => {
       .toUpperCase();
   };
 
-  // Populate form with contact data
   useEffect(() => {
     if (!isLoading && id && contacts.length > 0) {
       const contact = contacts.find(c => c.id === Number(id));
@@ -99,14 +95,11 @@ const ContactEdit = () => {
         setValue("notes", contact.notes || "");
         setValue("favorite", contact.favorite);
 
-        // Setup phone numbers
         if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
           setValue("phoneNumbers", contact.phoneNumbers);
-          // Find the maximum phone ID to set next ID counter
           const maxId = Math.max(...contact.phoneNumbers.map(p => p.id));
           setNextPhoneId(maxId + 1);
         } else {
-          // If no phone numbers found, use the main number
           setValue("phoneNumbers", [
             {
               id: 0,
@@ -126,25 +119,27 @@ const ContactEdit = () => {
     try {
       if (!id) return;
       
-      // Ensure one number is marked as primary
       const hasPrimary = data.phoneNumbers.some(p => p.isPrimary);
       if (!hasPrimary && data.phoneNumbers.length > 0) {
         data.phoneNumbers[0].isPrimary = true;
       }
       
-      // Get current contact to preserve presence status
       const currentContact = contacts.find(c => c.id === Number(id));
       if (!currentContact) return;
       
-      // Update contact
       await updateContact({
         id: Number(id),
-        ...data,
-        // Keep the main number field for backward compatibility
+        name: data.name,
+        favorite: data.favorite,
+        phoneNumbers: data.phoneNumbers,
         number: data.phoneNumbers.find(p => p.isPrimary)?.number || data.phoneNumbers[0].number,
         countryCode: data.phoneNumbers.find(p => p.isPrimary)?.countryCode || data.phoneNumbers[0].countryCode,
-        // Include presence from existing contact to fix the type error
-        presence: currentContact.presence
+        presence: currentContact.presence,
+        email: data.email,
+        avatar: currentContact.avatar,
+        company: data.company,
+        jobTitle: data.jobTitle,
+        notes: data.notes,
       });
       
       toast.success("Contact updated successfully");
@@ -168,10 +163,8 @@ const ContactEdit = () => {
     const currentPhoneNumbers = form.getValues("phoneNumbers");
     const isRemovingPrimary = currentPhoneNumbers[index].isPrimary;
     
-    // Remove the phone number
     const newPhoneNumbers = currentPhoneNumbers.filter((_, i) => i !== index);
     
-    // If we removed the primary number and have other numbers left, set the first one as primary
     if (isRemovingPrimary && newPhoneNumbers.length > 0) {
       newPhoneNumbers[0].isPrimary = true;
     }
