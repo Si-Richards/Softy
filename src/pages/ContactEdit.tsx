@@ -3,17 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
 import { Form } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { PhoneNumberList } from "@/components/contacts/PhoneNumberList";
 import { ContactDetailsFields } from "@/components/contacts/ContactDetailsFields";
+import { ContactEditLoading } from "@/components/contacts/ContactEditLoading";
+import { ContactEditError } from "@/components/contacts/ContactEditError";
 import { contactSchema, FormValues } from "@/components/contacts/ContactEditForm";
 
 const ContactEdit = () => {
@@ -155,46 +154,11 @@ const ContactEdit = () => {
   };
 
   if (isLoading) {
-    return (
-      <Card className="w-full max-w-3xl mx-auto my-8">
-        <CardHeader className="pb-4">
-          <div className="flex items-center space-x-2">
-            <Skeleton className="h-6 w-40" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <ContactEditLoading />;
   }
 
   if (error || !contacts.find(c => c.id === Number(id))) {
-    return (
-      <Card className="w-full max-w-3xl mx-auto my-8">
-        <CardHeader>
-          <CardTitle>Error</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertDescription>
-              Failed to load contact information. The contact may not exist or there was an error loading the data.
-            </AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => navigate(-1)}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Go Back
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <ContactEditError />;
   }
 
   return (
@@ -222,8 +186,6 @@ const ContactEdit = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <ContactDetailsFields form={form} />
-            
-            <Separator />
             
             <PhoneNumberList
               form={form}
