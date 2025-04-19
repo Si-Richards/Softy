@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -19,7 +20,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import HomeWidgets from "@/components/HomeWidgets";
 import QuickDial from "@/components/QuickDial";
 
 type UserPresence = "available" | "away" | "busy" | "offline";
