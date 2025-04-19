@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
@@ -131,6 +132,10 @@ const ContactEdit = () => {
         data.phoneNumbers[0].isPrimary = true;
       }
       
+      // Get current contact to preserve presence status
+      const currentContact = contacts.find(c => c.id === Number(id));
+      if (!currentContact) return;
+      
       // Update contact
       await updateContact({
         id: Number(id),
@@ -138,6 +143,8 @@ const ContactEdit = () => {
         // Keep the main number field for backward compatibility
         number: data.phoneNumbers.find(p => p.isPrimary)?.number || data.phoneNumbers[0].number,
         countryCode: data.phoneNumbers.find(p => p.isPrimary)?.countryCode || data.phoneNumbers[0].countryCode,
+        // Include presence from existing contact to fix the type error
+        presence: currentContact.presence
       });
       
       toast.success("Contact updated successfully");
