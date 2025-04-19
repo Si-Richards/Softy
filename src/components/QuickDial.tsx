@@ -3,12 +3,27 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Phone, MessageSquare, Loader2 } from "lucide-react";
+import { Phone, MessageSquare, Video } from "lucide-react";
 import { useContacts } from "@/hooks/useContacts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
-const FavoriteContacts = () => {
+const QuickDialSkeleton = () => (
+  <div className="flex items-center space-x-4 p-3">
+    <Skeleton className="h-12 w-12 rounded-full" />
+    <div className="flex-1 space-y-2">
+      <Skeleton className="h-4 w-[150px]" />
+      <Skeleton className="h-3 w-[100px]" />
+    </div>
+    <div className="flex space-x-2">
+      <Skeleton className="h-8 w-8 rounded-md" />
+      <Skeleton className="h-8 w-8 rounded-md" />
+    </div>
+  </div>
+);
+
+const QuickDial = () => {
   const { contacts, isLoading, error } = useContacts();
   const favoriteContacts = contacts.filter(contact => contact.favorite);
 
@@ -24,17 +39,11 @@ const FavoriteContacts = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Favorite Contacts</CardTitle>
+          <CardTitle>Quick Dial</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center space-x-4">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-[150px]" />
-                <Skeleton className="h-3 w-[100px]" />
-              </div>
-            </div>
+            <QuickDialSkeleton key={i} />
           ))}
         </CardContent>
       </Card>
@@ -45,12 +54,12 @@ const FavoriteContacts = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Favorite Contacts</CardTitle>
+          <CardTitle>Quick Dial</CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
             <AlertDescription>
-              Failed to load contacts
+              Failed to load contacts. Please try again later.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -61,12 +70,12 @@ const FavoriteContacts = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Favorite Contacts</CardTitle>
+        <CardTitle>Quick Dial</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {favoriteContacts.map((contact) => (
-          <div key={contact.id} className="flex items-center space-x-4">
-            <Avatar className="h-10 w-10">
+          <div key={contact.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50">
+            <Avatar className="h-12 w-12">
               {contact.avatar ? (
                 <AvatarImage src={contact.avatar} alt={contact.name} />
               ) : (
@@ -80,20 +89,34 @@ const FavoriteContacts = () => {
                 {contact.number}
               </div>
             </div>
-            <div className="flex space-x-1">
-              <Button size="icon" variant="ghost" className="text-softphone-success">
+            <div className="flex space-x-2">
+              <Button 
+                size="icon"
+                variant="outline"
+                className="text-softphone-success hover:text-white hover:bg-softphone-success"
+              >
                 <Phone className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" className="text-softphone-primary">
+              <Button
+                size="icon"
+                variant="outline"
+                className="text-softphone-accent hover:text-white hover:bg-softphone-accent"
+              >
+                <Video className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                className="text-softphone-primary hover:text-white hover:bg-softphone-primary"
+              >
                 <MessageSquare className="h-4 w-4" />
               </Button>
             </div>
           </div>
         ))}
-        
         {favoriteContacts.length === 0 && (
-          <div className="text-center py-4 text-gray-500">
-            No favorite contacts yet
+          <div className="text-center py-6 text-gray-500">
+            No favorite contacts available. Mark contacts as favorites to see them here.
           </div>
         )}
       </CardContent>
@@ -101,4 +124,4 @@ const FavoriteContacts = () => {
   );
 };
 
-export default FavoriteContacts;
+export default QuickDial;

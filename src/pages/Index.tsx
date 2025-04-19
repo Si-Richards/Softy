@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -21,6 +20,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import HomeWidgets from "@/components/HomeWidgets";
+import QuickDial from "@/components/QuickDial";
 
 type UserPresence = "available" | "away" | "busy" | "offline";
 
@@ -34,7 +34,7 @@ const Index = () => {
   const renderActiveTab = () => {
     switch (activeTab) {
       case "home":
-        return <HomeWidgets setActiveTab={setActiveTab} />;
+        return <QuickDial />;
       case "dialpad":
         return <Dialpad />;
       case "history":
@@ -52,7 +52,7 @@ const Index = () => {
       case "settings":
         return <SIPConfig />;
       default:
-        return <HomeWidgets setActiveTab={setActiveTab} />;
+        return <QuickDial />;
     }
   };
 
