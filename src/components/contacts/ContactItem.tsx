@@ -1,11 +1,25 @@
-
 import React from "react";
-import { Phone, MessageSquare, Video, Star } from "lucide-react";
+import { Phone, MessageSquare, Video, Star, MoreHorizontal } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Contact } from "@/types/contacts";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Edit, Trash2 } from "lucide-react";
 
 interface ContactItemProps {
   contact: Contact;
@@ -52,63 +66,104 @@ const ContactItem = ({ contact, onToggleFavorite }: ContactItemProps) => {
   };
 
   return (
-    <div className="flex items-center p-3 rounded-lg hover:bg-gray-100">
-      <div className="relative">
-        <Avatar className="h-12 w-12 mr-3">
-          {contact.avatar ? (
-            <AvatarImage src={contact.avatar} alt={contact.name} />
-          ) : (
-            <AvatarFallback className="bg-softphone-accent text-white">
-              {getInitials(contact.name)}
-            </AvatarFallback>
-          )}
-        </Avatar>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className={cn(
-                "absolute bottom-0 right-1 w-3 h-3 rounded-full border-2 border-white",
-                getPresenceColor(contact.presence)
-              )}></div>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {getPresenceLabel(contact.presence)}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-      
-      <div className="flex-1">
-        <div className="font-medium">{contact.name}</div>
-        <div className="text-sm text-gray-500">
-          <span className="mr-2">{contact.countryCode}</span>
-          {contact.number}
+    <ContextMenu>
+      <ContextMenuTrigger>
+        <div className="flex items-center p-3 rounded-lg hover:bg-gray-50">
+          <div className="relative">
+            <Avatar className="h-12 w-12 mr-3">
+              {contact.avatar ? (
+                <AvatarImage src={contact.avatar} alt={contact.name} />
+              ) : (
+                <AvatarFallback className="bg-softphone-accent text-white">
+                  {getInitials(contact.name)}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "absolute bottom-0 right-1 w-3 h-3 rounded-full border-2 border-white",
+                    getPresenceColor(contact.presence)
+                  )}></div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {getPresenceLabel(contact.presence)}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          
+          <div className="flex-1">
+            <div className="font-medium">{contact.name}</div>
+            <div className="text-sm text-gray-500">
+              <span className="mr-2">{contact.countryCode}</span>
+              {contact.number}
+            </div>
+          </div>
+          
+          <div className="flex space-x-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  size="icon" 
+                  variant="ghost"
+                  className="text-gray-400 hover:text-yellow-500"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-white">
+                <DropdownMenuItem onClick={() => onToggleFavorite(contact.id)}>
+                  <Star className={cn("mr-2 h-4 w-4", contact.favorite && "fill-yellow-500")} />
+                  <span>{contact.favorite ? "Remove from Favorites" : "Add to Favorites"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-softphone-success">
+                  <Phone className="mr-2 h-4 w-4" />
+                  <span>Call</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-softphone-accent">
+                  <Video className="mr-2 h-4 w-4" />
+                  <span>Video Call</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-softphone-primary">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <span>Message</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-600">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete Contact</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </div>
-      
-      <div className="flex space-x-1">
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          onClick={() => onToggleFavorite(contact.id)}
-          className={cn(
-            "text-gray-400 hover:text-yellow-500",
-            contact.favorite && "text-yellow-500"
-          )}
-        >
-          <Star className={cn("h-4 w-4", contact.favorite && "fill-current")} />
-        </Button>
-        <Button size="icon" variant="ghost" className="text-softphone-success">
-          <Phone className="h-4 w-4" />
-        </Button>
-        <Button size="icon" variant="ghost" className="text-softphone-accent">
-          <Video className="h-4 w-4" />
-        </Button>
-        <Button size="icon" variant="ghost" className="text-softphone-primary">
-          <MessageSquare className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="bg-white">
+        <ContextMenuItem onClick={() => onToggleFavorite(contact.id)}>
+          <Star className={cn("mr-2 h-4 w-4", contact.favorite && "fill-yellow-500")} />
+          <span>{contact.favorite ? "Remove from Favorites" : "Add to Favorites"}</span>
+        </ContextMenuItem>
+        <ContextMenuItem className="text-softphone-success">
+          <Phone className="mr-2 h-4 w-4" />
+          <span>Call</span>
+        </ContextMenuItem>
+        <ContextMenuItem className="text-softphone-accent">
+          <Video className="mr-2 h-4 w-4" />
+          <span>Video Call</span>
+        </ContextMenuItem>
+        <ContextMenuItem className="text-softphone-primary">
+          <MessageSquare className="mr-2 h-4 w-4" />
+          <span>Message</span>
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem className="text-red-600">
+          <Trash2 className="mr-2 h-4 w-4" />
+          <span>Delete Contact</span>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
 

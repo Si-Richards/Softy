@@ -10,7 +10,6 @@ const Dialpad = () => {
   const [muted, setMuted] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
-  const [missedCalls, setMissedCalls] = useState(3);
 
   const dialpadButtons = [
     "1", "2", "3",
@@ -95,25 +94,15 @@ const Dialpad = () => {
       </div>
 
       <div className="flex justify-center space-x-4">
-        <div className="relative">
-          <Button
-            size="lg"
-            className={`rounded-full w-16 h-16 ${
-              isCallActive ? "bg-softphone-error hover:bg-red-600" : "bg-softphone-success hover:bg-green-600"
-            }`}
-            onClick={handleCall}
-          >
-            <Phone className={`h-6 w-6 ${isCallActive ? "rotate-135" : ""}`} />
-          </Button>
-          {missedCalls > 0 && (
-            <Badge 
-              className="absolute -top-2 -right-2 bg-softphone-error text-white"
-              variant="destructive"
-            >
-              {missedCalls}
-            </Badge>
-          )}
-        </div>
+        <Button
+          size="lg"
+          className={`rounded-full w-16 h-16 ${
+            isCallActive ? "bg-softphone-error hover:bg-red-600" : "bg-softphone-success hover:bg-green-600"
+          }`}
+          onClick={handleCall}
+        >
+          <Phone className={`h-6 w-6 ${isCallActive ? "rotate-135" : ""}`} />
+        </Button>
         
         {isCallActive ? (
           <>

@@ -166,8 +166,8 @@ const Statistics = () => {
               Distribution of different call types
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer className="h-[300px]" config={chartConfig}>
+          <CardContent className="flex items-center justify-center">
+            <ChartContainer className="h-[250px]" config={chartConfig}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -175,7 +175,7 @@ const Statistics = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    outerRadius={80}
+                    outerRadius={70}
                     fill="#8884d8"
                     dataKey="value"
                     nameKey="name"
@@ -186,7 +186,7 @@ const Statistics = () => {
                     ))}
                   </Pie>
                   <ChartTooltip />
-                  <Legend />
+                  <Legend verticalAlign="bottom" height={36}/>
                 </PieChart>
               </ResponsiveContainer>
             </ChartContainer>

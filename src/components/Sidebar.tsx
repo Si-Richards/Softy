@@ -15,11 +15,17 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   // Mock unread counts - in a real app these would come from your state management
   const unreadVoicemails = 3;
   const unreadMessages = 5;
+  const missedCalls = 3; // Added missed calls count
 
   const tabs = [
     { id: "home", label: "Home", icon: <Home className="w-5 h-5" /> },
     { id: "dialpad", label: "Dialpad", icon: <Phone className="w-5 h-5" /> },
-    { id: "history", label: "Call History", icon: <Clock className="w-5 h-5" /> },
+    { 
+      id: "history", 
+      label: "Call History", 
+      icon: <Clock className="w-5 h-5" />,
+      badge: missedCalls
+    },
     { id: "contacts", label: "Contacts", icon: <Users className="w-5 h-5" /> },
     { 
       id: "messages", 
