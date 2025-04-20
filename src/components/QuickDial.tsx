@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -113,106 +112,104 @@ const QuickDial = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick Dial</CardTitle>
+        <CardTitle>Favorites</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {favoriteContacts.map((contact) => (
-          <ContextMenu key={contact.id}>
-            <ContextMenuTrigger>
-              <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 cursor-pointer">
-                <div className="relative">
-                  <Avatar className="h-12 w-12">
-                    {contact.avatar ? (
-                      <AvatarImage src={contact.avatar} alt={contact.name} />
-                    ) : (
-                      <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div 
-                    className={cn(
-                      "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white",
-                      getPresenceColor(contact.presence)
-                    )}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium">{contact.name}</div>
-                  <div className="text-sm text-gray-500">
-                    <span className="mr-2">{contact.countryCode}</span>
-                    {contact.number}
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          {favoriteContacts.map((contact) => (
+            <ContextMenu key={contact.id}>
+              <ContextMenuTrigger>
+                <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <div className="relative">
+                    <Avatar className="h-12 w-12">
+                      {contact.avatar ? (
+                        <AvatarImage src={contact.avatar} alt={contact.name} />
+                      ) : (
+                        <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div 
+                      className={cn(
+                        "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white",
+                        getPresenceColor(contact.presence)
+                      )}
+                    />
                   </div>
+                  <div className="flex-1">
+                    <div className="font-medium">{contact.name}</div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        className="h-8 w-8 p-0" 
+                        size="icon"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-white">
+                      <DropdownMenuItem onClick={() => handleEditContact(contact.id)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Edit Contact</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleFavorite(contact.id)}>
+                        <Star className={cn("mr-2 h-4 w-4", contact.favorite && "fill-yellow-500")} />
+                        <span>Remove from Favorites</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-softphone-success">
+                        <Phone className="mr-2 h-4 w-4" />
+                        <span>Call</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-softphone-accent">
+                        <Video className="mr-2 h-4 w-4" />
+                        <span>Video Call</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-softphone-primary">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Message</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-red-600">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete Contact</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      className="h-8 w-8 p-0" 
-                      size="icon"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white">
-                    <DropdownMenuItem onClick={() => handleEditContact(contact.id)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>Edit Contact</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleFavorite(contact.id)}>
-                      <Star className={cn("mr-2 h-4 w-4", contact.favorite && "fill-yellow-500")} />
-                      <span>Remove from Favorites</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-softphone-success">
-                      <Phone className="mr-2 h-4 w-4" />
-                      <span>Call</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-softphone-accent">
-                      <Video className="mr-2 h-4 w-4" />
-                      <span>Video Call</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-softphone-primary">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      <span>Message</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-red-600">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      <span>Delete Contact</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent className="bg-white">
-              <ContextMenuItem onClick={() => handleEditContact(contact.id)}>
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit Contact</span>
-              </ContextMenuItem>
-              <ContextMenuItem onClick={() => toggleFavorite(contact.id)}>
-                <Star className={cn("mr-2 h-4 w-4", contact.favorite && "fill-yellow-500")} />
-                <span>Remove from Favorites</span>
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem className="text-softphone-success">
-                <Phone className="mr-2 h-4 w-4" />
-                <span>Call</span>
-              </ContextMenuItem>
-              <ContextMenuItem className="text-softphone-accent">
-                <Video className="mr-2 h-4 w-4" />
-                <span>Video Call</span>
-              </ContextMenuItem>
-              <ContextMenuItem className="text-softphone-primary">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                <span>Message</span>
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem className="text-red-600">
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete Contact</span>
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
-        ))}
+              </ContextMenuTrigger>
+              <ContextMenuContent className="bg-white">
+                <ContextMenuItem onClick={() => handleEditContact(contact.id)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Edit Contact</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => toggleFavorite(contact.id)}>
+                  <Star className={cn("mr-2 h-4 w-4", contact.favorite && "fill-yellow-500")} />
+                  <span>Remove from Favorites</span>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem className="text-softphone-success">
+                  <Phone className="mr-2 h-4 w-4" />
+                  <span>Call</span>
+                </ContextMenuItem>
+                <ContextMenuItem className="text-softphone-accent">
+                  <Video className="mr-2 h-4 w-4" />
+                  <span>Video Call</span>
+                </ContextMenuItem>
+                <ContextMenuItem className="text-softphone-primary">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <span>Message</span>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem className="text-red-600">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete Contact</span>
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ))}
+        </div>
         {favoriteContacts.length === 0 && (
           <div className="text-center py-6 text-gray-500">
             No favorite contacts available. Mark contacts as favorites to see them here.
