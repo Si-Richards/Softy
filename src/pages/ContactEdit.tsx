@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
-import { Form } from "@/components/ui/form";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { PhoneNumberList } from "@/components/contacts/PhoneNumberList";
-import { ContactDetailsFields } from "@/components/contacts/ContactDetailsFields";
 import { ContactEditLoading } from "@/components/contacts/ContactEditLoading";
 import { ContactEditError } from "@/components/contacts/ContactEditError";
+import { ContactFormContent } from "@/components/contacts/ContactFormContent";
 import { contactSchema, FormValues } from "@/components/contacts/ContactEditForm";
 
 const ContactEdit = () => {
@@ -182,33 +180,14 @@ const ContactEdit = () => {
         </div>
       </CardHeader>
 
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <ContactDetailsFields form={form} />
-            
-            <PhoneNumberList
-              form={form}
-              phoneNumbers={phoneNumbers}
-              onAddPhoneNumber={addPhoneNumber}
-              onRemovePhoneNumber={removePhoneNumber}
-              onSetPrimaryPhoneNumber={setPrimaryPhoneNumber}
-            />
-
-            <CardFooter className="flex justify-between px-0 pb-0">
-              <Button variant="outline" type="button" onClick={() => navigate(-1)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Save Changes
-              </Button>
-            </CardFooter>
-          </form>
-        </Form>
-      </CardContent>
+      <ContactFormContent
+        form={form}
+        phoneNumbers={phoneNumbers}
+        onSubmit={onSubmit}
+        addPhoneNumber={addPhoneNumber}
+        removePhoneNumber={removePhoneNumber}
+        setPrimaryPhoneNumber={setPrimaryPhoneNumber}
+      />
     </Card>
   );
 };
