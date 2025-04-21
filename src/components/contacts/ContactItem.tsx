@@ -1,5 +1,6 @@
+
 import React from "react";
-import { Phone, MessageSquare, Video, Star, MoreHorizontal } from "lucide-react";
+import { Phone, MessageSquare, Video, Star, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -19,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Edit, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface ContactItemProps {
   contact: Contact;
@@ -27,6 +28,8 @@ interface ContactItemProps {
 }
 
 const ContactItem = ({ contact, onToggleFavorite }: ContactItemProps) => {
+  const navigate = useNavigate();
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -63,6 +66,10 @@ const ContactItem = ({ contact, onToggleFavorite }: ContactItemProps) => {
       default:
         return "Unknown";
     }
+  };
+
+  const handleEdit = () => {
+    navigate(`/contacts/edit/${contact.id}`);
   };
 
   return (
@@ -130,6 +137,10 @@ const ContactItem = ({ contact, onToggleFavorite }: ContactItemProps) => {
                   <MessageSquare className="mr-2 h-4 w-4" />
                   <span>Message</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Edit</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-red-600">
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -156,6 +167,10 @@ const ContactItem = ({ contact, onToggleFavorite }: ContactItemProps) => {
         <ContextMenuItem className="text-softphone-primary">
           <MessageSquare className="mr-2 h-4 w-4" />
           <span>Message</span>
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleEdit}>
+          <Edit className="mr-2 h-4 w-4" />
+          <span>Edit</span>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem className="text-red-600">

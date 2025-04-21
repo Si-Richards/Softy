@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,14 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { FileCog, Mic, Shield, Volume2 } from "lucide-react";
+import { FileCog, Mic, Shield, Volume2, Video } from "lucide-react";
 
 const SIPConfig = () => {
   const [noiseCancellation, setNoiseCancellation] = useState(true);
   const [echoSuppression, setEchoSuppression] = useState(true);
   const [autoGainControl, setAutoGainControl] = useState(true);
   const [highPassFilter, setHighPassFilter] = useState(false);
-  
+
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [hdVideo, setHdVideo] = useState(false);
+
   const logsData = [
     { timestamp: "2025-04-17 09:15:23", level: "INFO", message: "Application started" },
     { timestamp: "2025-04-17 09:15:24", level: "INFO", message: "Checking audio devices" },
@@ -37,6 +39,7 @@ const SIPConfig = () => {
       <Tabs defaultValue="audio">
         <TabsList className="grid grid-cols-3 mb-6">
           <TabsTrigger value="audio">Audio Enhancement</TabsTrigger>
+          <TabsTrigger value="video">Video Settings</TabsTrigger>
           <TabsTrigger value="logs">System Logs</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
         </TabsList>
@@ -123,6 +126,44 @@ const SIPConfig = () => {
           </Card>
         </TabsContent>
         
+        <TabsContent value="video">
+          <Card>
+            <CardHeader>
+              <CardTitle><Video className="inline-block mr-2" />Video Settings</CardTitle>
+              <CardDescription>Configure video call preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base" htmlFor="video-enabled">Enable Video</Label>
+                  <p className="text-sm text-gray-500">
+                    Allow video on calls.
+                  </p>
+                </div>
+                <Switch
+                  id="video-enabled"
+                  checked={videoEnabled}
+                  onCheckedChange={setVideoEnabled}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base" htmlFor="hd-video">HD Video</Label>
+                  <p className="text-sm text-gray-500">
+                    Enable HD quality for video calls (higher bandwidth).
+                  </p>
+                </div>
+                <Switch
+                  id="hd-video"
+                  checked={hdVideo}
+                  onCheckedChange={setHdVideo}
+                  disabled={!videoEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         <TabsContent value="logs">
           <Card>
             <CardHeader>
@@ -144,7 +185,6 @@ const SIPConfig = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
               <ScrollArea className="h-[300px] border rounded-md">
                 <div className="p-4 space-y-2">
                   {logsData.map((log, index) => (
@@ -179,7 +219,6 @@ const SIPConfig = () => {
                 <h3 className="text-lg font-medium">My Company Softphone</h3>
                 <p className="text-sm text-gray-500">Enterprise Communication Solution</p>
               </div>
-              
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
                   <p className="text-sm font-medium">Version</p>
@@ -198,7 +237,6 @@ const SIPConfig = () => {
                   <p className="text-sm text-gray-500">Enterprise</p>
                 </div>
               </div>
-              
               <div className="pt-4">
                 <h4 className="text-sm font-medium">System Information</h4>
                 <div className="grid grid-cols-2 gap-2 mt-2 text-sm">

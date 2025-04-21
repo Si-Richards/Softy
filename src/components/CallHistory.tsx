@@ -7,13 +7,12 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { 
-  PhoneIncoming, 
-  PhoneOutgoing, 
-  PhoneMissed 
-} from "lucide-react";
+import { PhoneIncoming, PhoneOutgoing, PhoneMissed } from "lucide-react";
 import { format } from "date-fns";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { useNavigate } from "react-router-dom";
+import { Edit } from "lucide-react";
 
 const mockCallHistory = [
   { 
@@ -68,6 +67,13 @@ const CallIcon = ({ type, status }: { type: string; status: string }) => {
 };
 
 const CallHistory = () => {
+  const handleCall = (number: string) => {
+    console.log("Calling:", number);
+  };
+  const handleVideoCall = (number: string) => {
+    console.log("Video calling:", number);
+  };
+
   return (
     <div className="w-full p-4">
       <h2 className="text-xl font-semibold mb-4">Call History</h2>
@@ -84,22 +90,42 @@ const CallHistory = () => {
           </TableHeader>
           <TableBody>
             {mockCallHistory.map((call) => (
-              <TableRow key={call.id} className="hover:bg-gray-50 cursor-pointer">
-                <TableCell>
-                  <CallIcon type={call.type} status={call.status} />
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{call.name}</div>
-                  <div className="text-sm text-gray-500">
-                    <span className="mr-2">{call.countryCode}</span>
-                    {call.number}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {format(new Date(call.time), "dd/MM/yy HH:mm:ss")}
-                </TableCell>
-                <TableCell>{call.duration}</TableCell>
-              </TableRow>
+              <ContextMenu key={call.id}>
+                <ContextMenuTrigger asChild>
+                  <TableRow className="hover:bg-gray-50 cursor-pointer">
+                    <TableCell>
+                      <CallIcon type={call.type} status={call.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{call.name}</div>
+                      <div className="text-sm text-gray-500">
+                        <span className="mr-2">{call.countryCode}</span>
+                        {call.number}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(call.time), "dd/MM/yy HH:mm:ss")}
+                    </TableCell>
+                    <TableCell>{call.duration}</TableCell>
+                  </TableRow>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="bg-white">
+                  <ContextMenuItem
+                    className="text-softphone-success"
+                    onClick={() => handleCall(call.number)}
+                  >
+                    <PhoneIncoming className="mr-2 h-4 w-4" />
+                    <span>Call</span>
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    className="text-softphone-accent"
+                    onClick={() => handleVideoCall(call.number)}
+                  >
+                    <PhoneOutgoing className="mr-2 h-4 w-4" />
+                    <span>Video Call</span>
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
           </TableBody>
         </Table>
