@@ -1,21 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Phone, X, Mic, MicOff, Video, Voicemail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
-interface DialpadProps {
-  isMinimized?: boolean;
-}
-
-const Dialpad = ({ isMinimized = false }: DialpadProps) => {
+const Dialpad = () => {
   const [number, setNumber] = useState("");
   const [muted, setMuted] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
-  const [duration, setDuration] = useState("");
-  const [seconds, setSeconds] = useState(0);
 
   const dialpadButtons = [
     "1", "2", "3",
@@ -23,28 +17,6 @@ const Dialpad = ({ isMinimized = false }: DialpadProps) => {
     "7", "8", "9",
     "*", "0", "#"
   ];
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (isCallActive) {
-      interval = setInterval(() => {
-        setSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      setSeconds(0);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isCallActive]);
-
-  useEffect(() => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    setDuration(`${minutes}:${remainingSeconds.toString().padStart(2, '0')}`);
-  }, [seconds]);
 
   const handleKeyPress = (key: string) => {
     setNumber((prev) => prev + key);
@@ -86,42 +58,6 @@ const Dialpad = ({ isMinimized = false }: DialpadProps) => {
       description: "Connecting to voicemail service...",
     });
   };
-
-  if (isMinimized && isCallActive) {
-    return (
-      <div className="flex flex-col space-y-2">
-        <div className="text-center mb-2">
-          <span className="text-sm font-medium">Call in progress</span>
-          {duration && <span className="ml-2 text-sm text-muted-foreground">{duration}</span>}
-        </div>
-        <div className="flex justify-center space-x-2">
-          <Button
-            size="sm"
-            className="bg-softphone-error hover:bg-red-600 rounded-full w-10 h-10"
-            onClick={handleCall}
-          >
-            <Phone className="h-4 w-4 rotate-135" />
-          </Button>
-          <Button
-            size="sm"
-            variant={muted ? "destructive" : "outline"}
-            className="rounded-full w-10 h-10"
-            onClick={toggleMute}
-          >
-            {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
-          <Button
-            size="sm"
-            variant={isVideoEnabled ? "default" : "outline"}
-            className={`rounded-full w-10 h-10 ${isVideoEnabled ? "bg-softphone-accent" : ""}`}
-            onClick={toggleVideo}
-          >
-            <Video className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full max-w-md mx-auto p-6">

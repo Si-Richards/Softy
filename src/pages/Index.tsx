@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -143,7 +144,7 @@ const Index = () => {
                       <Phone className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
-                  <DraggableDialogContent className="sm:max-w-md" minimizable>
+                  <DraggableDialogContent className="sm:max-w-md">
                     <Dialpad />
                   </DraggableDialogContent>
                 </Dialog>
