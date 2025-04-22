@@ -5,11 +5,16 @@ import { Phone, X, Mic, MicOff, Video, Voicemail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
-const Dialpad = () => {
+interface DialpadProps {
+  isMinimized?: boolean;
+}
+
+const Dialpad = ({ isMinimized = false }: DialpadProps) => {
   const [number, setNumber] = useState("");
   const [muted, setMuted] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [duration, setDuration] = useState("");
 
   const dialpadButtons = [
     "1", "2", "3",
@@ -58,6 +63,42 @@ const Dialpad = () => {
       description: "Connecting to voicemail service...",
     });
   };
+
+  if (isMinimized && isCallActive) {
+    return (
+      <div className="flex flex-col space-y-2">
+        <div className="text-center mb-2">
+          <span className="text-sm font-medium">Call in progress</span>
+          {duration && <span className="ml-2 text-sm text-muted-foreground">{duration}</span>}
+        </div>
+        <div className="flex justify-center space-x-2">
+          <Button
+            size="sm"
+            className="bg-softphone-error hover:bg-red-600 rounded-full w-10 h-10"
+            onClick={handleCall}
+          >
+            <Phone className="h-4 w-4 rotate-135" />
+          </Button>
+          <Button
+            size="sm"
+            variant={muted ? "destructive" : "outline"}
+            className="rounded-full w-10 h-10"
+            onClick={toggleMute}
+          >
+            {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+          <Button
+            size="sm"
+            variant={isVideoEnabled ? "default" : "outline"}
+            className={`rounded-full w-10 h-10 ${isVideoEnabled ? "bg-softphone-accent" : ""}`}
+            onClick={toggleVideo}
+          >
+            <Video className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
