@@ -16,7 +16,7 @@ import { BellOff, X, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DraggableDialogContent } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import QuickDial from "@/components/QuickDial";
 
@@ -142,9 +142,9 @@ const Index = () => {
                       <Phone className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DraggableDialogContent className="sm:max-w-md">
                     <Dialpad />
-                  </DialogContent>
+                  </DraggableDialogContent>
                 </Dialog>
               </div>
             </div>
