@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -17,8 +16,7 @@ import { BellOff, X, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import QuickDial from "@/components/QuickDial";
 
@@ -95,20 +93,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* Main Application Container */}
       <div className="w-full max-w-5xl mx-auto my-8 bg-white rounded-xl shadow-lg overflow-hidden flex">
-        {/* Sidebar */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
         
-        {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Header */}
           <header className="p-4 border-b">
             <div className="flex justify-between items-center">
               <h1 className="text-xl font-bold text-softphone-dark">My Company</h1>
               
               <div className="flex items-center space-x-4">
-                {/* Presence indicator */}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -123,7 +116,6 @@ const Index = () => {
                   </Tooltip>
                 </TooltipProvider>
 
-                {/* Do Not Disturb toggle */}
                 <div className="flex items-center space-x-2">
                   <Switch 
                     id="dnd-mode" 
@@ -136,7 +128,6 @@ const Index = () => {
                   </Label>
                 </div>
 
-                {/* Connection status */}
                 <div className="flex items-center space-x-2">
                   <div className={cn("h-2.5 w-2.5 rounded-full", getStatusColor())}></div>
                   <span className="text-sm font-medium text-gray-600">
@@ -145,29 +136,24 @@ const Index = () => {
                   </span>
                 </div>
 
-                {/* Floating Dialpad Button */}
-                <Sheet>
-                  <SheetTrigger asChild>
+                <Dialog>
+                  <DialogTrigger asChild>
                     <Button size="sm" className="rounded-full bg-softphone-primary">
                       <Phone className="h-4 w-4" />
                     </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-[380px] sm:w-[450px]">
-                    <div className="py-6">
-                      <Dialpad />
-                    </div>
-                  </SheetContent>
-                </Sheet>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <Dialpad />
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           </header>
           
-          {/* Active Tab Content */}
           <div className="flex-1 overflow-auto">
             {renderActiveTab()}
           </div>
           
-          {/* Footer Status Bar */}
           <footer className="p-3 border-t bg-gray-50">
             <div className="flex justify-between items-center">
               <CallStatus status="idle" />
@@ -177,7 +163,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Mobile Dialpad drawer */}
       <Drawer>
         <DrawerTrigger className="fixed bottom-6 right-6 md:hidden z-50 bg-softphone-primary text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg">
           <Phone className="h-6 w-6" />
