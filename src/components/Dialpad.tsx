@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Phone, X, Mic, MicOff, Video, Voicemail } from "lucide-react";
@@ -15,6 +15,7 @@ const Dialpad = ({ isMinimized = false }: DialpadProps) => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [duration, setDuration] = useState("");
+  const [seconds, setSeconds] = useState(0);
 
   const dialpadButtons = [
     "1", "2", "3",
@@ -22,6 +23,28 @@ const Dialpad = ({ isMinimized = false }: DialpadProps) => {
     "7", "8", "9",
     "*", "0", "#"
   ];
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (isCallActive) {
+      interval = setInterval(() => {
+        setSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setSeconds(0);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isCallActive]);
+
+  useEffect(() => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    setDuration(`${minutes}:${remainingSeconds.toString().padStart(2, '0')}`);
+  }, [seconds]);
 
   const handleKeyPress = (key: string) => {
     setNumber((prev) => prev + key);

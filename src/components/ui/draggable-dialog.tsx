@@ -49,6 +49,9 @@ const DraggableDialogContent = React.forwardRef<
     };
   }, [isDragging]);
 
+  // Create a context to provide isMinimized state to children
+  const MinimizedContext = React.createContext(false);
+
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
@@ -79,17 +82,19 @@ const DraggableDialogContent = React.forwardRef<
           )}
         </div>
         <div className={cn("mt-4", isMinimized ? "p-4" : "")}>
-          {React.Children.map(children, child => {
-            if (React.isValidElement(child)) {
-              return React.cloneElement(child, { isMinimized });
-            }
-            return child;
-          })}
+          <MinimizedContext.Provider value={isMinimized}>
+            {children}
+          </MinimizedContext.Provider>
         </div>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
 });
 DraggableDialogContent.displayName = "DraggableDialogContent";
+
+// Create a custom hook to access the minimized state
+export const useMinimizedState = (): boolean => {
+  return React.useContext(React.createContext(false));
+};
 
 export { DraggableDialogContent };
