@@ -1,8 +1,8 @@
 
 import * as React from "react";
-import { Dialog as DialogPrimitive } from "@radix-ui/react-dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
-import { move } from "lucide-react";
+import { Move } from "lucide-react";
 
 interface DraggableDialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
@@ -65,7 +65,7 @@ const DraggableDialogContent = React.forwardRef<
           className="absolute top-0 left-0 right-0 h-8 cursor-move bg-muted/40 rounded-t-lg flex items-center justify-center drag-handle" 
           onMouseDown={handleMouseDown}
         >
-          <move className="h-4 w-4 text-muted-foreground" />
+          <Move className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="mt-4">
           {children}

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -16,7 +17,8 @@ import { BellOff, X, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogTrigger, DraggableDialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { DraggableDialogContent } from "@/components/ui/draggable-dialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import QuickDial from "@/components/QuickDial";
 
