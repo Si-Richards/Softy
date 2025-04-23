@@ -18,30 +18,30 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   const missedCalls = 3; // Added missed calls count
 
   const tabs = [
-    { id: "home", label: "Home", icon: <Home className="w-5 h-5" /> },
-    { id: "dialpad", label: "Dialpad", icon: <Phone className="w-5 h-5" /> },
+    { id: "home", label: "Home", icon: <Home className="w-[27.5px] h-[27.5px]" /> }, // 15% increase from w-5 h-5 (22px)
+    { id: "dialpad", label: "Dialpad", icon: <Phone className="w-[27.5px] h-[27.5px]" /> },
     { 
       id: "history", 
       label: "Call History", 
-      icon: <Clock className="w-5 h-5" />,
+      icon: <Clock className="w-[27.5px] h-[27.5px]" />,
       badge: missedCalls
     },
-    { id: "contacts", label: "Contacts", icon: <Users className="w-5 h-5" /> },
+    { id: "contacts", label: "Contacts", icon: <Users className="w-[27.5px] h-[27.5px]" /> },
     { 
       id: "messages", 
       label: "Messages", 
-      icon: <MessageSquare className="w-5 h-5" />,
+      icon: <MessageSquare className="w-[27.5px] h-[27.5px]" />,
       badge: unreadMessages
     },
     { 
       id: "voicemail", 
       label: "Voicemail", 
-      icon: <Voicemail className="w-5 h-5" />,
+      icon: <Voicemail className="w-[27.5px] h-[27.5px]" />,
       badge: unreadVoicemails 
     },
-    { id: "statistics", label: "Statistics", icon: <ChartBar className="w-5 h-5" /> },
-    { id: "audio", label: "Audio", icon: <Volume2 className="w-5 h-5" /> },
-    { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
+    { id: "statistics", label: "Statistics", icon: <ChartBar className="w-[27.5px] h-[27.5px]" /> },
+    { id: "audio", label: "Audio", icon: <Volume2 className="w-[27.5px] h-[27.5px]" /> },
+    { id: "settings", label: "Settings", icon: <Settings className="w-[27.5px] h-[27.5px]" /> },
   ];
 
   return (
@@ -86,3 +86,4 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
 };
 
 export default Sidebar;
+
