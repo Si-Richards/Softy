@@ -86,19 +86,30 @@ const AudioSettings = () => {
     }
 
     try {
-      const audio = new Audio();
+      // Fix: Explicitly type the audio element as HTMLAudioElement
+      const audio = new Audio() as HTMLAudioElement;
       audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; // Short beep
       
       // Set the audio output device if supported
       if ('setSinkId' in audio) {
         (audio as any).setSinkId(selectedAudioOutput)
           .then(() => {
-            audio.play();
-            toast({
-              title: "Speaker Test",
-              description: "Playing test sound...",
-              variant: "default",
-            });
+            audio.play()
+              .then(() => {
+                toast({
+                  title: "Speaker Test",
+                  description: "Playing test sound...",
+                  variant: "default",
+                });
+              })
+              .catch((error: any) => {
+                console.error("Error playing audio:", error);
+                toast({
+                  title: "Speaker Test Failed",
+                  description: "Could not play test sound",
+                  variant: "destructive",
+                });
+              });
           })
           .catch((error: any) => {
             console.error("Error setting audio output device:", error);
@@ -110,12 +121,22 @@ const AudioSettings = () => {
           });
       } else {
         // Fall back to default device if setSinkId is not supported
-        audio.play();
-        toast({
-          title: "Speaker Test",
-          description: "Playing test sound on default device (browser doesn't support output device selection)",
-          variant: "default",
-        });
+        audio.play()
+          .then(() => {
+            toast({
+              title: "Speaker Test",
+              description: "Playing test sound on default device (browser doesn't support output device selection)",
+              variant: "default",
+            });
+          })
+          .catch((error: any) => {
+            console.error("Error playing audio:", error);
+            toast({
+              title: "Speaker Test Failed",
+              description: "Could not play test sound",
+              variant: "destructive",
+            });
+          });
       }
     } catch (error: any) {
       console.error("Error testing speaker:", error);
