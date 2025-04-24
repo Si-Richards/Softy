@@ -55,8 +55,8 @@ export const useAudioTest = () => {
     }
 
     try {
-      // Explicitly type the audio element as HTMLAudioElement
-      const audio = new Audio() as HTMLAudioElement;
+      // Create an audio element and explicitly type it as HTMLAudioElement
+      const audio = document.createElement('audio') as HTMLAudioElement;
       audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       
       if ('setSinkId' in audio) {
