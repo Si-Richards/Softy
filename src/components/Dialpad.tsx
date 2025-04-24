@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
 import DialpadGrid from "./dialpad/DialpadGrid";
@@ -7,6 +7,9 @@ import NumberInput from "./dialpad/NumberInput";
 import CallControls from "./dialpad/CallControls";
 import { useJanusSetup } from "./dialpad/useJanusSetup";
 import janusService from "@/services/JanusService";
+import { useDTMFTone } from "@/hooks/useDTMFTone";
+import { useKeypadInput } from "@/hooks/useKeypadInput";
+import { useVideoStreams } from "@/hooks/useVideoStreams";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -17,92 +20,19 @@ const Dialpad = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
   const { isJanusConnected, errorMessage } = useJanusSetup();
+  const { playDTMFTone } = useDTMFTone();
   const voicemailNumber = "*97";
 
-  const audioContext = useRef<AudioContext | null>(null);
-
-  useEffect(() => {
-    const handleKeyboardPress = (event: KeyboardEvent) => {
-      const key = event.key;
-      const validKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
-      
-      if (validKeys.includes(key)) {
-        event.preventDefault();
-        playDTMFTone(key);
-        addDigitToNumber(key);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyboardPress);
-    return () => window.removeEventListener('keydown', handleKeyboardPress);
-  }, []);
-
-  const playDTMFTone = (key: string) => {
-    if (!audioContext.current) {
-      audioContext.current = new AudioContext();
-    }
-
-    const ctx = audioContext.current;
-    const frequencies = getDTMFFrequencies(key);
-    
-    if (!frequencies) return;
-
-    const oscillator1 = ctx.createOscillator();
-    const oscillator2 = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator1.frequency.value = frequencies[0];
-    oscillator2.frequency.value = frequencies[1];
-
-    oscillator1.connect(gainNode);
-    oscillator2.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    gainNode.gain.value = 0.1;
-    oscillator1.start();
-    oscillator2.start();
-
-    setTimeout(() => {
-      oscillator1.stop();
-      oscillator2.stop();
-    }, 100);
+  const addDigitToNumber = (key: string) => {
+    setNumber((prev) => prev + key);
   };
 
-  const getDTMFFrequencies = (key: string): [number, number] | null => {
-    const frequencies: { [key: string]: [number, number] } = {
-      '1': [697, 1209], '2': [697, 1336], '3': [697, 1477],
-      '4': [770, 1209], '5': [770, 1336], '6': [770, 1477],
-      '7': [852, 1209], '8': [852, 1336], '9': [852, 1477],
-      '*': [941, 1209], '0': [941, 1336], '#': [941, 1477]
-    };
-    return frequencies[key] || null;
-  };
-
-  useEffect(() => {
-    if (isCallActive) {
-      const localStream = janusService.getLocalStream();
-      const remoteStream = janusService.getRemoteStream();
-      
-      console.log("Local stream in Dialpad:", localStream);
-      console.log("Remote stream in Dialpad:", remoteStream);
-      
-      if (localVideoRef.current && localStream) {
-        localVideoRef.current.srcObject = localStream;
-      }
-      
-      if (remoteVideoRef.current && remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
-    }
-  }, [isCallActive]);
+  useKeypadInput(addDigitToNumber);
+  useVideoStreams(isCallActive, localVideoRef, remoteVideoRef);
 
   const handleKeyPress = (key: string) => {
     addDigitToNumber(key);
     playDTMFTone(key);
-  };
-  
-  const addDigitToNumber = (key: string) => {
-    setNumber((prev) => prev + key);
   };
 
   const clearNumber = () => {
