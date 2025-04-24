@@ -1,5 +1,5 @@
-
 import type { JanusOptions } from './types';
+import { ConnectionRetry } from './utils/connectionRetry';
 
 export class JanusSessionManager {
   private janus: any = null;
@@ -7,9 +7,24 @@ export class JanusSessionManager {
   private opaqueId: string;
   private initialized: boolean = false;
   private connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
+  private connectionRetry: ConnectionRetry;
 
   constructor() {
     this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
+    this.connectionRetry = new ConnectionRetry(
+      () => {
+        console.log('Successfully connected to Janus server');
+        this.connectionState = 'connected';
+      },
+      () => {
+        console.error('Failed to connect to Janus server after 10 attempts');
+        this.connectionState = 'disconnected';
+        if (this.janus) {
+          this.janus.destroy();
+          this.janus = null;
+        }
+      }
+    );
   }
 
   private async checkDependencies(): Promise<void> {
@@ -62,33 +77,39 @@ export class JanusSessionManager {
       }
 
       return new Promise<void>((resolve, reject) => {
-        this.janus = new window.Janus({
-          server: options.server,
-          apisecret: options.apiSecret,
-          iceServers: options.iceServers || [
-            { urls: 'stun:stun.l.google.com:19302' }
-          ],
-          success: () => {
-            console.log('Janus session created successfully');
-            this.connectionState = 'connected';
-            resolve();
-          },
-          error: (error: any) => {
-            const errorMsg = `Error creating Janus session: ${error}`;
-            console.error(errorMsg);
-            this.connectionState = 'disconnected';
-            reject(new Error(errorMsg));
-          },
-          destroyed: () => {
-            console.log('Janus session destroyed');
-            this.connectionState = 'disconnected';
-            if (options.destroyed) options.destroyed();
-          }
-        });
+        const connect = async () => {
+          return new Promise<void>((innerResolve, innerReject) => {
+            this.janus = new window.Janus({
+              server: options.server,
+              apisecret: options.apiSecret,
+              keepAlivePeriod: 30000,
+              iceServers: options.iceServers || [
+                { urls: 'stun:stun.l.google.com:19302' }
+              ],
+              success: () => {
+                console.log('Janus session created successfully');
+                this.connectionState = 'connected';
+                resolve();
+                innerResolve();
+              },
+              error: (error: any) => {
+                console.error('Error creating Janus session:', error);
+                innerReject(error);
+              },
+              destroyed: () => {
+                console.log('Janus session destroyed');
+                this.connectionState = 'disconnected';
+                if (options.destroyed) options.destroyed();
+              }
+            });
+          });
+        };
+
+        this.connectionRetry.attemptConnection(connect).catch(reject);
       });
     } catch (error: any) {
       this.connectionState = 'disconnected';
-      this.disconnect(); // Clean up on failure
+      this.disconnect();
       console.error('Failed to create Janus instance:', error);
       throw new Error(`Failed to create Janus instance: ${error.message || error}`);
     }
