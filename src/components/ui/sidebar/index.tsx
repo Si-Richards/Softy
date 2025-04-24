@@ -15,8 +15,8 @@ import {
 import {
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
 } from "./sidebar-menu-list"
+import { SidebarMenuButton } from "./sidebar-menu-button"
 
 const Sidebar = React.forwardRef<
   HTMLDivElement,
