@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from './use-toast';
 
@@ -16,17 +17,17 @@ export const useMediaDevices = () => {
   const [selectedVideoInput, setSelectedVideoInput] = useState<string>('');
   const { toast } = useToast();
 
-  const setSelectedAudioInput = (deviceId: string) => {
+  const updateSelectedAudioInput = (deviceId: string) => {
     localStorage.setItem('selectedAudioInput', deviceId);
     setSelectedAudioInput(deviceId);
   };
 
-  const setSelectedAudioOutput = (deviceId: string) => {
+  const updateSelectedAudioOutput = (deviceId: string) => {
     localStorage.setItem('selectedAudioOutput', deviceId);
     setSelectedAudioOutput(deviceId);
   };
 
-  const setSelectedVideoInput = (deviceId: string) => {
+  const updateSelectedVideoInput = (deviceId: string) => {
     localStorage.setItem('selectedVideoInput', deviceId);
     setSelectedVideoInput(deviceId);
   };
@@ -47,9 +48,9 @@ export const useMediaDevices = () => {
       const defaultAudioOutput = devices.find(d => d.kind === 'audiooutput')?.deviceId;
       const defaultVideoInput = devices.find(d => d.kind === 'videoinput')?.deviceId;
       
-      if (defaultAudioInput) setSelectedAudioInput(defaultAudioInput);
-      if (defaultAudioOutput) setSelectedAudioOutput(defaultAudioOutput);
-      if (defaultVideoInput) setSelectedVideoInput(defaultVideoInput);
+      if (defaultAudioInput) updateSelectedAudioInput(defaultAudioInput);
+      if (defaultAudioOutput) updateSelectedAudioOutput(defaultAudioOutput);
+      if (defaultVideoInput) updateSelectedVideoInput(defaultVideoInput);
     } catch (error) {
       console.error('Error loading devices:', error);
       toast({
@@ -66,9 +67,9 @@ export const useMediaDevices = () => {
     const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
     const savedVideoInput = localStorage.getItem('selectedVideoInput');
 
-    if (savedAudioInput) setSelectedAudioInput(savedAudioInput);
-    if (savedAudioOutput) setSelectedAudioOutput(savedAudioOutput);
-    if (savedVideoInput) setSelectedVideoInput(savedVideoInput);
+    if (savedAudioInput) updateSelectedAudioInput(savedAudioInput);
+    if (savedAudioOutput) updateSelectedAudioOutput(savedAudioOutput);
+    if (savedVideoInput) updateSelectedVideoInput(savedVideoInput);
 
     loadDevices();
 
@@ -86,8 +87,8 @@ export const useMediaDevices = () => {
     selectedAudioInput,
     selectedAudioOutput,
     selectedVideoInput,
-    setSelectedAudioInput,
-    setSelectedAudioOutput,
-    setSelectedVideoInput,
+    setSelectedAudioInput: updateSelectedAudioInput,
+    setSelectedAudioOutput: updateSelectedAudioOutput,
+    setSelectedVideoInput: updateSelectedVideoInput,
   };
 };
