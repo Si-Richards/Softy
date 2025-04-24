@@ -1,4 +1,4 @@
-import { JanusJS } from 'janus-gateway-js';
+
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
