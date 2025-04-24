@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,18 +13,17 @@ interface SidebarProps {
 
 const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  // Mock unread counts - in a real app these would come from your state management
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
   const unreadVoicemails = 3;
   const unreadMessages = 5;
   const missedCalls = 3;
 
-  // Mock user data - in a real app this would come from your auth state
   const user = {
     name: "John Doe",
     avatar: "/placeholder.svg"
   };
 
-  // Mock version info - in a real app this would come from your env vars
   const version = "v1.0.0";
 
   const tabs = [
@@ -55,6 +53,12 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     { id: "settings", label: "Settings", icon: <Settings className="w-[27.5px] h-[27.5px]" /> },
   ];
 
+  const handleExpandToggle = () => {
+    setIsTransitioning(true);
+    setIsExpanded(!isExpanded);
+    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
   return (
     <div className={cn(
       "h-full bg-softphone-dark flex flex-col border-r border-gray-700 transition-all duration-300",
@@ -72,7 +76,10 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
             </AvatarFallback>
           </Avatar>
           {isExpanded && (
-            <div className="flex flex-col">
+            <div className={cn(
+              "flex flex-col transition-opacity duration-200",
+              isTransitioning ? "opacity-0" : "opacity-100"
+            )}>
               <span className="text-sm font-medium text-white">{user.name}</span>
               <span className="text-xs text-gray-400">Online</span>
             </div>
@@ -91,7 +98,6 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
                     size={isExpanded ? "default" : "icon"}
                     className={cn(
                       "w-full rounded-xl flex items-center gap-3",
-                      // Ensure items are centered when collapsed
                       !isExpanded ? "justify-center" : "justify-start",
                       activeTab === tab.id
                         ? "bg-softphone-primary text-white"
@@ -100,14 +106,27 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
                     onClick={() => setActiveTab(tab.id)}
                   >
                     {tab.icon}
-                    {isExpanded && <span>{tab.label}</span>}
+                    {isExpanded && (
+                      <div className={cn(
+                        "flex items-center justify-between flex-1 transition-opacity duration-200",
+                        isTransitioning ? "opacity-0" : "opacity-100"
+                      )}>
+                        <span>{tab.label}</span>
+                        {tab.badge && tab.badge > 0 && (
+                          <Badge 
+                            className="ml-auto bg-softphone-error text-white text-xs"
+                            variant="destructive"
+                          >
+                            {tab.badge}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </Button>
-                  {tab.badge && tab.badge > 0 && (
+                  {!isExpanded && tab.badge && tab.badge > 0 && (
                     <Badge 
                       className={cn(
-                        "absolute -top-1 px-2 min-w-[20px] h-5 bg-softphone-error text-white text-xs flex items-center justify-center rounded-full",
-                        // Adjust badge position when sidebar is collapsed
-                        isExpanded ? "right-6" : "right-2"
+                        "absolute -top-1 right-2 px-2 min-w-[20px] h-5 bg-softphone-error text-white text-xs flex items-center justify-center rounded-full"
                       )}
                       variant="destructive"
                     >
@@ -133,7 +152,7 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
             variant="ghost"
             size="icon"
             className="w-full rounded-xl text-gray-400 hover:text-white hover:bg-gray-700"
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={handleExpandToggle}
           >
             {isExpanded ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
           </Button>
