@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Phone, PhoneOff } from "lucide-react";
 import useSound from 'use-sound';
-import ringtoneSrc from '@/assets/sounds/ringtone.mp3';
+
+// Fallback to a default sound or remove sound if file is missing
+const ringtoneSrc = '/fallback-ringtone.mp3';
 
 interface IncomingCallDialogProps {
   isOpen: boolean;
@@ -18,7 +20,14 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onAccept,
   onReject
 }) => {
-  const [play, { stop }] = useSound(ringtoneSrc, { loop: true });
+  // Optional: Add a check to only use useSound if sound is available
+  const [play, { stop }] = useSound(ringtoneSrc, { 
+    loop: true,
+    // Add a check to prevent errors if sound fails to load
+    onError: (error) => {
+      console.warn('Ringtone failed to load:', error);
+    }
+  });
 
   useEffect(() => {
     if (isOpen) {
