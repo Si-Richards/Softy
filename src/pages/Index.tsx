@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -155,13 +154,6 @@ const Index = () => {
           <div className="flex-1 overflow-auto">
             {renderActiveTab()}
           </div>
-          
-          <footer className="p-3 border-t bg-gray-50">
-            <div className="flex justify-between items-center">
-              <CallStatus status="idle" />
-              <span className="text-xs text-gray-500">Ready to make calls</span>
-            </div>
-          </footer>
         </div>
       </div>
 
