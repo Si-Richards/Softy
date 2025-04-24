@@ -35,7 +35,9 @@ export class MediaConfigHandler {
       audioRecv: true,
       videoRecv: true,
       audioSend: true,
-      videoSend: true
+      videoSend: true,
+      removeAudio: false,
+      removeVideo: false
     };
   }
 }
