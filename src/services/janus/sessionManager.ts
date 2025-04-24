@@ -6,26 +6,43 @@ export class JanusSessionManager {
   private sipPlugin: any = null;
   private opaqueId: string;
   private initialized: boolean = false;
+  private connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 
   constructor() {
     this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
   }
 
+  private async checkDependencies(): Promise<void> {
+    // Check if adapter is available
+    if (typeof RTCPeerConnection === 'undefined') {
+      throw new Error('WebRTC adapter not loaded or WebRTC not supported');
+    }
+    
+    // Check if Janus library is loaded
+    if (typeof window.Janus === 'undefined') {
+      throw new Error('Janus library not loaded');
+    }
+  }
+
   private async initJanus(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (typeof window.Janus === 'undefined') {
-        reject(new Error('Janus library not loaded'));
-        return;
+      try {
+        window.Janus.init({
+          debug: "all",
+          callback: () => {
+            console.log('Janus initialized successfully');
+            this.initialized = true;
+            resolve();
+          },
+          error: (error: any) => {
+            console.error('Janus initialization error:', error);
+            reject(new Error(`Janus initialization failed: ${error}`));
+          }
+        });
+      } catch (error) {
+        console.error('Error during Janus initialization:', error);
+        reject(error);
       }
-
-      window.Janus.init({
-        debug: "all",
-        callback: () => {
-          console.log('Janus initialized successfully');
-          this.initialized = true;
-          resolve();
-        }
-      });
     });
   }
 
@@ -34,7 +51,12 @@ export class JanusSessionManager {
       this.disconnect();
     }
 
+    this.connectionState = 'connecting';
+    console.log('Creating Janus session...');
+
     try {
+      await this.checkDependencies();
+      
       if (!this.initialized) {
         await this.initJanus();
       }
@@ -48,21 +70,26 @@ export class JanusSessionManager {
           ],
           success: () => {
             console.log('Janus session created successfully');
+            this.connectionState = 'connected';
             resolve();
           },
           error: (error: any) => {
             const errorMsg = `Error creating Janus session: ${error}`;
             console.error(errorMsg);
+            this.connectionState = 'disconnected';
             reject(new Error(errorMsg));
           },
           destroyed: () => {
             console.log('Janus session destroyed');
+            this.connectionState = 'disconnected';
             if (options.destroyed) options.destroyed();
           }
         });
       });
     } catch (error: any) {
+      this.connectionState = 'disconnected';
       this.disconnect(); // Clean up on failure
+      console.error('Failed to create Janus instance:', error);
       throw new Error(`Failed to create Janus instance: ${error.message || error}`);
     }
   }
@@ -83,7 +110,13 @@ export class JanusSessionManager {
     return this.opaqueId;
   }
 
+  getConnectionState() {
+    return this.connectionState;
+  }
+
   disconnect(): void {
+    this.connectionState = 'disconnected';
+    
     if (this.sipPlugin) {
       this.sipPlugin.detach();
       this.sipPlugin = null;
