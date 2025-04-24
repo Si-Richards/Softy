@@ -13,10 +13,19 @@ export class MediaConfigHandler {
     const audioInput = localStorage.getItem('selectedAudioInput');
     const videoInput = localStorage.getItem('selectedVideoInput');
     
-    // Ensure we're explicitly requesting audio
+    // Enhanced audio constraints with fallback options
     const audioConstraints = audioInput 
-      ? { deviceId: { exact: audioInput }, echoCancellation: true, noiseSuppression: true }
-      : { echoCancellation: true, noiseSuppression: true };
+      ? { 
+          deviceId: { exact: audioInput }, 
+          echoCancellation: true, 
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      : { 
+          echoCancellation: true, 
+          noiseSuppression: true,
+          autoGainControl: true
+        };
     
     return {
       audio: audioConstraints,
@@ -30,7 +39,7 @@ export class MediaConfigHandler {
       videoRecv: true,
       audioSend: true,
       videoSend: !!videoInput,
-      removeAudio: false,
+      removeAudio: false, // Never remove audio
       removeVideo: !videoInput
     };
   }
@@ -41,7 +50,7 @@ export class MediaConfigHandler {
       videoRecv: true,
       audioSend: true,
       videoSend: true,
-      removeAudio: false,
+      removeAudio: false, // Never remove audio
       removeVideo: false
     };
   }

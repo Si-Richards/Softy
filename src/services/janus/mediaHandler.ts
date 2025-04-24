@@ -21,7 +21,23 @@ export class JanusMediaHandler {
       // Ensure audio tracks are enabled by default
       stream.getAudioTracks().forEach(track => {
         console.log("Remote audio track:", track.label, "enabled:", track.enabled);
-        track.enabled = true;
+        // Explicitly enable remote audio tracks
+        if (!track.enabled) {
+          console.log("Enabling disabled remote audio track");
+          track.enabled = true;
+        }
+      });
+      
+      // Add stream ended event listener
+      stream.addEventListener('inactive', () => {
+        console.warn("Remote stream became inactive");
+      });
+
+      // Log when audio tracks end
+      stream.getAudioTracks().forEach(track => {
+        track.addEventListener('ended', () => {
+          console.warn(`Audio track ${track.id} ended`);
+        });
       });
     }
     this.remoteStream = stream;

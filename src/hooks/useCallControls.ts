@@ -42,16 +42,35 @@ export const useCallControls = () => {
           await janusService.call(number);
           setIsCallActive(true);
           
-          // Set up audio level testing
+          // More frequent and detailed audio monitoring
           const interval = setInterval(() => {
             const remoteStream = janusService.getRemoteStream();
             if (remoteStream) {
-              console.log("Remote stream audio tracks:", remoteStream.getAudioTracks().length);
-              remoteStream.getAudioTracks().forEach(track => {
-                console.log("Remote audio track enabled:", track.enabled, "readyState:", track.readyState);
+              console.log("Remote stream audio monitoring:");
+              console.log("- Audio tracks count:", remoteStream.getAudioTracks().length);
+              
+              remoteStream.getAudioTracks().forEach((track, idx) => {
+                console.log(`- Audio track ${idx}:`, {
+                  enabled: track.enabled,
+                  muted: track.muted,
+                  readyState: track.readyState,
+                  id: track.id
+                });
+                
+                // Ensure tracks are enabled (emergency fix)
+                if (!track.enabled) {
+                  console.log("Re-enabling disabled audio track");
+                  track.enabled = true;
+                }
               });
+              
+              // Check if audio output is actually working
+              console.log("- Stream active:", remoteStream.active);
+            } else {
+              console.warn("No remote stream available for audio monitoring");
             }
-          }, 5000);
+          }, 3000); // Check every 3 seconds
+          
           setAudioTestInterval(interval);
         } catch (error) {
           console.error("Error making call:", error);
