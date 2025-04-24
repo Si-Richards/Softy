@@ -1,6 +1,7 @@
 
 import { SipState } from './sipState';
 import { MediaConfigHandler } from './mediaConfig';
+import { formatE164Number } from '../utils/phoneNumberUtils';
 
 export class SipCallManager {
   private mediaConfig: MediaConfigHandler;
@@ -21,6 +22,9 @@ export class SipCallManager {
         return;
       }
 
+      // Format the number properly in E.164 format with SIP URI
+      const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
+
       const videoInput = localStorage.getItem('selectedVideoInput');
       const constraints = this.mediaConfig.getCallMediaConstraints();
 
@@ -32,14 +36,14 @@ export class SipCallManager {
             success: (jsep: any) => {
               const message = {
                 request: "call",
-                uri: uri
+                uri: formattedUri
               };
 
               this.sipState.getSipPlugin().send({
                 message,
                 jsep,
                 success: () => {
-                  console.log(`Calling ${uri}`);
+                  console.log(`Calling ${formattedUri}`);
                   resolve();
                 },
                 error: (error: any) => {
