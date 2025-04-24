@@ -4,10 +4,26 @@ export class JanusMediaHandler {
   private remoteStream: MediaStream | null = null;
 
   setLocalStream(stream: MediaStream | null) {
+    console.log("Setting local stream:", stream);
+    if (stream) {
+      // Ensure audio tracks are enabled by default
+      stream.getAudioTracks().forEach(track => {
+        console.log("Local audio track:", track.label, "enabled:", track.enabled);
+        track.enabled = true;
+      });
+    }
     this.localStream = stream;
   }
 
   setRemoteStream(stream: MediaStream | null) {
+    console.log("Setting remote stream:", stream);
+    if (stream) {
+      // Ensure audio tracks are enabled by default
+      stream.getAudioTracks().forEach(track => {
+        console.log("Remote audio track:", track.label, "enabled:", track.enabled);
+        track.enabled = true;
+      });
+    }
     this.remoteStream = stream;
   }
 
@@ -24,4 +40,3 @@ export class JanusMediaHandler {
     this.remoteStream = null;
   }
 }
-

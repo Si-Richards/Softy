@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
 import DialpadGrid from "./dialpad/DialpadGrid";
@@ -18,6 +18,25 @@ const Dialpad = () => {
   const { toast } = useToast();
   const { isJanusConnected, errorMessage } = useJanusSetup();
   const voicemailNumber = "*97";
+
+  // Update the video elements with streams when they change
+  useEffect(() => {
+    if (isCallActive) {
+      const localStream = janusService.getLocalStream();
+      const remoteStream = janusService.getRemoteStream();
+      
+      console.log("Local stream in Dialpad:", localStream);
+      console.log("Remote stream in Dialpad:", remoteStream);
+      
+      if (localVideoRef.current && localStream) {
+        localVideoRef.current.srcObject = localStream;
+      }
+      
+      if (remoteVideoRef.current && remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }
+  }, [isCallActive]);
 
   const handleKeyPress = (key: string) => {
     setNumber((prev) => prev + key);
@@ -62,10 +81,13 @@ const Dialpad = () => {
   };
 
   const toggleMute = () => {
-    setMuted(!muted);
+    const newMutedState = !muted;
+    setMuted(newMutedState);
+    
     if (janusService.getLocalStream()) {
       janusService.getLocalStream()?.getAudioTracks().forEach(track => {
-        track.enabled = muted;
+        console.log("Setting audio track enabled:", !newMutedState);
+        track.enabled = !newMutedState;
       });
     }
   };

@@ -28,8 +28,20 @@ export class SipCallManager {
       const videoInput = localStorage.getItem('selectedVideoInput');
       const constraints = this.mediaConfig.getCallMediaConstraints();
 
+      console.log("Getting user media with constraints:", JSON.stringify(constraints));
+      
       navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
+          console.log("Got local media stream:", stream);
+          console.log("Audio tracks:", stream.getAudioTracks().length);
+          console.log("Video tracks:", stream.getVideoTracks().length);
+          
+          // Ensure audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            console.log("Audio track enabled:", track.enabled);
+            track.enabled = true;
+          });
+
           this.sipState.getSipPlugin().createOffer({
             media: this.mediaConfig.getCallMediaConfig(videoInput),
             stream: stream,
@@ -69,27 +81,46 @@ export class SipCallManager {
         return;
       }
 
-      this.sipState.getSipPlugin().createAnswer({
-        jsep: jsep,
-        media: this.mediaConfig.getAnswerMediaConfig(),
-        success: (ourjsep: any) => {
-          const message = { request: "accept" };
-          this.sipState.getSipPlugin().send({
-            message,
-            jsep: ourjsep,
-            success: () => {
-              console.log("Call accepted");
-              resolve();
+      // Get media constraints for answering calls
+      const constraints = this.mediaConfig.getCallMediaConstraints();
+      
+      console.log("Accepting call with constraints:", JSON.stringify(constraints));
+      
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+          console.log("Got local media stream for accepting call:", stream);
+          
+          // Ensure audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            track.enabled = true;
+          });
+          
+          this.sipState.getSipPlugin().createAnswer({
+            jsep: jsep,
+            media: this.mediaConfig.getAnswerMediaConfig(),
+            stream: stream,
+            success: (ourjsep: any) => {
+              const message = { request: "accept" };
+              this.sipState.getSipPlugin().send({
+                message,
+                jsep: ourjsep,
+                success: () => {
+                  console.log("Call accepted");
+                  resolve();
+                },
+                error: (error: any) => {
+                  reject(new Error(`Error accepting call: ${error}`));
+                }
+              });
             },
             error: (error: any) => {
-              reject(new Error(`Error accepting call: ${error}`));
+              reject(new Error(`WebRTC error: ${error}`));
             }
           });
-        },
-        error: (error: any) => {
-          reject(new Error(`WebRTC error: ${error}`));
-        }
-      });
+        })
+        .catch((error) => {
+          reject(new Error(`Media error when accepting call: ${error}`));
+        });
     });
   }
 
