@@ -1,3 +1,4 @@
+
 import { JanusJS } from 'janus-gateway-js';
 
 interface JanusOptions {
@@ -9,12 +10,20 @@ interface JanusOptions {
   destroyed?: () => void;
 }
 
+interface SipCredentials {
+  username: string;
+  password: string;
+  sipHost: string;
+}
+
 class JanusService {
   private janus: any = null;
-  private videoCallPlugin: any = null;
+  private sipPlugin: any = null;
   private opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
+  private currentCredentials: SipCredentials | null = null;
+  private registered: boolean = false;
 
   // Event callbacks
   private onIncomingCall: ((from: string) => void) | null = null;
@@ -30,6 +39,11 @@ class JanusService {
         if (this.onError) this.onError(errorMsg);
         reject(new Error(errorMsg));
         return;
+      }
+
+      // Cleanup any existing session before initializing a new one
+      if (this.janus) {
+        this.disconnect();
       }
 
       // Initialize Janus
@@ -57,7 +71,7 @@ class JanusService {
           { urls: 'stun:stun.l.google.com:19302' }
         ],
         success: () => {
-          this.attachVideoCallPlugin()
+          this.attachSipPlugin()
             .then(() => {
               if (options.success) options.success();
               resolve();
@@ -77,7 +91,7 @@ class JanusService {
     });
   }
 
-  private attachVideoCallPlugin(): Promise<void> {
+  private attachSipPlugin(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.janus) {
         reject(new Error("Janus not initialized"));
@@ -85,21 +99,21 @@ class JanusService {
       }
 
       this.janus.attach({
-        plugin: "janus.plugin.videocall",
+        plugin: "janus.plugin.sip",
         opaqueId: this.opaqueId,
         success: (pluginHandle: any) => {
-          this.videoCallPlugin = pluginHandle;
-          console.log("VideoCall plugin attached:", pluginHandle);
+          this.sipPlugin = pluginHandle;
+          console.log("SIP plugin attached:", pluginHandle);
           resolve();
         },
         error: (error: any) => {
-          const errorMsg = `Error attaching to VideoCall plugin: ${error}`;
+          const errorMsg = `Error attaching to SIP plugin: ${error}`;
           console.error(errorMsg);
           if (this.onError) this.onError(errorMsg);
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
-          this.handleVideoCallMessage(msg, jsep);
+          this.handleSipMessage(msg, jsep);
         },
         onlocalstream: (stream: MediaStream) => {
           console.log("Got local stream", stream);
@@ -111,7 +125,7 @@ class JanusService {
           if (this.onCallConnected) this.onCallConnected();
         },
         oncleanup: () => {
-          console.log("VideoCall plugin cleaned up");
+          console.log("SIP plugin cleaned up");
           this.localStream = null;
           this.remoteStream = null;
         }
@@ -119,32 +133,38 @@ class JanusService {
     });
   }
 
-  private handleVideoCallMessage(msg: any, jsep: any): void {
-    if (!this.videoCallPlugin) return;
+  private handleSipMessage(msg: any, jsep: any): void {
+    if (!this.sipPlugin) return;
 
     const result = msg["result"];
     if (result) {
-      if (result["list"]) {
-        // Handle user list
-        console.log("Got a list of registered users:", result["list"]);
-      } else if (result["event"]) {
+      if (result["event"]) {
         const event = result["event"];
         
         if (event === "registered") {
-          console.log("Successfully registered with the server");
+          console.log("Successfully registered with the SIP server");
+          this.registered = true;
+        } else if (event === "registering") {
+          console.log("Registering with the SIP server");
+        } else if (event === "registration_failed") {
+          console.log("Registration failed:", result);
+          this.registered = false;
+          if (this.onError) this.onError(`SIP registration failed: ${result["code"] || "Unknown error"}`);
         } else if (event === "calling") {
-          console.log("Waiting for the peer to answer");
+          console.log("Calling...");
         } else if (event === "incomingcall") {
-          const username = result["username"];
+          const username = result["username"] || "Unknown caller";
           console.log("Incoming call from", username);
           if (this.onIncomingCall) this.onIncomingCall(username);
           
-          // Automatically accept the call for this example
-          this.acceptCall(jsep);
+          // Automatically accept the call
+          if (jsep) {
+            this.acceptCall(jsep);
+          }
         } else if (event === "accepted") {
           console.log("Call accepted");
           if (jsep) {
-            this.videoCallPlugin.handleRemoteJsep({ jsep });
+            this.sipPlugin.handleRemoteJsep({ jsep });
           }
         } else if (event === "hangup") {
           console.log("Call hung up");
@@ -152,28 +172,53 @@ class JanusService {
         }
       }
     }
+
+    // Handle errors
+    const error = msg["error"];
+    if (error) {
+      console.error("SIP error:", error);
+      if (this.onError) this.onError(`SIP error: ${error}`);
+    }
+
+    // Handle jsep
+    if (jsep) {
+      console.log("Handling SIP jsep", jsep);
+      this.sipPlugin.handleRemoteJsep({ jsep });
+    }
   }
 
-  register(username: string): Promise<void> {
+  register(username: string, password: string, sipHost: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.videoCallPlugin) {
-        const error = "VideoCall plugin not attached";
+      if (!this.sipPlugin) {
+        const error = "SIP plugin not attached";
         if (this.onError) this.onError(error);
         reject(new Error(error));
         return;
       }
 
-      this.videoCallPlugin.send({
+      // Format SIP URI
+      const sipUri = `sip:${username}@${sipHost}`;
+      
+      // Store credentials for potential reconnection
+      this.currentCredentials = { username, password, sipHost };
+
+      // Register with the SIP server
+      this.sipPlugin.send({
         message: {
           request: "register",
-          username: username
+          username: sipUri,
+          display_name: username,
+          authuser: username,
+          secret: password,
+          proxy: `sip:${sipHost}`
         },
         success: () => {
-          console.log(`Registered as ${username}`);
+          console.log(`SIP registration request sent for ${username}@${sipHost}`);
           resolve();
         },
         error: (error: any) => {
-          const errorMsg = `Error registering: ${error}`;
+          const errorMsg = `Error sending SIP registration: ${error}`;
+          this.registered = false;
           if (this.onError) this.onError(errorMsg);
           reject(new Error(errorMsg));
         }
@@ -181,10 +226,17 @@ class JanusService {
     });
   }
 
-  call(username: string): Promise<void> {
+  call(uri: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.videoCallPlugin) {
-        const error = "VideoCall plugin not attached";
+      if (!this.sipPlugin) {
+        const error = "SIP plugin not attached";
+        if (this.onError) this.onError(error);
+        reject(new Error(error));
+        return;
+      }
+
+      if (!this.registered) {
+        const error = "Not registered with SIP server";
         if (this.onError) this.onError(error);
         reject(new Error(error));
         return;
@@ -193,19 +245,19 @@ class JanusService {
       // Get media
       navigator.mediaDevices.getUserMedia({ audio: true, video: true })
         .then((stream) => {
-          this.videoCallPlugin.createOffer({
+          this.sipPlugin.createOffer({
             media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
             success: (jsep: any) => {
               const message = {
                 request: "call",
-                username: username
+                uri: uri
               };
 
-              this.videoCallPlugin.send({
+              this.sipPlugin.send({
                 message,
                 jsep,
                 success: () => {
-                  console.log(`Calling ${username}`);
+                  console.log(`Calling ${uri}`);
                   resolve();
                 },
                 error: (error: any) => {
@@ -232,19 +284,19 @@ class JanusService {
 
   acceptCall(jsep: any): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.videoCallPlugin) {
-        const error = "VideoCall plugin not attached";
+      if (!this.sipPlugin) {
+        const error = "SIP plugin not attached";
         if (this.onError) this.onError(error);
         reject(new Error(error));
         return;
       }
 
-      this.videoCallPlugin.createAnswer({
+      this.sipPlugin.createAnswer({
         jsep: jsep,
         media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
         success: (ourjsep: any) => {
           const message = { request: "accept" };
-          this.videoCallPlugin.send({
+          this.sipPlugin.send({
             message,
             jsep: ourjsep,
             success: () => {
@@ -269,14 +321,14 @@ class JanusService {
 
   hangup(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.videoCallPlugin) {
-        const error = "VideoCall plugin not attached";
+      if (!this.sipPlugin) {
+        const error = "SIP plugin not attached";
         if (this.onError) this.onError(error);
         reject(new Error(error));
         return;
       }
 
-      this.videoCallPlugin.send({
+      this.sipPlugin.send({
         message: { request: "hangup" },
         success: () => {
           console.log("Call hung up");
@@ -289,6 +341,10 @@ class JanusService {
         }
       });
     });
+  }
+
+  isRegistered(): boolean {
+    return this.registered;
   }
 
   setOnIncomingCall(callback: (from: string) => void): void {
@@ -316,9 +372,10 @@ class JanusService {
   }
 
   disconnect(): void {
-    if (this.videoCallPlugin) {
-      this.videoCallPlugin.detach();
-      this.videoCallPlugin = null;
+    this.registered = false;
+    if (this.sipPlugin) {
+      this.sipPlugin.detach();
+      this.sipPlugin = null;
     }
     
     if (this.janus) {
