@@ -90,7 +90,9 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
                     variant="ghost"
                     size={isExpanded ? "default" : "icon"}
                     className={cn(
-                      "w-full rounded-xl flex items-center gap-3 justify-start",
+                      "w-full rounded-xl flex items-center gap-3",
+                      // Ensure items are centered when collapsed
+                      !isExpanded ? "justify-center" : "justify-start",
                       activeTab === tab.id
                         ? "bg-softphone-primary text-white"
                         : "text-gray-400 hover:text-white hover:bg-gray-700"
@@ -104,6 +106,7 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
                     <Badge 
                       className={cn(
                         "absolute -top-1 px-2 min-w-[20px] h-5 bg-softphone-error text-white text-xs flex items-center justify-center rounded-full",
+                        // Adjust badge position when sidebar is collapsed
                         isExpanded ? "right-6" : "right-2"
                       )}
                       variant="destructive"
