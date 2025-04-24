@@ -1,4 +1,3 @@
-
 export interface JanusOptions {
   server: string;
   apiSecret?: string;
@@ -15,7 +14,7 @@ export interface SipCredentials {
 }
 
 export interface EventHandlers {
-  onIncomingCall: ((from: string) => void) | null;
+  onIncomingCall: ((from: string, jsep: any) => void) | null;
   onCallConnected: (() => void) | null;
   onCallEnded: (() => void) | null;
   onError: ((error: string) => void) | null;

@@ -6,15 +6,13 @@ export const useJanusSetup = () => {
   const [isJanusConnected, setIsJanusConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     // Set up Janus event handlers
-    janusService.setOnIncomingCall((from) => {
-      toast({
-        title: "Incoming Call",
-        description: `Call from ${from}`,
-      });
+    janusService.setOnIncomingCall((from, jsep) => {
+      setIncomingCall({ from, jsep });
     });
 
     janusService.setOnCallConnected(() => {
@@ -51,6 +49,27 @@ export const useJanusSetup = () => {
       // We'll handle disconnection separately when the user logs out or the app closes
     };
   }, [toast]);
+
+  const handleAcceptCall = async () => {
+    if (incomingCall?.jsep) {
+      try {
+        await janusService.acceptCall(incomingCall.jsep);
+        setIncomingCall(null);
+      } catch (error) {
+        console.error("Error accepting call:", error);
+        toast({
+          title: "Error",
+          description: "Failed to accept the call",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleRejectCall = () => {
+    janusService.hangup();
+    setIncomingCall(null);
+  };
 
   const initializeJanus = async (username?: string, password?: string, host?: string) => {
     try {
@@ -110,6 +129,9 @@ export const useJanusSetup = () => {
     isJanusConnected,
     isRegistered,
     errorMessage,
+    incomingCall,
+    handleAcceptCall,
+    handleRejectCall,
     initializeJanus,
     registerWithJanus,
     janusService

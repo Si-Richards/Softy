@@ -1,4 +1,3 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -86,7 +85,7 @@ class JanusService {
     });
   }
 
-  setOnIncomingCall(callback: (from: string) => void): void {
+  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
     this.eventHandlers.setOnIncomingCall(callback);
   }
 

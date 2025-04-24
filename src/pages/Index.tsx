@@ -20,6 +20,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { DraggableDialogContent } from "@/components/ui/draggable-dialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import QuickDial from "@/components/QuickDial";
+import IncomingCallDialog from "@/components/dialpad/IncomingCallDialog";
 
 type UserPresence = "available" | "away" | "busy" | "offline";
 
@@ -165,6 +166,13 @@ const Index = () => {
           <Dialpad />
         </DrawerContent>
       </Drawer>
+
+      <IncomingCallDialog
+        isOpen={!!incomingCall}
+        callerNumber={incomingCall?.from || ""}
+        onAccept={handleAcceptCall}
+        onReject={handleRejectCall}
+      />
     </div>
   );
 };
