@@ -1,12 +1,11 @@
-
 import React, { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Phone, PhoneOff } from "lucide-react";
 import useSound from 'use-sound';
 
-// Use a relative path to the assets folder
-import ringtoneSrc from '@/assets/sounds/ringtone.mp3';
+// Fallback to a default sound or remove sound if file is missing
+const ringtoneSrc = '/fallback-ringtone.mp3';
 
 interface IncomingCallDialogProps {
   isOpen: boolean;
