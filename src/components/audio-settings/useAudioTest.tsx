@@ -62,8 +62,8 @@ export const useAudioTest = () => {
       if ('setSinkId' in audio) {
         (audio as HTMLAudioElement).setSinkId(deviceId)
           .then(() => {
-            // Make sure we properly handle the play promise
-            const playPromise = audio.play();
+            // Explicitly type the play method and use promise handling
+            const playPromise: Promise<void> = audio.play();
             
             if (playPromise !== undefined) {
               playPromise
@@ -93,8 +93,8 @@ export const useAudioTest = () => {
             });
           });
       } else {
-        // Make sure we properly handle the play promise here too
-        const playPromise = audio.play();
+        // Handle play for browsers without setSinkId
+        const playPromise: Promise<void> = audio.play();
         
         if (playPromise !== undefined) {
           playPromise
