@@ -59,7 +59,7 @@ export const useAudioTest = () => {
       audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       
       if ('setSinkId' in audio) {
-        (audio as any).setSinkId(deviceId)
+        (audio as HTMLAudioElement).setSinkId(deviceId)
           .then(() => {
             audio.play()
               .then(() => {

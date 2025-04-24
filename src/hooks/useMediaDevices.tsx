@@ -1,17 +1,16 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from './use-toast';
 
-interface MediaDevice {
+interface MediaDeviceInfo {
   deviceId: string;
   label: string;
   kind: string;
 }
 
 export const useMediaDevices = () => {
-  const [audioInputs, setAudioInputs] = useState<MediaDevice[]>([]);
-  const [audioOutputs, setAudioOutputs] = useState<MediaDevice[]>([]);
-  const [videoInputs, setVideoInputs] = useState<MediaDevice[]>([]);
+  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
+  const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
+  const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
   const [selectedAudioInput, setSelectedAudioInput] = useState<string>('');
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
   const [selectedVideoInput, setSelectedVideoInput] = useState<string>('');
