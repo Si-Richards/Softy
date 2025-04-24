@@ -20,19 +20,16 @@ export const useMediaDevices = () => {
   const updateSelectedAudioInput = (deviceId: string) => {
     localStorage.setItem('selectedAudioInput', deviceId);
     setSelectedAudioInput(deviceId);
-    console.log("Audio input device set to:", deviceId);
   };
 
   const updateSelectedAudioOutput = (deviceId: string) => {
     localStorage.setItem('selectedAudioOutput', deviceId);
     setSelectedAudioOutput(deviceId);
-    console.log("Audio output device set to:", deviceId);
   };
 
   const updateSelectedVideoInput = (deviceId: string) => {
     localStorage.setItem('selectedVideoInput', deviceId);
     setSelectedVideoInput(deviceId);
-    console.log("Video input device set to:", deviceId);
   };
 
   const loadDevices = async () => {
@@ -42,39 +39,18 @@ export const useMediaDevices = () => {
       
       const devices = await navigator.mediaDevices.enumerateDevices();
       
-      const inputs = devices.filter(device => device.kind === 'audioinput');
-      const outputs = devices.filter(device => device.kind === 'audiooutput');
-      const videos = devices.filter(device => device.kind === 'videoinput');
+      setAudioInputs(devices.filter(device => device.kind === 'audioinput'));
+      setAudioOutputs(devices.filter(device => device.kind === 'audiooutput'));
+      setVideoInputs(devices.filter(device => device.kind === 'videoinput'));
       
-      setAudioInputs(inputs);
-      setAudioOutputs(outputs);
-      setVideoInputs(videos);
+      // Set defaults if available
+      const defaultAudioInput = devices.find(d => d.kind === 'audioinput')?.deviceId;
+      const defaultAudioOutput = devices.find(d => d.kind === 'audiooutput')?.deviceId;
+      const defaultVideoInput = devices.find(d => d.kind === 'videoinput')?.deviceId;
       
-      console.log("Available devices:", { inputs, outputs, videos });
-      
-      // Load saved preferences
-      const savedAudioInput = localStorage.getItem('selectedAudioInput');
-      const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-      const savedVideoInput = localStorage.getItem('selectedVideoInput');
-      
-      // Set devices from storage or set defaults if available
-      if (savedAudioInput && inputs.some(d => d.deviceId === savedAudioInput)) {
-        setSelectedAudioInput(savedAudioInput);
-      } else if (inputs.length > 0) {
-        updateSelectedAudioInput(inputs[0].deviceId);
-      }
-      
-      if (savedAudioOutput && outputs.some(d => d.deviceId === savedAudioOutput)) {
-        setSelectedAudioOutput(savedAudioOutput);
-      } else if (outputs.length > 0) {
-        updateSelectedAudioOutput(outputs[0].deviceId);
-      }
-      
-      if (savedVideoInput && videos.some(d => d.deviceId === savedVideoInput)) {
-        setSelectedVideoInput(savedVideoInput);
-      } else if (videos.length > 0) {
-        updateSelectedVideoInput(videos[0].deviceId);
-      }
+      if (defaultAudioInput) updateSelectedAudioInput(defaultAudioInput);
+      if (defaultAudioOutput) updateSelectedAudioOutput(defaultAudioOutput);
+      if (defaultVideoInput) updateSelectedVideoInput(defaultVideoInput);
     } catch (error) {
       console.error('Error loading devices:', error);
       toast({
@@ -86,6 +62,15 @@ export const useMediaDevices = () => {
   };
 
   useEffect(() => {
+    // Load saved preferences
+    const savedAudioInput = localStorage.getItem('selectedAudioInput');
+    const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+    const savedVideoInput = localStorage.getItem('selectedVideoInput');
+
+    if (savedAudioInput) updateSelectedAudioInput(savedAudioInput);
+    if (savedAudioOutput) updateSelectedAudioOutput(savedAudioOutput);
+    if (savedVideoInput) updateSelectedVideoInput(savedVideoInput);
+
     loadDevices();
 
     // Listen for device changes

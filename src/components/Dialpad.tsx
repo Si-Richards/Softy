@@ -34,8 +34,6 @@ const Dialpad = () => {
       
       if (remoteVideoRef.current && remoteStream) {
         remoteVideoRef.current.srcObject = remoteStream;
-        // Apply the selected audio output device to the remote video element
-        janusService.applyAudioOutputDevice(remoteVideoRef.current);
       }
     }
   }, [isCallActive]);

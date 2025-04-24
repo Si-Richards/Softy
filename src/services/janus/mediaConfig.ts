@@ -13,19 +13,10 @@ export class MediaConfigHandler {
     const audioInput = localStorage.getItem('selectedAudioInput');
     const videoInput = localStorage.getItem('selectedVideoInput');
     
-    // Ensure we're explicitly requesting audio with echo cancellation and noise suppression
+    // Ensure we're explicitly requesting audio
     const audioConstraints = audioInput 
-      ? { 
-          deviceId: { exact: audioInput }, 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      : { 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
-        };
+      ? { deviceId: { exact: audioInput }, echoCancellation: true, noiseSuppression: true }
+      : { echoCancellation: true, noiseSuppression: true };
     
     return {
       audio: audioConstraints,

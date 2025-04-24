@@ -134,19 +134,6 @@ class JanusService {
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
   }
-
-  // Methods for audio output device management
-  setAudioOutputDevice(deviceId: string): void {
-    this.mediaHandler.setAudioOutputDevice(deviceId);
-  }
-
-  getAudioOutputDevice(): string | null {
-    return this.mediaHandler.getAudioOutputDevice();
-  }
-
-  applyAudioOutputDevice(element: HTMLMediaElement | null): void {
-    this.mediaHandler.applyAudioOutputToElement(element);
-  }
 }
 
 const janusService = new JanusService();

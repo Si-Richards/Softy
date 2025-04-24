@@ -1,13 +1,11 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Volume2, Mic, Speaker } from "lucide-react";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
-import { useToast } from "@/hooks/use-toast";
-import janusService from "@/services/JanusService";
 
 const AudioSettings = () => {
   const {
@@ -21,111 +19,6 @@ const AudioSettings = () => {
     setSelectedAudioOutput,
     setSelectedVideoInput,
   } = useMediaDevices();
-  
-  const { toast } = useToast();
-
-  // Effect to update JanusService with the selected output device
-  useEffect(() => {
-    if (selectedAudioOutput) {
-      janusService.setAudioOutputDevice(selectedAudioOutput);
-    }
-  }, [selectedAudioOutput]);
-
-  // Test audio input
-  const testMicrophone = () => {
-    if (!selectedAudioInput) {
-      toast({
-        title: "No microphone selected",
-        description: "Please select a microphone first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    navigator.mediaDevices.getUserMedia({ 
-      audio: { deviceId: { exact: selectedAudioInput } } 
-    })
-    .then(stream => {
-      // Create audio context for visualization
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      source.connect(analyser);
-      
-      toast({
-        title: "Microphone Test",
-        description: "Microphone is working!",
-        variant: "default",
-      });
-      
-      // Stop the stream after 3 seconds
-      setTimeout(() => {
-        stream.getTracks().forEach(track => track.stop());
-        audioContext.close();
-      }, 3000);
-    })
-    .catch(error => {
-      console.error("Error testing microphone:", error);
-      toast({
-        title: "Microphone Test Failed",
-        description: error.message || "Could not access microphone",
-        variant: "destructive",
-      });
-    });
-  };
-
-  // Test audio output
-  const testSpeaker = () => {
-    if (!selectedAudioOutput) {
-      toast({
-        title: "No speaker selected",
-        description: "Please select a speaker first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const audio = new Audio();
-      audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; // Short beep
-      
-      // Set the audio output device if supported
-      if ('setSinkId' in audio) {
-        (audio as any).setSinkId(selectedAudioOutput)
-          .then(() => {
-            audio.play();
-            toast({
-              title: "Speaker Test",
-              description: "Playing test sound...",
-              variant: "default",
-            });
-          })
-          .catch((error: any) => {
-            console.error("Error setting audio output device:", error);
-            toast({
-              title: "Speaker Test Failed",
-              description: error.message || "Could not set speaker",
-              variant: "destructive",
-            });
-          });
-      } else {
-        // Fall back to default device if setSinkId is not supported
-        audio.play();
-        toast({
-          title: "Speaker Test",
-          description: "Playing test sound on default device (browser doesn't support output device selection)",
-          variant: "default",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error testing speaker:", error);
-      toast({
-        title: "Speaker Test Failed",
-        description: error.message || "Could not test speaker",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
@@ -152,13 +45,6 @@ const AudioSettings = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              onClick={testMicrophone}
-              className="mt-2 w-full"
-            >
-              Test Microphone
-            </Button>
           </div>
         </div>
 
@@ -182,13 +68,6 @@ const AudioSettings = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              onClick={testSpeaker}
-              className="mt-2 w-full"
-            >
-              Test Speaker
-            </Button>
           </div>
         </div>
 
