@@ -1,8 +1,13 @@
 
 import { SipState } from './sipState';
+import { MediaConfigHandler } from './mediaConfig';
 
 export class SipCallManager {
-  constructor(private sipState: SipState) {}
+  private mediaConfig: MediaConfigHandler;
+
+  constructor(private sipState: SipState) {
+    this.mediaConfig = new MediaConfigHandler();
+  }
 
   async call(uri: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -16,25 +21,13 @@ export class SipCallManager {
         return;
       }
 
-      const audioInput = localStorage.getItem('selectedAudioInput');
       const videoInput = localStorage.getItem('selectedVideoInput');
-
-      const constraints: MediaStreamConstraints = {
-        audio: audioInput ? { deviceId: { exact: audioInput } } : true,
-        video: videoInput ? { deviceId: { exact: videoInput } } : false
-      };
+      const constraints = this.mediaConfig.getCallMediaConstraints();
 
       navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
           this.sipState.getSipPlugin().createOffer({
-            media: { 
-              audioRecv: true, 
-              videoRecv: true, 
-              audioSend: true, 
-              videoSend: !!videoInput,
-              removeAudio: false,
-              removeVideo: !videoInput
-            },
+            media: this.mediaConfig.getCallMediaConfig(videoInput),
             stream: stream,
             success: (jsep: any) => {
               const message = {
@@ -74,7 +67,7 @@ export class SipCallManager {
 
       this.sipState.getSipPlugin().createAnswer({
         jsep: jsep,
-        media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
+        media: this.mediaConfig.getAnswerMediaConfig(),
         success: (ourjsep: any) => {
           const message = { request: "accept" };
           this.sipState.getSipPlugin().send({
