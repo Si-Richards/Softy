@@ -20,7 +20,20 @@ export const useVideoStreams = (
       }
       
       if (remoteVideoRef.current && remoteStream) {
+        console.log("Setting remote stream to video element");
         remoteVideoRef.current.srcObject = remoteStream;
+        
+        // Ensure audio playback is enabled
+        remoteVideoRef.current.muted = false;
+        remoteVideoRef.current.volume = 1.0;
+        
+        // Try to play the stream (may be needed for autoplay policies)
+        const playPromise = remoteVideoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Error playing remote stream:", error);
+          });
+        }
       }
     }
   }, [isCallActive, localVideoRef, remoteVideoRef]);

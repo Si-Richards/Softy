@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 
@@ -7,7 +7,17 @@ export const useCallControls = () => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [audioTestInterval, setAudioTestInterval] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+
+  // Clean up audio test interval on unmount
+  useEffect(() => {
+    return () => {
+      if (audioTestInterval) {
+        clearInterval(audioTestInterval);
+      }
+    };
+  }, [audioTestInterval]);
 
   const handleCall = async (number: string, isJanusConnected: boolean) => {
     if (isCallActive) {
@@ -17,6 +27,12 @@ export const useCallControls = () => {
         }
         setIsCallActive(false);
         setIsVideoEnabled(false);
+        
+        // Clear any audio test interval
+        if (audioTestInterval) {
+          clearInterval(audioTestInterval);
+          setAudioTestInterval(null);
+        }
       } catch (error) {
         console.error("Error hanging up:", error);
       }
@@ -25,6 +41,18 @@ export const useCallControls = () => {
         try {
           await janusService.call(number);
           setIsCallActive(true);
+          
+          // Set up audio level testing
+          const interval = setInterval(() => {
+            const remoteStream = janusService.getRemoteStream();
+            if (remoteStream) {
+              console.log("Remote stream audio tracks:", remoteStream.getAudioTracks().length);
+              remoteStream.getAudioTracks().forEach(track => {
+                console.log("Remote audio track enabled:", track.enabled, "readyState:", track.readyState);
+              });
+            }
+          }, 5000);
+          setAudioTestInterval(interval);
         } catch (error) {
           console.error("Error making call:", error);
           toast({

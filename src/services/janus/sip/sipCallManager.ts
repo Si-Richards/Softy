@@ -46,6 +46,7 @@ export class SipCallManager {
             media: this.mediaConfig.getCallMediaConfig(videoInput),
             stream: stream,
             success: (jsep: any) => {
+              console.log("Created offer with JSEP:", jsep);
               const message = {
                 request: "call",
                 uri: formattedUri
@@ -100,6 +101,7 @@ export class SipCallManager {
             media: this.mediaConfig.getAnswerMediaConfig(),
             stream: stream,
             success: (ourjsep: any) => {
+              console.log("Created answer with JSEP:", ourjsep);
               const message = { request: "accept" };
               this.sipState.getSipPlugin().send({
                 message,
