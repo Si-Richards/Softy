@@ -21,3 +21,8 @@ export interface EventHandlers {
   onError: ((error: string) => void) | null;
 }
 
+declare global {
+  interface Window {
+    Janus: any;
+  }
+}

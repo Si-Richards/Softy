@@ -1,44 +1,70 @@
 
-import { JanusJS } from 'janus-gateway-js';
 import type { JanusOptions } from './types';
 
 export class JanusSessionManager {
   private janus: any = null;
   private sipPlugin: any = null;
   private opaqueId: string;
+  private initialized: boolean = false;
 
   constructor() {
     this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
   }
 
-  async createSession(options: JanusOptions): Promise<void> {
+  private async initJanus(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (this.janus) {
-        this.disconnect();
+      if (typeof window.Janus === 'undefined') {
+        reject(new Error('Janus library not loaded'));
+        return;
       }
 
-      try {
-        this.janus = new JanusJS({
+      window.Janus.init({
+        debug: "all",
+        callback: () => {
+          console.log('Janus initialized successfully');
+          this.initialized = true;
+          resolve();
+        }
+      });
+    });
+  }
+
+  async createSession(options: JanusOptions): Promise<void> {
+    if (this.janus) {
+      this.disconnect();
+    }
+
+    try {
+      if (!this.initialized) {
+        await this.initJanus();
+      }
+
+      return new Promise<void>((resolve, reject) => {
+        this.janus = new window.Janus({
           server: options.server,
           apisecret: options.apiSecret,
           iceServers: options.iceServers || [
             { urls: 'stun:stun.l.google.com:19302' }
           ],
           success: () => {
+            console.log('Janus session created successfully');
             resolve();
           },
           error: (error: any) => {
             const errorMsg = `Error creating Janus session: ${error}`;
+            console.error(errorMsg);
             reject(new Error(errorMsg));
           },
           destroyed: () => {
+            console.log('Janus session destroyed');
             if (options.destroyed) options.destroyed();
           }
         });
-      } catch (error: any) {
-        reject(new Error(`Failed to create Janus instance: ${error.message || error}`));
-      }
-    });
+      });
+    } catch (error: any) {
+      this.disconnect(); // Clean up on failure
+      throw new Error(`Failed to create Janus instance: ${error.message || error}`);
+    }
   }
 
   getJanus() {
