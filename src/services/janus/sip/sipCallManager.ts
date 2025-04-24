@@ -1,6 +1,6 @@
 
 import { SipState } from './sipState';
-import { MediaConfigHandler } from './mediaConfig';
+import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';
 
 export class SipCallManager {
@@ -38,7 +38,7 @@ export class SipCallManager {
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
-            console.log("Audio track enabled:", track.enabled);
+            console.log("Audio track enabled:", track.enabled, "kind:", track.kind);
             track.enabled = true;
           });
 
@@ -46,6 +46,8 @@ export class SipCallManager {
             media: this.mediaConfig.getCallMediaConfig(videoInput),
             stream: stream,
             success: (jsep: any) => {
+              console.log("SDP offer created:", jsep);
+              
               const message = {
                 request: "call",
                 uri: formattedUri
@@ -92,6 +94,7 @@ export class SipCallManager {
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
+            console.log("Audio track enabled for accepting call:", track.enabled, "kind:", track.kind);
             track.enabled = true;
           });
           
@@ -100,6 +103,8 @@ export class SipCallManager {
             media: this.mediaConfig.getAnswerMediaConfig(),
             stream: stream,
             success: (ourjsep: any) => {
+              console.log("SDP answer created:", ourjsep);
+              
               const message = { request: "accept" };
               this.sipState.getSipPlugin().send({
                 message,
