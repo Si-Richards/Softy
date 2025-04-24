@@ -1,48 +1,34 @@
-
 import { JanusJS } from 'janus-gateway-js';
-
-interface JanusOptions {
-  server: string;
-  apiSecret?: string;
-  iceServers?: RTCIceServer[];
-  success?: () => void;
-  error?: (error: any) => void;
-  destroyed?: () => void;
-}
-
-interface SipCredentials {
-  username: string;
-  password: string;
-  sipHost: string;
-}
+import { JanusEventHandlers } from './janus/eventHandlers';
+import { JanusSessionManager } from './janus/sessionManager';
+import { JanusMediaHandler } from './janus/mediaHandler';
+import type { JanusOptions, SipCredentials } from './janus/types';
 
 class JanusService {
-  private janus: any = null;
-  private sipPlugin: any = null;
-  private opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
-  private localStream: MediaStream | null = null;
-  private remoteStream: MediaStream | null = null;
+  private sessionManager: JanusSessionManager;
+  private eventHandlers: JanusEventHandlers;
+  private mediaHandler: JanusMediaHandler;
   private currentCredentials: SipCredentials | null = null;
   private registered: boolean = false;
 
-  // Event callbacks
-  private onIncomingCall: ((from: string) => void) | null = null;
-  private onCallConnected: (() => void) | null = null;
-  private onCallEnded: (() => void) | null = null;
-  private onError: ((error: string) => void) | null = null;
-  
+  constructor() {
+    this.sessionManager = new JanusSessionManager();
+    this.eventHandlers = new JanusEventHandlers();
+    this.mediaHandler = new JanusMediaHandler();
+  }
+
   async initialize(options: JanusOptions): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
       if (!options.server) {
         const errorMsg = "No Janus server URL provided";
         if (options.error) options.error(errorMsg);
-        if (this.onError) this.onError(errorMsg);
+        if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
         reject(new Error(errorMsg));
         return;
       }
 
       // Cleanup any existing session before initializing a new one
-      if (this.janus) {
+      if (this.sessionManager.getJanus()) {
         this.disconnect();
       }
 
@@ -50,11 +36,12 @@ class JanusService {
       JanusJS.init({
         debug: true,
         callback: () => {
-          this.createSession(options)
+          this.sessionManager.createSession(options)
+            .then(() => this.attachSipPlugin())
             .then(() => resolve(true))
             .catch(error => {
               if (options.error) options.error(error);
-              if (this.onError) this.onError(error);
+              if (this.eventHandlers.onError) this.eventHandlers.onError(error);
               reject(error);
             });
         }
@@ -62,54 +49,25 @@ class JanusService {
     });
   }
 
-  private createSession(options: JanusOptions): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      this.janus = new JanusJS.Janus({
-        server: options.server,
-        apisecret: options.apiSecret,
-        iceServers: options.iceServers || [
-          { urls: 'stun:stun.l.google.com:19302' }
-        ],
-        success: () => {
-          this.attachSipPlugin()
-            .then(() => {
-              if (options.success) options.success();
-              resolve();
-            })
-            .catch(error => reject(error));
-        },
-        error: (error) => {
-          const errorMsg = `Error creating Janus session: ${error}`;
-          if (options.error) options.error(errorMsg);
-          if (this.onError) this.onError(errorMsg);
-          reject(new Error(errorMsg));
-        },
-        destroyed: () => {
-          if (options.destroyed) options.destroyed();
-        }
-      });
-    });
-  }
-
   private attachSipPlugin(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.janus) {
+      if (!this.sessionManager.getJanus()) {
         reject(new Error("Janus not initialized"));
         return;
       }
 
-      this.janus.attach({
+      this.sessionManager.getJanus().attach({
         plugin: "janus.plugin.sip",
-        opaqueId: this.opaqueId,
+        opaqueId: this.sessionManager.getOpaqueId(),
         success: (pluginHandle: any) => {
-          this.sipPlugin = pluginHandle;
+          this.sessionManager.setSipPlugin(pluginHandle);
           console.log("SIP plugin attached:", pluginHandle);
           resolve();
         },
         error: (error: any) => {
           const errorMsg = `Error attaching to SIP plugin: ${error}`;
           console.error(errorMsg);
-          if (this.onError) this.onError(errorMsg);
+          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
@@ -117,24 +75,24 @@ class JanusService {
         },
         onlocalstream: (stream: MediaStream) => {
           console.log("Got local stream", stream);
-          this.localStream = stream;
+          this.mediaHandler.setLocalStream(stream);
         },
         onremotestream: (stream: MediaStream) => {
           console.log("Got remote stream", stream);
-          this.remoteStream = stream;
-          if (this.onCallConnected) this.onCallConnected();
+          this.mediaHandler.setRemoteStream(stream);
+          if (this.eventHandlers.onCallConnected) this.eventHandlers.onCallConnected();
         },
         oncleanup: () => {
           console.log("SIP plugin cleaned up");
-          this.localStream = null;
-          this.remoteStream = null;
+          this.mediaHandler.clearStreams();
         }
       });
     });
   }
 
   private handleSipMessage(msg: any, jsep: any): void {
-    if (!this.sipPlugin) return;
+    const sipPlugin = this.sessionManager.getSipPlugin();
+    if (!sipPlugin) return;
 
     const result = msg["result"];
     if (result) {
@@ -149,61 +107,79 @@ class JanusService {
         } else if (event === "registration_failed") {
           console.log("Registration failed:", result);
           this.registered = false;
-          if (this.onError) this.onError(`SIP registration failed: ${result["code"] || "Unknown error"}`);
+          if (this.eventHandlers.onError) this.eventHandlers.onError(`SIP registration failed: ${result["code"] || "Unknown error"}`);
         } else if (event === "calling") {
           console.log("Calling...");
         } else if (event === "incomingcall") {
           const username = result["username"] || "Unknown caller";
           console.log("Incoming call from", username);
-          if (this.onIncomingCall) this.onIncomingCall(username);
+          if (this.eventHandlers.onIncomingCall) this.eventHandlers.onIncomingCall(username);
           
-          // Automatically accept the call
           if (jsep) {
             this.acceptCall(jsep);
           }
         } else if (event === "accepted") {
           console.log("Call accepted");
           if (jsep) {
-            this.sipPlugin.handleRemoteJsep({ jsep });
+            sipPlugin.handleRemoteJsep({ jsep });
           }
         } else if (event === "hangup") {
           console.log("Call hung up");
-          if (this.onCallEnded) this.onCallEnded();
+          if (this.eventHandlers.onCallEnded) this.eventHandlers.onCallEnded();
         }
       }
     }
 
-    // Handle errors
     const error = msg["error"];
     if (error) {
       console.error("SIP error:", error);
-      if (this.onError) this.onError(`SIP error: ${error}`);
+      if (this.eventHandlers.onError) this.eventHandlers.onError(`SIP error: ${error}`);
     }
 
-    // Handle jsep
     if (jsep) {
       console.log("Handling SIP jsep", jsep);
-      this.sipPlugin.handleRemoteJsep({ jsep });
+      sipPlugin.handleRemoteJsep({ jsep });
     }
+  }
+
+  setOnIncomingCall(callback: (from: string) => void): void {
+    this.eventHandlers.setOnIncomingCall(callback);
+  }
+
+  setOnCallConnected(callback: () => void): void {
+    this.eventHandlers.setOnCallConnected(callback);
+  }
+
+  setOnCallEnded(callback: () => void): void {
+    this.eventHandlers.setOnCallEnded(callback);
+  }
+
+  setOnError(callback: (error: string) => void): void {
+    this.eventHandlers.setOnError(callback);
+  }
+
+  getLocalStream(): MediaStream | null {
+    return this.mediaHandler.getLocalStream();
+  }
+
+  getRemoteStream(): MediaStream | null {
+    return this.mediaHandler.getRemoteStream();
   }
 
   register(username: string, password: string, sipHost: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.sipPlugin) {
+      const sipPlugin = this.sessionManager.getSipPlugin();
+      if (!sipPlugin) {
         const error = "SIP plugin not attached";
-        if (this.onError) this.onError(error);
+        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
         reject(new Error(error));
         return;
       }
 
-      // Format SIP URI
       const sipUri = `sip:${username}@${sipHost}`;
-      
-      // Store credentials for potential reconnection
       this.currentCredentials = { username, password, sipHost };
 
-      // Register with the SIP server
-      this.sipPlugin.send({
+      sipPlugin.send({
         message: {
           request: "register",
           username: sipUri,
@@ -219,7 +195,7 @@ class JanusService {
         error: (error: any) => {
           const errorMsg = `Error sending SIP registration: ${error}`;
           this.registered = false;
-          if (this.onError) this.onError(errorMsg);
+          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
           reject(new Error(errorMsg));
         }
       });
@@ -228,24 +204,24 @@ class JanusService {
 
   call(uri: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.sipPlugin) {
+      const sipPlugin = this.sessionManager.getSipPlugin();
+      if (!sipPlugin) {
         const error = "SIP plugin not attached";
-        if (this.onError) this.onError(error);
+        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
         reject(new Error(error));
         return;
       }
 
       if (!this.registered) {
         const error = "Not registered with SIP server";
-        if (this.onError) this.onError(error);
+        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
         reject(new Error(error));
         return;
       }
 
-      // Get media
       navigator.mediaDevices.getUserMedia({ audio: true, video: true })
         .then((stream) => {
-          this.sipPlugin.createOffer({
+          sipPlugin.createOffer({
             media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
             success: (jsep: any) => {
               const message = {
@@ -253,7 +229,7 @@ class JanusService {
                 uri: uri
               };
 
-              this.sipPlugin.send({
+              sipPlugin.send({
                 message,
                 jsep,
                 success: () => {
@@ -262,21 +238,21 @@ class JanusService {
                 },
                 error: (error: any) => {
                   const errorMsg = `Error calling: ${error}`;
-                  if (this.onError) this.onError(errorMsg);
+                  if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
                   reject(new Error(errorMsg));
                 }
               });
             },
             error: (error: any) => {
               const errorMsg = `WebRTC error: ${error}`;
-              if (this.onError) this.onError(errorMsg);
+              if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
               reject(new Error(errorMsg));
             }
           });
         })
         .catch((error) => {
           const errorMsg = `Media error: ${error}`;
-          if (this.onError) this.onError(errorMsg);
+          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
           reject(new Error(errorMsg));
         });
     });
@@ -284,19 +260,20 @@ class JanusService {
 
   acceptCall(jsep: any): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.sipPlugin) {
+      const sipPlugin = this.sessionManager.getSipPlugin();
+      if (!sipPlugin) {
         const error = "SIP plugin not attached";
-        if (this.onError) this.onError(error);
+        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
         reject(new Error(error));
         return;
       }
 
-      this.sipPlugin.createAnswer({
+      sipPlugin.createAnswer({
         jsep: jsep,
         media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
         success: (ourjsep: any) => {
           const message = { request: "accept" };
-          this.sipPlugin.send({
+          sipPlugin.send({
             message,
             jsep: ourjsep,
             success: () => {
@@ -305,14 +282,14 @@ class JanusService {
             },
             error: (error: any) => {
               const errorMsg = `Error accepting call: ${error}`;
-              if (this.onError) this.onError(errorMsg);
+              if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
               reject(new Error(errorMsg));
             }
           });
         },
         error: (error: any) => {
           const errorMsg = `WebRTC error: ${error}`;
-          if (this.onError) this.onError(errorMsg);
+          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
           reject(new Error(errorMsg));
         }
       });
@@ -321,14 +298,15 @@ class JanusService {
 
   hangup(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (!this.sipPlugin) {
+      const sipPlugin = this.sessionManager.getSipPlugin();
+      if (!sipPlugin) {
         const error = "SIP plugin not attached";
-        if (this.onError) this.onError(error);
+        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
         reject(new Error(error));
         return;
       }
 
-      this.sipPlugin.send({
+      sipPlugin.send({
         message: { request: "hangup" },
         success: () => {
           console.log("Call hung up");
@@ -336,7 +314,7 @@ class JanusService {
         },
         error: (error: any) => {
           const errorMsg = `Error hanging up: ${error}`;
-          if (this.onError) this.onError(errorMsg);
+          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
           reject(new Error(errorMsg));
         }
       });
@@ -347,41 +325,9 @@ class JanusService {
     return this.registered;
   }
 
-  setOnIncomingCall(callback: (from: string) => void): void {
-    this.onIncomingCall = callback;
-  }
-
-  setOnCallConnected(callback: () => void): void {
-    this.onCallConnected = callback;
-  }
-
-  setOnCallEnded(callback: () => void): void {
-    this.onCallEnded = callback;
-  }
-
-  setOnError(callback: (error: string) => void): void {
-    this.onError = callback;
-  }
-
-  getLocalStream(): MediaStream | null {
-    return this.localStream;
-  }
-
-  getRemoteStream(): MediaStream | null {
-    return this.remoteStream;
-  }
-
   disconnect(): void {
     this.registered = false;
-    if (this.sipPlugin) {
-      this.sipPlugin.detach();
-      this.sipPlugin = null;
-    }
-    
-    if (this.janus) {
-      this.janus.destroy();
-      this.janus = null;
-    }
+    this.sessionManager.disconnect();
   }
 }
 
