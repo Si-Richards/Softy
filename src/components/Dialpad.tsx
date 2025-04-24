@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
@@ -21,19 +22,19 @@ const Dialpad = () => {
   const audioContext = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyboardPress = (event: KeyboardEvent) => {
       const key = event.key;
       const validKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
       
       if (validKeys.includes(key)) {
         event.preventDefault();
         playDTMFTone(key);
-        handleKeyPress(key);
+        addDigitToNumber(key);
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener('keydown', handleKeyboardPress);
+    return () => window.removeEventListener('keydown', handleKeyboardPress);
   }, []);
 
   const playDTMFTone = (key: string) => {
@@ -96,8 +97,12 @@ const Dialpad = () => {
   }, [isCallActive]);
 
   const handleKeyPress = (key: string) => {
-    setNumber((prev) => prev + key);
+    addDigitToNumber(key);
     playDTMFTone(key);
+  };
+  
+  const addDigitToNumber = (key: string) => {
+    setNumber((prev) => prev + key);
   };
 
   const clearNumber = () => {
