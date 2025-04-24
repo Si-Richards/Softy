@@ -70,10 +70,26 @@ export class JanusSipHandler {
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      const audioInput = localStorage.getItem('selectedAudioInput');
+      const videoInput = localStorage.getItem('selectedVideoInput');
+
+      const constraints: MediaStreamConstraints = {
+        audio: audioInput ? { deviceId: { exact: audioInput } } : true,
+        video: videoInput ? { deviceId: { exact: videoInput } } : false
+      };
+
+      navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
           this.sipPlugin.createOffer({
-            media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
+            media: { 
+              audioRecv: true, 
+              videoRecv: true, 
+              audioSend: true, 
+              videoSend: !!videoInput,
+              removeAudio: false,
+              removeVideo: !videoInput
+            },
+            stream: stream,
             success: (jsep: any) => {
               const message = {
                 request: "call",
@@ -162,41 +178,56 @@ export class JanusSipHandler {
       if (result["event"]) {
         const event = result["event"];
         
-        if (event === "registered") {
-          console.log("Successfully registered with the SIP server");
-          this.registered = true;
-        } else if (event === "registering") {
-          console.log("Registering with the SIP server");
-        } else if (event === "registration_failed") {
-          console.log("Registration failed:", result);
-          this.registered = false;
-          if (eventHandlers.onError) eventHandlers.onError(`SIP registration failed: ${result["code"] || "Unknown error"}`);
-        } else if (event === "calling") {
-          console.log("Calling...");
-        } else if (event === "incomingcall") {
-          const username = result["username"] || "Unknown caller";
-          console.log("Incoming call from", username);
-          if (eventHandlers.onIncomingCall) eventHandlers.onIncomingCall(username);
-          
-          if (jsep) {
-            this.acceptCall(jsep);
+        switch (event) {
+          case "registered":
+            console.log("Successfully registered with the SIP server");
+            this.registered = true;
+            break;
+          case "registering":
+            console.log("Registering with the SIP server");
+            break;
+          case "registration_failed":
+            console.log("Registration failed:", result);
+            this.registered = false;
+            if (eventHandlers.onError) {
+              eventHandlers.onError(`SIP registration failed: ${result["code"] || "Unknown error"}`);
+            }
+            break;
+          case "calling":
+            console.log("Calling...");
+            break;
+          case "incomingcall": {
+            const username = result["username"] || "Unknown caller";
+            console.log("Incoming call from", username);
+            if (eventHandlers.onIncomingCall) {
+              eventHandlers.onIncomingCall(username);
+            }
+            if (jsep) {
+              this.acceptCall(jsep);
+            }
+            break;
           }
-        } else if (event === "accepted") {
-          console.log("Call accepted");
-          if (jsep) {
-            this.sipPlugin.handleRemoteJsep({ jsep });
-          }
-        } else if (event === "hangup") {
-          console.log("Call hung up");
-          if (eventHandlers.onCallEnded) eventHandlers.onCallEnded();
+          case "accepted":
+            console.log("Call accepted");
+            if (jsep) {
+              this.sipPlugin.handleRemoteJsep({ jsep });
+            }
+            break;
+          case "hangup":
+            console.log("Call hung up");
+            if (eventHandlers.onCallEnded) {
+              eventHandlers.onCallEnded();
+            }
+            break;
         }
       }
     }
 
-    const error = msg["error"];
-    if (error) {
-      console.error("SIP error:", error);
-      if (eventHandlers.onError) eventHandlers.onError(`SIP error: ${error}`);
+    if (msg["error"]) {
+      console.error("SIP error:", msg["error"]);
+      if (eventHandlers.onError) {
+        eventHandlers.onError(`SIP error: ${msg["error"]}`);
+      }
     }
 
     if (jsep) {
@@ -204,4 +235,4 @@ export class JanusSipHandler {
       this.sipPlugin.handleRemoteJsep({ jsep });
     }
   }
-}
+
