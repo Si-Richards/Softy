@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { PanelLeft } from "lucide-react"
@@ -17,7 +16,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-} from "./sidebar-menu"
+} from "./sidebar-menu-list"
 
 const Sidebar = React.forwardRef<
   HTMLDivElement,
@@ -146,6 +145,9 @@ const SidebarTrigger = React.forwardRef<
 })
 SidebarTrigger.displayName = "SidebarTrigger"
 
+export { SidebarMenu, SidebarMenuItem } from "./sidebar-menu-list"
+export { SidebarMenuButton } from "./sidebar-menu-button"
+
 export {
   Sidebar,
   SidebarProvider,
@@ -155,8 +157,5 @@ export {
   SidebarHeader,
   SidebarInput,
   SidebarSeparator,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   useSidebar,
 }
