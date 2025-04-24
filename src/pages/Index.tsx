@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -21,6 +22,7 @@ import { DraggableDialogContent } from "@/components/ui/draggable-dialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import QuickDial from "@/components/QuickDial";
 import IncomingCallDialog from "@/components/dialpad/IncomingCallDialog";
+import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
 
 type UserPresence = "available" | "away" | "busy" | "offline";
 
@@ -30,6 +32,21 @@ const Index = () => {
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
   const [isDialpadOpen, setIsDialpadOpen] = useState(false);
+  
+  // Use the Janus setup hook to get incoming call handling
+  const { 
+    incomingCall, 
+    handleAcceptCall, 
+    handleRejectCall,
+    isJanusConnected
+  } = useJanusSetup();
+  
+  // Update connection status based on Janus connection
+  React.useEffect(() => {
+    if (isJanusConnected) {
+      setConnectionStatus("connected");
+    }
+  }, [isJanusConnected]);
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -167,12 +184,14 @@ const Index = () => {
         </DrawerContent>
       </Drawer>
 
-      <IncomingCallDialog
-        isOpen={!!incomingCall}
-        callerNumber={incomingCall?.from || ""}
-        onAccept={handleAcceptCall}
-        onReject={handleRejectCall}
-      />
+      {incomingCall && (
+        <IncomingCallDialog
+          isOpen={!!incomingCall}
+          callerNumber={incomingCall.from}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
+        />
+      )}
     </div>
   );
 };

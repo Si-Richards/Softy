@@ -60,11 +60,10 @@ export class SipEventHandler {
         const username = result.username || "Unknown caller";
         console.log("Incoming call from", username);
         if (eventHandlers.onIncomingCall) {
-          eventHandlers.onIncomingCall(username);
+          // Pass both username and jsep to match the expected function signature
+          eventHandlers.onIncomingCall(username, jsep);
         }
-        if (jsep) {
-          this.sipCallManager.acceptCall(jsep);
-        }
+        // The auto-accept logic has been moved to the UI layer
         break;
       }
       case "accepted":
