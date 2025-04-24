@@ -1,20 +1,22 @@
+
 import { JanusJS } from 'janus-gateway-js';
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
+import { JanusSipHandler } from './janus/sipHandler';
 import type { JanusOptions, SipCredentials } from './janus/types';
 
 class JanusService {
   private sessionManager: JanusSessionManager;
   private eventHandlers: JanusEventHandlers;
   private mediaHandler: JanusMediaHandler;
-  private currentCredentials: SipCredentials | null = null;
-  private registered: boolean = false;
+  private sipHandler: JanusSipHandler;
 
   constructor() {
     this.sessionManager = new JanusSessionManager();
     this.eventHandlers = new JanusEventHandlers();
     this.mediaHandler = new JanusMediaHandler();
+    this.sipHandler = new JanusSipHandler();
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
@@ -27,7 +29,7 @@ class JanusService {
         return;
       }
 
-      // Cleanup any existing session before initializing a new one
+      // Cleanup any existing session
       if (this.sessionManager.getJanus()) {
         this.disconnect();
       }
@@ -60,7 +62,7 @@ class JanusService {
         plugin: "janus.plugin.sip",
         opaqueId: this.sessionManager.getOpaqueId(),
         success: (pluginHandle: any) => {
-          this.sessionManager.setSipPlugin(pluginHandle);
+          this.sipHandler.setSipPlugin(pluginHandle);
           console.log("SIP plugin attached:", pluginHandle);
           resolve();
         },
@@ -71,7 +73,7 @@ class JanusService {
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
-          this.handleSipMessage(msg, jsep);
+          this.sipHandler.handleSipMessage(msg, jsep, this.eventHandlers);
         },
         onlocalstream: (stream: MediaStream) => {
           console.log("Got local stream", stream);
@@ -90,58 +92,7 @@ class JanusService {
     });
   }
 
-  private handleSipMessage(msg: any, jsep: any): void {
-    const sipPlugin = this.sessionManager.getSipPlugin();
-    if (!sipPlugin) return;
-
-    const result = msg["result"];
-    if (result) {
-      if (result["event"]) {
-        const event = result["event"];
-        
-        if (event === "registered") {
-          console.log("Successfully registered with the SIP server");
-          this.registered = true;
-        } else if (event === "registering") {
-          console.log("Registering with the SIP server");
-        } else if (event === "registration_failed") {
-          console.log("Registration failed:", result);
-          this.registered = false;
-          if (this.eventHandlers.onError) this.eventHandlers.onError(`SIP registration failed: ${result["code"] || "Unknown error"}`);
-        } else if (event === "calling") {
-          console.log("Calling...");
-        } else if (event === "incomingcall") {
-          const username = result["username"] || "Unknown caller";
-          console.log("Incoming call from", username);
-          if (this.eventHandlers.onIncomingCall) this.eventHandlers.onIncomingCall(username);
-          
-          if (jsep) {
-            this.acceptCall(jsep);
-          }
-        } else if (event === "accepted") {
-          console.log("Call accepted");
-          if (jsep) {
-            sipPlugin.handleRemoteJsep({ jsep });
-          }
-        } else if (event === "hangup") {
-          console.log("Call hung up");
-          if (this.eventHandlers.onCallEnded) this.eventHandlers.onCallEnded();
-        }
-      }
-    }
-
-    const error = msg["error"];
-    if (error) {
-      console.error("SIP error:", error);
-      if (this.eventHandlers.onError) this.eventHandlers.onError(`SIP error: ${error}`);
-    }
-
-    if (jsep) {
-      console.log("Handling SIP jsep", jsep);
-      sipPlugin.handleRemoteJsep({ jsep });
-    }
-  }
-
+  // Event handler setters
   setOnIncomingCall(callback: (from: string) => void): void {
     this.eventHandlers.setOnIncomingCall(callback);
   }
@@ -158,6 +109,7 @@ class JanusService {
     this.eventHandlers.setOnError(callback);
   }
 
+  // Stream getters
   getLocalStream(): MediaStream | null {
     return this.mediaHandler.getLocalStream();
   }
@@ -166,167 +118,29 @@ class JanusService {
     return this.mediaHandler.getRemoteStream();
   }
 
+  // SIP operations
   register(username: string, password: string, sipHost: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const sipPlugin = this.sessionManager.getSipPlugin();
-      if (!sipPlugin) {
-        const error = "SIP plugin not attached";
-        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
-        reject(new Error(error));
-        return;
-      }
-
-      const sipUri = `sip:${username}@${sipHost}`;
-      this.currentCredentials = { username, password, sipHost };
-
-      sipPlugin.send({
-        message: {
-          request: "register",
-          username: sipUri,
-          display_name: username,
-          authuser: username,
-          secret: password,
-          proxy: `sip:${sipHost}`
-        },
-        success: () => {
-          console.log(`SIP registration request sent for ${username}@${sipHost}`);
-          resolve();
-        },
-        error: (error: any) => {
-          const errorMsg = `Error sending SIP registration: ${error}`;
-          this.registered = false;
-          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-          reject(new Error(errorMsg));
-        }
-      });
-    });
+    return this.sipHandler.register(username, password, sipHost);
   }
 
   call(uri: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const sipPlugin = this.sessionManager.getSipPlugin();
-      if (!sipPlugin) {
-        const error = "SIP plugin not attached";
-        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
-        reject(new Error(error));
-        return;
-      }
-
-      if (!this.registered) {
-        const error = "Not registered with SIP server";
-        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
-        reject(new Error(error));
-        return;
-      }
-
-      navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-        .then((stream) => {
-          sipPlugin.createOffer({
-            media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
-            success: (jsep: any) => {
-              const message = {
-                request: "call",
-                uri: uri
-              };
-
-              sipPlugin.send({
-                message,
-                jsep,
-                success: () => {
-                  console.log(`Calling ${uri}`);
-                  resolve();
-                },
-                error: (error: any) => {
-                  const errorMsg = `Error calling: ${error}`;
-                  if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-                  reject(new Error(errorMsg));
-                }
-              });
-            },
-            error: (error: any) => {
-              const errorMsg = `WebRTC error: ${error}`;
-              if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-              reject(new Error(errorMsg));
-            }
-          });
-        })
-        .catch((error) => {
-          const errorMsg = `Media error: ${error}`;
-          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-          reject(new Error(errorMsg));
-        });
-    });
+    return this.sipHandler.call(uri);
   }
 
   acceptCall(jsep: any): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const sipPlugin = this.sessionManager.getSipPlugin();
-      if (!sipPlugin) {
-        const error = "SIP plugin not attached";
-        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
-        reject(new Error(error));
-        return;
-      }
-
-      sipPlugin.createAnswer({
-        jsep: jsep,
-        media: { audioRecv: true, videoRecv: true, audioSend: true, videoSend: true },
-        success: (ourjsep: any) => {
-          const message = { request: "accept" };
-          sipPlugin.send({
-            message,
-            jsep: ourjsep,
-            success: () => {
-              console.log("Call accepted");
-              resolve();
-            },
-            error: (error: any) => {
-              const errorMsg = `Error accepting call: ${error}`;
-              if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-              reject(new Error(errorMsg));
-            }
-          });
-        },
-        error: (error: any) => {
-          const errorMsg = `WebRTC error: ${error}`;
-          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-          reject(new Error(errorMsg));
-        }
-      });
-    });
+    return this.sipHandler.acceptCall(jsep);
   }
 
   hangup(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const sipPlugin = this.sessionManager.getSipPlugin();
-      if (!sipPlugin) {
-        const error = "SIP plugin not attached";
-        if (this.eventHandlers.onError) this.eventHandlers.onError(error);
-        reject(new Error(error));
-        return;
-      }
-
-      sipPlugin.send({
-        message: { request: "hangup" },
-        success: () => {
-          console.log("Call hung up");
-          resolve();
-        },
-        error: (error: any) => {
-          const errorMsg = `Error hanging up: ${error}`;
-          if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-          reject(new Error(errorMsg));
-        }
-      });
-    });
+    return this.sipHandler.hangup();
   }
 
   isRegistered(): boolean {
-    return this.registered;
+    return this.sipHandler.isRegistered();
   }
 
   disconnect(): void {
-    this.registered = false;
+    this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
   }
 }
