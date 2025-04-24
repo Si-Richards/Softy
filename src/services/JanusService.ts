@@ -1,4 +1,3 @@
-
 import { JanusJS } from 'janus-gateway-js';
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
@@ -20,45 +19,40 @@ class JanusService {
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
-    return new Promise<boolean>((resolve, reject) => {
-      if (!options.server) {
-        const errorMsg = "No Janus server URL provided";
-        if (options.error) options.error(errorMsg);
-        if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-        reject(new Error(errorMsg));
-        return;
-      }
+    if (!options.server) {
+      const errorMsg = "No Janus server URL provided";
+      if (options.error) options.error(errorMsg);
+      if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
+      throw new Error(errorMsg);
+    }
 
-      // Cleanup any existing session
-      if (this.sessionManager.getJanus()) {
-        this.disconnect();
-      }
+    // Cleanup any existing session
+    if (this.sessionManager.getJanus()) {
+      this.disconnect();
+    }
 
-      // Initialize Janus
-      JanusJS.init({
-        debug: true,
-        callback: () => {
-          this.sessionManager.createSession(options)
-            .then(() => this.attachSipPlugin())
-            .then(() => resolve(true))
-            .catch(error => {
-              if (options.error) options.error(error);
-              if (this.eventHandlers.onError) this.eventHandlers.onError(error);
-              reject(error);
-            });
-        }
-      });
-    });
+    try {
+      await this.sessionManager.createSession(options);
+      await this.attachSipPlugin();
+      if (options.success) options.success();
+      return true;
+    } catch (error: any) {
+      const errorMsg = `Failed to initialize Janus: ${error.message || error}`;
+      if (options.error) options.error(errorMsg);
+      if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
+      this.disconnect(); // Cleanup on failure
+      throw new Error(errorMsg);
+    }
   }
 
-  private attachSipPlugin(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      if (!this.sessionManager.getJanus()) {
-        reject(new Error("Janus not initialized"));
-        return;
-      }
+  private async attachSipPlugin(): Promise<void> {
+    const janus = this.sessionManager.getJanus();
+    if (!janus) {
+      throw new Error("Janus not initialized");
+    }
 
-      this.sessionManager.getJanus().attach({
+    return new Promise<void>((resolve, reject) => {
+      janus.attach({
         plugin: "janus.plugin.sip",
         opaqueId: this.sessionManager.getOpaqueId(),
         success: (pluginHandle: any) => {
@@ -92,7 +86,6 @@ class JanusService {
     });
   }
 
-  // Event handler setters
   setOnIncomingCall(callback: (from: string) => void): void {
     this.eventHandlers.setOnIncomingCall(callback);
   }
@@ -109,7 +102,6 @@ class JanusService {
     this.eventHandlers.setOnError(callback);
   }
 
-  // Stream getters
   getLocalStream(): MediaStream | null {
     return this.mediaHandler.getLocalStream();
   }
@@ -118,7 +110,6 @@ class JanusService {
     return this.mediaHandler.getRemoteStream();
   }
 
-  // SIP operations
   register(username: string, password: string, sipHost: string): Promise<void> {
     return this.sipHandler.register(username, password, sipHost);
   }
@@ -145,6 +136,5 @@ class JanusService {
   }
 }
 
-// Create a singleton instance
 const janusService = new JanusService();
 export default janusService;

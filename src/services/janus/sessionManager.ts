@@ -13,25 +13,31 @@ export class JanusSessionManager {
 
   async createSession(options: JanusOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.janus = new JanusJS.Janus({
-        server: options.server,
-        apisecret: options.apiSecret,
-        iceServers: options.iceServers || [
-          { urls: 'stun:stun.l.google.com:19302' }
-        ],
-        success: () => {
-          if (options.success) options.success();
-          resolve();
-        },
-        error: (error) => {
-          const errorMsg = `Error creating Janus session: ${error}`;
-          if (options.error) options.error(errorMsg);
-          reject(new Error(errorMsg));
-        },
-        destroyed: () => {
-          if (options.destroyed) options.destroyed();
-        }
-      });
+      if (this.janus) {
+        this.disconnect();
+      }
+
+      try {
+        this.janus = new JanusJS({
+          server: options.server,
+          apisecret: options.apiSecret,
+          iceServers: options.iceServers || [
+            { urls: 'stun:stun.l.google.com:19302' }
+          ],
+          success: () => {
+            resolve();
+          },
+          error: (error: any) => {
+            const errorMsg = `Error creating Janus session: ${error}`;
+            reject(new Error(errorMsg));
+          },
+          destroyed: () => {
+            if (options.destroyed) options.destroyed();
+          }
+        });
+      } catch (error: any) {
+        reject(new Error(`Failed to create Janus instance: ${error.message || error}`));
+      }
     });
   }
 
@@ -63,4 +69,3 @@ export class JanusSessionManager {
     }
   }
 }
-
