@@ -1,16 +1,9 @@
-
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import React, { useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneIncoming } from "lucide-react";
-import Dialpad from "@/components/Dialpad";
-import useSound from "use-sound";
+import { Phone, PhoneOff } from "lucide-react";
+import useSound from 'use-sound';
+import ringtoneSrc from '@/assets/sounds/ringtone.mp3';
 
 interface IncomingCallDialogProps {
   isOpen: boolean;
@@ -19,63 +12,59 @@ interface IncomingCallDialogProps {
   onReject: () => void;
 }
 
-const IncomingCallDialog = ({
+const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   isOpen,
   callerNumber,
   onAccept,
-  onReject,
-}: IncomingCallDialogProps) => {
-  const [playRingtone, { stop: stopRingtone }] = useSound("/ringtone.mp3", {
-    loop: true,
-  });
+  onReject
+}) => {
+  const [play, { stop }] = useSound(ringtoneSrc, { loop: true });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
-      playRingtone();
+      play();
     } else {
-      stopRingtone();
+      stop();
     }
-    return () => stopRingtone();
-  }, [isOpen, playRingtone, stopRingtone]);
+    
+    return () => {
+      stop();
+    };
+  }, [isOpen, play, stop]);
+
+  const handleAccept = () => {
+    stop();
+    onAccept();
+  };
+
+  const handleReject = () => {
+    stop();
+    onReject();
+  };
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleReject()}>
       <DialogContent className="sm:max-w-md">
-        <DialogTitle className="flex items-center gap-2">
-          <PhoneIncoming className="h-5 w-5 text-softphone-accent animate-pulse" />
-          Incoming Call
-        </DialogTitle>
-        <DialogDescription>
-          Call from: {callerNumber}
-        </DialogDescription>
-
-        <Dialpad />
-
-        <DialogFooter className="flex justify-between sm:justify-between gap-2">
-          <Button
-            type="button"
-            variant="destructive"
-            className="flex-1"
-            onClick={() => {
-              stopRingtone();
-              onReject();
-            }}
-          >
-            Reject
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            className="flex-1 bg-softphone-success hover:bg-softphone-success/90"
-            onClick={() => {
-              stopRingtone();
-              onAccept();
-            }}
-          >
-            <Phone className="mr-2 h-4 w-4" />
-            Accept
-          </Button>
-        </DialogFooter>
+        <DialogHeader>
+          <DialogTitle className="text-center">Incoming Call</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col items-center space-y-4 py-4">
+          <div className="text-2xl font-bold animate-pulse">{callerNumber}</div>
+          <div className="flex justify-center space-x-8 mt-6">
+            <Button 
+              onClick={handleAccept}
+              className="h-16 w-16 rounded-full bg-green-500 hover:bg-green-600"
+            >
+              <Phone className="h-8 w-8" />
+            </Button>
+            <Button 
+              onClick={handleReject}
+              className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600"
+            >
+              <PhoneOff className="h-8 w-8" />
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

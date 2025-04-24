@@ -26,8 +26,10 @@ export class SipEventHandler {
       }
     }
 
-    if (jsep) {
-      console.log("Handling SIP jsep", jsep);
+    // Only handle jsep separately if it's not already handled in an event
+    // This prevents calling handleRemoteJsep multiple times for the same jsep object
+    if (jsep && !result?.event) {
+      console.log("Handling SIP jsep separately", jsep);
       this.sipState.getSipPlugin().handleRemoteJsep({ jsep });
     }
   }
@@ -59,16 +61,24 @@ export class SipEventHandler {
       case "incomingcall": {
         const username = result.username || "Unknown caller";
         console.log("Incoming call from", username);
+        
+        // Handle jsep here for incoming call
+        if (jsep) {
+          console.log("Processing incoming call jsep:", jsep);
+          // Don't handle jsep here - we'll let the acceptCall method do it
+          // to avoid the "wrong state" error
+        }
+        
         if (eventHandlers.onIncomingCall) {
-          // Pass both username and jsep to match the expected function signature
+          // Pass both username and jsep to the callback
           eventHandlers.onIncomingCall(username, jsep);
         }
-        // The auto-accept logic has been moved to the UI layer
         break;
       }
       case "accepted":
         console.log("Call accepted");
         if (jsep) {
+          console.log("Processing accepted call jsep:", jsep);
           this.sipState.getSipPlugin().handleRemoteJsep({ jsep });
         }
         break;

@@ -1,3 +1,4 @@
+
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -66,6 +67,7 @@ class JanusService {
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
+          console.log("Received SIP message:", msg, "with jsep:", jsep);
           this.sipHandler.handleSipMessage(msg, jsep, this.eventHandlers);
         },
         onlocalstream: (stream: MediaStream) => {
