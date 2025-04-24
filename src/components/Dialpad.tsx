@@ -80,7 +80,8 @@ const Dialpad = () => {
   const initializeJanus = async () => {
     try {
       await janusService.initialize({
-        server: "wss://your-janus-server-url/janus", // Replace with your Janus server URL
+        server: 'wss://devrtc.voicehost.io:443/janus',
+        apiSecret: 'overlord',
         success: () => {
           setIsJanusConnected(true);
           toast({

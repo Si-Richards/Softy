@@ -1,8 +1,8 @@
-
 import { JanusJS } from 'janus-gateway-js';
 
 interface JanusOptions {
   server: string;
+  apiSecret?: string;
   iceServers?: RTCIceServer[];
   success?: () => void;
   error?: (error: any) => void;
@@ -52,6 +52,7 @@ class JanusService {
     return new Promise<void>((resolve, reject) => {
       this.janus = new JanusJS.Janus({
         server: options.server,
+        apisecret: options.apiSecret,
         iceServers: options.iceServers || [
           { urls: 'stun:stun.l.google.com:19302' }
         ],
