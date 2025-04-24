@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useToast } from './use-toast';
 
-interface MediaDeviceInfo {
-  deviceId: string;
-  label: string;
-  kind: string;
-}
-
 export const useMediaDevices = () => {
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
@@ -36,7 +30,6 @@ export const useMediaDevices = () => {
 
   const loadDevices = async () => {
     try {
-      // Request permission to access media devices
       await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -51,12 +44,10 @@ export const useMediaDevices = () => {
       
       console.log("Available devices:", { inputs, outputs, videos });
       
-      // Load saved preferences
       const savedAudioInput = localStorage.getItem('selectedAudioInput');
       const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
       const savedVideoInput = localStorage.getItem('selectedVideoInput');
       
-      // Set devices from storage or set defaults if available
       if (savedAudioInput && inputs.some(d => d.deviceId === savedAudioInput)) {
         setSelectedAudioInput(savedAudioInput);
       } else if (inputs.length > 0) {
@@ -87,7 +78,6 @@ export const useMediaDevices = () => {
   useEffect(() => {
     loadDevices();
 
-    // Listen for device changes
     navigator.mediaDevices.addEventListener('devicechange', loadDevices);
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', loadDevices);

@@ -55,28 +55,34 @@ export const useAudioTest = () => {
     }
 
     try {
+      // Explicitly type the audio element as HTMLAudioElement
       const audio = new Audio() as HTMLAudioElement;
       audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       
       if ('setSinkId' in audio) {
         (audio as HTMLAudioElement).setSinkId(deviceId)
           .then(() => {
-            audio.play()
-              .then(() => {
-                toast({
-                  title: "Speaker Test",
-                  description: "Playing test sound...",
-                  variant: "default",
+            // Make sure we properly handle the play promise
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  toast({
+                    title: "Speaker Test",
+                    description: "Playing test sound...",
+                    variant: "default",
+                  });
+                })
+                .catch((error: any) => {
+                  console.error("Error playing audio:", error);
+                  toast({
+                    title: "Speaker Test Failed",
+                    description: "Could not play test sound",
+                    variant: "destructive",
+                  });
                 });
-              })
-              .catch((error: any) => {
-                console.error("Error playing audio:", error);
-                toast({
-                  title: "Speaker Test Failed",
-                  description: "Could not play test sound",
-                  variant: "destructive",
-                });
-              });
+            }
           })
           .catch((error: any) => {
             console.error("Error setting audio output device:", error);
@@ -87,22 +93,27 @@ export const useAudioTest = () => {
             });
           });
       } else {
-        audio.play()
-          .then(() => {
-            toast({
-              title: "Speaker Test",
-              description: "Playing test sound on default device (browser doesn't support output device selection)",
-              variant: "default",
+        // Make sure we properly handle the play promise here too
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              toast({
+                title: "Speaker Test",
+                description: "Playing test sound on default device (browser doesn't support output device selection)",
+                variant: "default",
+              });
+            })
+            .catch((error: any) => {
+              console.error("Error playing audio:", error);
+              toast({
+                title: "Speaker Test Failed",
+                description: "Could not play test sound",
+                variant: "destructive",
+              });
             });
-          })
-          .catch((error: any) => {
-            console.error("Error playing audio:", error);
-            toast({
-              title: "Speaker Test Failed",
-              description: "Could not play test sound",
-              variant: "destructive",
-            });
-          });
+        }
       }
     } catch (error: any) {
       console.error("Error testing speaker:", error);
