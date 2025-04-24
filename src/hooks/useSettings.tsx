@@ -6,11 +6,14 @@ interface AudioSettings {
   echoSuppression: boolean;
   autoGainControl: boolean;
   highPassFilter: boolean;
+  selectedAudioInput: string;
+  selectedAudioOutput: string;
 }
 
 interface VideoSettings {
   videoEnabled: boolean;
   hdVideo: boolean;
+  selectedVideoInput: string;
 }
 
 export const useSettings = () => {
@@ -21,6 +24,8 @@ export const useSettings = () => {
       echoSuppression: true,
       autoGainControl: true,
       highPassFilter: false,
+      selectedAudioInput: '',
+      selectedAudioOutput: '',
     };
   });
 
@@ -29,6 +34,7 @@ export const useSettings = () => {
     return saved ? JSON.parse(saved) : {
       videoEnabled: true,
       hdVideo: false,
+      selectedVideoInput: '',
     };
   });
 
