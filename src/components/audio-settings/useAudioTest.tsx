@@ -1,7 +1,11 @@
-
 import { useToast } from "@/hooks/use-toast";
 
-export const useAudioTest = () => {
+interface AudioTestHook {
+  testMicrophone: (deviceId: string) => void;
+  testSpeaker: (deviceId: string) => void;
+}
+
+export const useAudioTest = (): AudioTestHook => {
   const { toast } = useToast();
 
   const testMicrophone = (deviceId: string) => {
@@ -44,7 +48,7 @@ export const useAudioTest = () => {
     });
   };
 
-  const testSpeaker = (deviceId: string) => {
+  const testSpeaker = (deviceId: string): void => {
     if (!deviceId) {
       toast({
         title: "No speaker selected",
@@ -55,15 +59,13 @@ export const useAudioTest = () => {
     }
 
     try {
-      // Create an audio element and explicitly type it as HTMLAudioElement
-      const audio = document.createElement('audio') as HTMLAudioElement;
-      audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+      const audioElement: HTMLAudioElement = document.createElement('audio');
+      audioElement.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       
-      if ('setSinkId' in audio) {
-        (audio as HTMLAudioElement).setSinkId(deviceId)
+      if ('setSinkId' in audioElement) {
+        audioElement.setSinkId(deviceId)
           .then(() => {
-            // Explicitly type the play method and use promise handling
-            const playPromise: Promise<void> = audio.play();
+            const playPromise: Promise<void> = audioElement.play();
             
             if (playPromise !== undefined) {
               playPromise
@@ -74,7 +76,7 @@ export const useAudioTest = () => {
                     variant: "default",
                   });
                 })
-                .catch((error: any) => {
+                .catch((error: Error) => {
                   console.error("Error playing audio:", error);
                   toast({
                     title: "Speaker Test Failed",
@@ -84,7 +86,7 @@ export const useAudioTest = () => {
                 });
             }
           })
-          .catch((error: any) => {
+          .catch((error: Error) => {
             console.error("Error setting audio output device:", error);
             toast({
               title: "Speaker Test Failed",
@@ -93,8 +95,7 @@ export const useAudioTest = () => {
             });
           });
       } else {
-        // Handle play for browsers without setSinkId
-        const playPromise: Promise<void> = audio.play();
+        const playPromise: Promise<void> = audioElement.play();
         
         if (playPromise !== undefined) {
           playPromise
@@ -105,7 +106,7 @@ export const useAudioTest = () => {
                 variant: "default",
               });
             })
-            .catch((error: any) => {
+            .catch((error: Error) => {
               console.error("Error playing audio:", error);
               toast({
                 title: "Speaker Test Failed",
@@ -115,11 +116,12 @@ export const useAudioTest = () => {
             });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Could not test speaker";
       console.error("Error testing speaker:", error);
       toast({
         title: "Speaker Test Failed",
-        description: error.message || "Could not test speaker",
+        description: errorMessage,
         variant: "destructive",
       });
     }
