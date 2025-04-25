@@ -27,20 +27,21 @@ export class MediaConfigHandler {
           autoGainControl: true
         };
     
+    // Only include video constraints if explicitly requested with a device
     return {
       audio: audioConstraints,
-      video: videoInput ? { deviceId: { exact: videoInput } } : false
+      video: false // Default to no video
     };
   }
 
-  getCallMediaConfig(videoInput: string | null): MediaConfig {
+  getCallMediaConfig(isVideoCall: boolean): MediaConfig {
     return {
       audioRecv: true,
-      videoRecv: true,
+      videoRecv: isVideoCall,
       audioSend: true,
-      videoSend: !!videoInput,
+      videoSend: isVideoCall,
       removeAudio: false, // Never remove audio
-      removeVideo: !videoInput
+      removeVideo: !isVideoCall
     };
   }
 

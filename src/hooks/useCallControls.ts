@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
@@ -10,7 +9,6 @@ export const useCallControls = () => {
   const [audioTestInterval, setAudioTestInterval] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
-  // Clean up audio test interval on unmount
   useEffect(() => {
     return () => {
       if (audioTestInterval) {
@@ -28,7 +26,6 @@ export const useCallControls = () => {
         setIsCallActive(false);
         setIsVideoEnabled(false);
         
-        // Clear any audio test interval
         if (audioTestInterval) {
           clearInterval(audioTestInterval);
           setAudioTestInterval(null);
@@ -39,10 +36,9 @@ export const useCallControls = () => {
     } else if (number) {
       if (isJanusConnected) {
         try {
-          await janusService.call(number);
+          await janusService.call(number, false);
           setIsCallActive(true);
           
-          // More frequent and detailed audio monitoring
           const interval = setInterval(() => {
             const remoteStream = janusService.getRemoteStream();
             if (remoteStream) {
@@ -57,19 +53,13 @@ export const useCallControls = () => {
                   id: track.id
                 });
                 
-                // Ensure tracks are enabled (emergency fix)
                 if (!track.enabled) {
                   console.log("Re-enabling disabled audio track");
                   track.enabled = true;
                 }
               });
-              
-              // Check if audio output is actually working
-              console.log("- Stream active:", remoteStream.active);
-            } else {
-              console.warn("No remote stream available for audio monitoring");
             }
-          }, 3000); // Check every 3 seconds
+          }, 3000);
           
           setAudioTestInterval(interval);
         } catch (error) {
@@ -111,10 +101,20 @@ export const useCallControls = () => {
     }
   };
 
-  const startVideoCall = (number: string) => {
+  const startVideoCall = async (number: string) => {
     if (number) {
-      setIsCallActive(true);
-      setIsVideoEnabled(true);
+      try {
+        await janusService.call(number, true);
+        setIsCallActive(true);
+        setIsVideoEnabled(true);
+      } catch (error) {
+        console.error("Error starting video call:", error);
+        toast({
+          title: "Video Call Failed",
+          description: "Failed to establish video call",
+          variant: "destructive",
+        });
+      }
     }
   };
 

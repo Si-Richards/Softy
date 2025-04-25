@@ -1,4 +1,3 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -115,8 +114,8 @@ class JanusService {
     return this.sipHandler.register(username, password, sipHost);
   }
 
-  call(uri: string): Promise<void> {
-    return this.sipHandler.call(uri);
+  call(uri: string, isVideoCall: boolean = false): Promise<void> {
+    return this.sipHandler.call(uri, isVideoCall);
   }
 
   acceptCall(jsep: any): Promise<void> {

@@ -10,7 +10,7 @@ export class SipCallManager {
     this.mediaConfig = new MediaConfigHandler();
   }
 
-  async call(uri: string): Promise<void> {
+  async call(uri: string, isVideoCall: boolean = false): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.sipState.getSipPlugin()) {
         reject(new Error("SIP plugin not attached"));
@@ -25,8 +25,11 @@ export class SipCallManager {
       // Format the number properly in E.164 format with SIP URI
       const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
 
-      const videoInput = localStorage.getItem('selectedVideoInput');
       const constraints = this.mediaConfig.getCallMediaConstraints();
+      if (isVideoCall) {
+        const videoInput = localStorage.getItem('selectedVideoInput');
+        constraints.video = videoInput ? { deviceId: { exact: videoInput } } : true;
+      }
 
       console.log("Getting user media with constraints:", JSON.stringify(constraints));
       
@@ -43,7 +46,7 @@ export class SipCallManager {
           });
 
           this.sipState.getSipPlugin().createOffer({
-            media: this.mediaConfig.getCallMediaConfig(videoInput),
+            media: this.mediaConfig.getCallMediaConfig(isVideoCall),
             stream: stream,
             success: (jsep: any) => {
               console.log("Created offer with JSEP:", jsep);
