@@ -42,8 +42,8 @@ export class JanusSipHandler {
     return this.registrationManager.register(username, password, sipHost);
   }
 
-  async call(uri: string): Promise<void> {
-    return this.callManager.call(uri);
+  async call(uri: string, isVideoCall: boolean = false): Promise<void> {
+    return this.callManager.call(uri, isVideoCall);
   }
 
   async acceptCall(jsep: any): Promise<void> {
