@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 
@@ -12,6 +13,7 @@ export const useJanusSetup = () => {
   useEffect(() => {
     // Set up Janus event handlers
     janusService.setOnIncomingCall((from, jsep) => {
+      console.log(`Incoming call from ${from} with JSEP:`, jsep);
       setIncomingCall({ from, jsep });
     });
 
@@ -50,11 +52,16 @@ export const useJanusSetup = () => {
     };
   }, [toast]);
 
-  const handleAcceptCall = async () => {
+  const handleAcceptCall = useCallback(async () => {
     if (incomingCall?.jsep) {
       try {
+        console.log("Accepting incoming call with JSEP:", incomingCall.jsep);
         await janusService.acceptCall(incomingCall.jsep);
         setIncomingCall(null);
+        toast({
+          title: "Call Accepted",
+          description: "You have accepted the call",
+        });
       } catch (error) {
         console.error("Error accepting call:", error);
         toast({
@@ -63,13 +70,25 @@ export const useJanusSetup = () => {
           variant: "destructive",
         });
       }
+    } else {
+      console.error("No incoming call JSEP available");
+      toast({
+        title: "Error",
+        description: "Cannot accept call: missing call data",
+        variant: "destructive",
+      });
     }
-  };
+  }, [incomingCall, toast]);
 
-  const handleRejectCall = () => {
+  const handleRejectCall = useCallback(() => {
+    console.log("Rejecting incoming call");
     janusService.hangup();
     setIncomingCall(null);
-  };
+    toast({
+      title: "Call Rejected",
+      description: "You have rejected the call",
+    });
+  }, [toast]);
 
   const initializeJanus = async (username?: string, password?: string, host?: string) => {
     try {

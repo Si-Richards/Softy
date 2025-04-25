@@ -40,6 +40,8 @@ export class SipEventHandler {
     jsep: any,
     eventHandlers: SipEventHandlers
   ): void {
+    console.log(`SIP event received: ${event}`, result);
+    
     switch (event) {
       case "registered":
         console.log("Successfully registered with the SIP server");
@@ -62,11 +64,9 @@ export class SipEventHandler {
         const username = result.username || "Unknown caller";
         console.log("Incoming call from", username);
         
-        // Handle jsep here for incoming call
+        // Don't handle jsep here as we'll need it in the accept method
         if (jsep) {
           console.log("Processing incoming call jsep:", jsep);
-          // Don't handle jsep here - we'll let the acceptCall method do it
-          // to avoid the "wrong state" error
         }
         
         if (eventHandlers.onIncomingCall) {

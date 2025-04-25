@@ -85,6 +85,8 @@ export class SipCallManager {
         return;
       }
 
+      console.log("SipCallManager: Accepting call with JSEP:", jsep);
+      
       // Get media constraints for answering calls
       const constraints = this.mediaConfig.getCallMediaConstraints();
       
@@ -110,20 +112,23 @@ export class SipCallManager {
                 message,
                 jsep: ourjsep,
                 success: () => {
-                  console.log("Call accepted");
+                  console.log("Call accepted successfully");
                   resolve();
                 },
                 error: (error: any) => {
+                  console.error(`Error accepting call: ${error}`);
                   reject(new Error(`Error accepting call: ${error}`));
                 }
               });
             },
             error: (error: any) => {
+              console.error(`WebRTC error when creating answer: ${error}`);
               reject(new Error(`WebRTC error: ${error}`));
             }
           });
         })
         .catch((error) => {
+          console.error(`Media error when accepting call: ${error}`);
           reject(new Error(`Media error when accepting call: ${error}`));
         });
     });

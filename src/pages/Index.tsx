@@ -45,6 +45,12 @@ const Index = () => {
     }
   }, [isJanusConnected]);
 
+  useEffect(() => {
+    if (incomingCall) {
+      console.log("Index received incoming call:", incomingCall);
+    }
+  }, [incomingCall]);
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case "home":

@@ -45,6 +45,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
     audioRef.current = audio;
 
     if (isOpen) {
+      console.log("IncomingCallDialog: Playing ringtone");
       play();
       audio.play().catch(e => 
         console.warn('Fallback audio element failed to play:', e)
@@ -63,6 +64,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   }, [isOpen, play, stop, audioSettings.ringtoneVolume]);
 
   const handleAccept = () => {
+    console.log("IncomingCallDialog: Call accepted by user");
     stop();
     if (audioRef.current) {
       audioRef.current.pause();
@@ -72,6 +74,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   };
 
   const handleReject = () => {
+    console.log("IncomingCallDialog: Call rejected by user");
     stop();
     if (audioRef.current) {
       audioRef.current.pause();
