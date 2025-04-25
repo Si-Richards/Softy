@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 
 interface AudioSettings {
@@ -8,6 +7,8 @@ interface AudioSettings {
   highPassFilter: boolean;
   selectedAudioInput: string;
   selectedAudioOutput: string;
+  masterVolume: number;
+  ringtoneVolume: number;
 }
 
 interface VideoSettings {
@@ -26,6 +27,8 @@ export const useSettings = () => {
       highPassFilter: false,
       selectedAudioInput: '',
       selectedAudioOutput: '',
+      masterVolume: 100,
+      ringtoneVolume: 100,
     };
   });
 

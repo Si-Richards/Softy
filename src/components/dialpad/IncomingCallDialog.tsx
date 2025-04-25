@@ -1,11 +1,10 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Phone, PhoneOff } from "lucide-react";
 import useSound from 'use-sound';
+import useSettings from '@/hooks/useSettings';
 
-// Fallback to a default sound or remove sound if file is missing
 const ringtoneSrc = '/fallback-ringtone.mp3';
 
 interface IncomingCallDialogProps {
@@ -21,18 +20,16 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onAccept,
   onReject
 }) => {
-  // Create an audio reference as a backup method
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { audioSettings } = useSettings();
   
-  // Optional: Add a check to only use useSound if sound is available
   const [play, { stop }] = useSound(ringtoneSrc, { 
     loop: true,
-    volume: 1.0,
-    // Add a check to prevent errors if sound fails to load
+    volume: audioSettings.ringtoneVolume ? audioSettings.ringtoneVolume / 100 : 1.0,
     onError: (error) => {
       console.warn('Ringtone failed to load with useSound:', error);
-      // Try fallback audio element if useSound fails
       if (audioRef.current) {
+        audioRef.current.volume = audioSettings.ringtoneVolume ? audioSettings.ringtoneVolume / 100 : 1.0;
         audioRef.current.play().catch(e => 
           console.warn('Fallback audio play failed:', e)
         );
@@ -41,17 +38,13 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   });
 
   useEffect(() => {
-    // Create audio element as backup
     const audio = new Audio(ringtoneSrc);
     audio.loop = true;
-    audio.volume = 1.0;
+    audio.volume = audioSettings.ringtoneVolume ? audioSettings.ringtoneVolume / 100 : 1.0;
     audioRef.current = audio;
 
     if (isOpen) {
-      // Try primary method first
       play();
-      
-      // Also attempt with audio element as fallback
       audio.play().catch(e => 
         console.warn('Fallback audio element failed to play:', e)
       );
@@ -66,7 +59,7 @@ const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       audio.pause();
       audio.currentTime = 0;
     };
-  }, [isOpen, play, stop]);
+  }, [isOpen, play, stop, audioSettings.ringtoneVolume]);
 
   const handleAccept = () => {
     stop();
