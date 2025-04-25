@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { ContactEditLoading } from "@/components/contacts/ContactEditLoading";
 import { ContactEditError } from "@/components/contacts/ContactEditError";
 import { ContactFormContent } from "@/components/contacts/ContactFormContent";
 import { contactSchema, FormValues } from "@/components/contacts/ContactEditForm";
 
-const ContactEdit = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+interface ContactEditProps {
+  contactId: number;
+  onClose: () => void;
+}
+
+const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
   const { contacts, isLoading, error, updateContact } = useContacts();
   const [nextPhoneId, setNextPhoneId] = useState(1);
 
@@ -44,8 +46,8 @@ const ContactEdit = () => {
   };
 
   useEffect(() => {
-    if (!isLoading && id && contacts.length > 0) {
-      const contact = contacts.find(c => c.id === Number(id));
+    if (!isLoading && contactId && contacts.length > 0) {
+      const contact = contacts.find(c => c.id === contactId);
       if (contact) {
         setValue("name", contact.name);
         setValue("email", contact.email || "");
@@ -79,18 +81,18 @@ const ContactEdit = () => {
         }
       }
     }
-  }, [isLoading, contacts, id, setValue]);
+  }, [isLoading, contacts, contactId, setValue]);
 
   const onSubmit = async (data: FormValues) => {
     try {
-      if (!id) return;
+      if (!contactId) return;
       
       const hasPrimary = data.phoneNumbers.some(p => p.isPrimary);
       if (!hasPrimary && data.phoneNumbers.length > 0) {
         data.phoneNumbers[0].isPrimary = true;
       }
       
-      const currentContact = contacts.find(c => c.id === Number(id));
+      const currentContact = contacts.find(c => c.id === contactId);
       if (!currentContact) return;
       
       const phoneNumbersToSave = data.phoneNumbers.map(phone => ({
@@ -102,7 +104,7 @@ const ContactEdit = () => {
       }));
       
       await updateContact({
-        id: Number(id),
+        id: contactId,
         name: data.name,
         favorite: data.favorite,
         phoneNumbers: phoneNumbersToSave,
@@ -117,7 +119,7 @@ const ContactEdit = () => {
       });
       
       toast.success("Contact updated successfully");
-      navigate(-1);
+      onClose();
     } catch (error) {
       toast.error("Failed to update contact");
       console.error("Error updating contact:", error);
@@ -151,34 +153,27 @@ const ContactEdit = () => {
     setValue("phoneNumbers", current);
   };
 
-  if (isLoading) {
-    return <ContactEditLoading />;
-  }
-
-  if (error || !contacts.find(c => c.id === Number(id))) {
-    return <ContactEditError />;
-  }
+  if (isLoading) return <ContactEditLoading />;
+  if (error || !contacts.find(c => c.id === contactId)) return <ContactEditError />;
 
   return (
-    <Card className="w-full max-w-3xl mx-auto my-8">
-      <CardHeader className="pb-2">
-        <div className="flex items-center space-x-2 mb-4">
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-          <CardTitle>Edit Contact</CardTitle>
-        </div>
-        <div className="flex items-center space-x-4">
-          <Avatar className="h-20 w-20">
-            {form.watch("avatar") ? (
-              <AvatarImage src={form.watch("avatar") || ""} alt={form.watch("name")} />
-            ) : (
-              <AvatarFallback className="text-xl">{getInitials(form.watch("name"))}</AvatarFallback>
-            )}
-          </Avatar>
-        </div>
-      </CardHeader>
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <CardTitle>Edit Contact</CardTitle>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex items-center space-x-4 mb-6">
+        <Avatar className="h-20 w-20">
+          {form.watch("avatar") ? (
+            <AvatarImage src={form.watch("avatar") || ""} alt={form.watch("name")} />
+          ) : (
+            <AvatarFallback className="text-xl">{getInitials(form.watch("name"))}</AvatarFallback>
+          )}
+        </Avatar>
+      </div>
 
       <ContactFormContent
         form={form}
@@ -188,7 +183,7 @@ const ContactEdit = () => {
         removePhoneNumber={removePhoneNumber}
         setPrimaryPhoneNumber={setPrimaryPhoneNumber}
       />
-    </Card>
+    </>
   );
 };
 
