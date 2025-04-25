@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, ChevronDown } from "lucide-react";
@@ -63,6 +62,14 @@ const Contacts = () => {
 
   const handleCloseNewContact = () => {
     setShowNewContactModal(false);
+  };
+
+  const handleEditContact = (contactId: number) => {
+    setEditingContactId(contactId);
+  };
+
+  const handleCloseEditContact = () => {
+    setEditingContactId(null);
   };
 
   if (isLoading) {
@@ -141,7 +148,7 @@ const Contacts = () => {
             key={contact.id}
             contact={contact}
             onToggleFavorite={toggleFavorite}
-            onEdit={() => setEditingContactId(contact.id)}
+            onEdit={() => handleEditContact(contact.id)}
           />
         ))}
         
@@ -152,16 +159,14 @@ const Contacts = () => {
         )}
       </div>
 
-      {/* Edit contact modal */}
-      <Dialog open={editingContactId !== null} onOpenChange={() => setEditingContactId(null)}>
+      <Dialog open={editingContactId !== null} onOpenChange={handleCloseEditContact}>
         <DialogContent>
-          {editingContactId && (
-            <ContactEdit contactId={editingContactId} onClose={() => setEditingContactId(null)} />
+          {editingContactId !== null && (
+            <ContactEdit contactId={editingContactId} onClose={handleCloseEditContact} />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* New contact modal */}
       <Dialog open={showNewContactModal} onOpenChange={setShowNewContactModal}>
         <DialogContent>
           <ContactEdit contactId={0} onClose={handleCloseNewContact} />

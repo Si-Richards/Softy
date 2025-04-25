@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
@@ -33,7 +32,6 @@ const Index = () => {
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
   const [isDialpadOpen, setIsDialpadOpen] = useState(false);
   
-  // Use the Janus setup hook to get incoming call handling
   const { 
     incomingCall, 
     handleAcceptCall, 
@@ -41,7 +39,6 @@ const Index = () => {
     isJanusConnected
   } = useJanusSetup();
   
-  // Update connection status based on Janus connection
   React.useEffect(() => {
     if (isJanusConnected) {
       setConnectionStatus("connected");
@@ -64,7 +61,7 @@ const Index = () => {
         return <Voicemail />;
       case "statistics":
         return <Statistics />;
-      case "audio":
+      case "devices":
         return <AudioSettings />;
       case "settings":
         return <SIPConfig />;

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Home, Phone, Clock, Users, Settings, Volume2, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { Home, Phone, Clock, Users, Settings, Devices, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface SidebarProps {
@@ -49,7 +49,7 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
       badge: unreadVoicemails 
     },
     { id: "statistics", label: "Statistics", icon: <ChartBar className="w-[27.5px] h-[27.5px]" /> },
-    { id: "audio", label: "Audio", icon: <Volume2 className="w-[27.5px] h-[27.5px]" /> },
+    { id: "devices", label: "Devices", icon: <Devices className="w-[27.5px] h-[27.5px]" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-[27.5px] h-[27.5px]" /> },
   ];
 
