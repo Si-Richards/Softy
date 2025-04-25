@@ -34,6 +34,7 @@ const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("nameAsc");
   const [editingContactId, setEditingContactId] = useState<number | null>(null);
+  const [showNewContactModal, setShowNewContactModal] = useState(false);
   const { contacts, isLoading, error, toggleFavorite } = useContacts();
   
   const getSortedContacts = () => {
@@ -54,6 +55,14 @@ const Contacts = () => {
           return 0;
       }
     });
+  };
+
+  const handleAddNewContact = () => {
+    setShowNewContactModal(true);
+  };
+
+  const handleCloseNewContact = () => {
+    setShowNewContactModal(false);
   };
 
   if (isLoading) {
@@ -110,7 +119,11 @@ const Contacts = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" className="bg-softphone-accent hover:bg-blue-600">
+          <Button 
+            size="sm" 
+            className="bg-softphone-accent hover:bg-blue-600"
+            onClick={handleAddNewContact}
+          >
             <UserPlus className="h-4 w-4 mr-2" />
             Add Contact
           </Button>
@@ -139,11 +152,19 @@ const Contacts = () => {
         )}
       </div>
 
+      {/* Edit contact modal */}
       <Dialog open={editingContactId !== null} onOpenChange={() => setEditingContactId(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent>
           {editingContactId && (
             <ContactEdit contactId={editingContactId} onClose={() => setEditingContactId(null)} />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* New contact modal */}
+      <Dialog open={showNewContactModal} onOpenChange={setShowNewContactModal}>
+        <DialogContent>
+          <ContactEdit contactId={0} onClose={handleCloseNewContact} />
         </DialogContent>
       </Dialog>
     </div>
