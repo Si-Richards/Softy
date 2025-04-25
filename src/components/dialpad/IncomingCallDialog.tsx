@@ -1,9 +1,10 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Phone, PhoneOff } from "lucide-react";
 import useSound from 'use-sound';
-import useSettings from '@/hooks/useSettings';
+import { useSettings } from '@/hooks/useSettings';
 
 const ringtoneSrc = '/fallback-ringtone.mp3';
 
