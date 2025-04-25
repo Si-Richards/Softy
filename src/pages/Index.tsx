@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
 import CallHistory from "@/components/CallHistory";
@@ -39,7 +39,7 @@ const Index = () => {
     isJanusConnected
   } = useJanusSetup();
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (isJanusConnected) {
       setConnectionStatus("connected");
     }
@@ -77,7 +77,18 @@ const Index = () => {
       case "connecting":
         return "bg-yellow-500";
       case "disconnected":
-        return "bg-gray-400";
+        return "bg-red-500";
+    }
+  };
+
+  const getStatusText = () => {
+    switch (connectionStatus) {
+      case "connected":
+        return "Connected";
+      case "connecting":
+        return "Connecting...";
+      case "disconnected":
+        return "Disconnected";
     }
   };
 
@@ -147,8 +158,7 @@ const Index = () => {
                 <div className="flex items-center space-x-2">
                   <div className={cn("h-2.5 w-2.5 rounded-full", getStatusColor())}></div>
                   <span className="text-sm font-medium text-gray-600">
-                    {connectionStatus === "connected" ? "Connected" : 
-                     connectionStatus === "connecting" ? "Connecting..." : "Disconnected"}
+                    {getStatusText()}
                   </span>
                 </div>
 

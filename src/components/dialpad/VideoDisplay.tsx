@@ -20,7 +20,6 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       try {
         const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
         if (savedAudioOutput && remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
-          // Cast to any to access the non-standard setSinkId method
           await (remoteVideoRef.current as any).setSinkId(savedAudioOutput);
           console.log("Audio output device set to:", savedAudioOutput);
         }
@@ -34,6 +33,9 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     }
   }, [isCallActive, remoteVideoRef]);
 
+  // Only show video container if video is enabled
+  if (!isVideoEnabled) return null;
+
   return (
     <div className={`relative mb-6 ${isCallActive ? "block" : "hidden"}`}>
       <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
@@ -44,17 +46,15 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
           playsInline
         ></video>
       </div>
-      {isVideoEnabled && (
-        <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
-          <video
-            ref={localVideoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            playsInline
-            muted
-          ></video>
-        </div>
-      )}
+      <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
+        <video
+          ref={localVideoRef}
+          className="w-full h-full object-cover"
+          autoPlay
+          playsInline
+          muted
+        ></video>
+      </div>
     </div>
   );
 };
