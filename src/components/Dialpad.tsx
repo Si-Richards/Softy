@@ -18,7 +18,7 @@ const Dialpad = () => {
   const { toast } = useToast();
   const { isJanusConnected, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
-  const voicemailNumber = "*97";
+  const voicemailNumber = "1571"; // Updated voicemail number
   
   const {
     isCallActive,
@@ -32,6 +32,10 @@ const Dialpad = () => {
 
   const addDigitToNumber = (key: string) => {
     setNumber((prev) => prev + key);
+  };
+
+  const handleBackspace = () => {
+    setNumber((prev) => prev.slice(0, -1));
   };
 
   useKeypadInput(addDigitToNumber);
@@ -74,6 +78,7 @@ const Dialpad = () => {
         number={number}
         onChange={setNumber}
         onClear={clearNumber}
+        onBackspace={handleBackspace}
       />
 
       <DialpadGrid onKeyPress={handleKeyPress} />
