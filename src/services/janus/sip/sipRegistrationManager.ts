@@ -21,29 +21,32 @@ export class SipRegistrationManager {
       
       // Format username correctly - handle special characters
       const cleanUsername = username
-        .replace(/^sip:/, '') // Remove any 'sip:' prefix if present
-        .split('@')[0];       // Remove any domain part if present
+        .replace(/^sip:/, '')  // Remove any 'sip:' prefix if present
+        .split('@')[0];        // Remove any domain part if present
+      
+      // Full SIP identity should include domain
+      const sipIdentity = `${cleanUsername}@${host}`;
       
       // Save username for display purposes
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
-      console.log(`SIP Registration: Attempting to register with username: ${cleanUsername}, host: ${host}:${port}`);
+      console.log(`SIP Registration: Attempting registration for sip:${sipIdentity} via ${host}:${port}`);
 
-      // Try alternative formatting - some SIP servers need different formats
+      // Send registration request with proper formatting
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: cleanUsername,       // Just the username part WITHOUT domain
-          display_name: cleanUsername,   // Display name is just the username part
-          authuser: cleanUsername,       // Auth username is just the username part
+          username: sipIdentity,     // Full SIP identity: username@domain
+          display_name: cleanUsername, // Just the username for display
+          authuser: cleanUsername,   // Auth username without domain
           secret: password,
-          proxy: `sip:${host}:${port}`,  // The proxy includes the full SIP URI
+          proxy: `sip:${host}:${port}`,
           register_ttl: 3600,
           force_tcp: false,
           sips: false
         },
         success: () => {
-          console.log(`SIP Registration: Request sent for ${cleanUsername} via ${host}:${port}`);
+          console.log(`SIP Registration: Request sent for ${sipIdentity} via ${host}:${port}`);
           resolve();
         },
         error: (error: any) => {

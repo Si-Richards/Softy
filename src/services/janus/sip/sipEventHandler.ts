@@ -1,3 +1,4 @@
+
 import type { SipEventHandlers, SipPluginMessage } from './types';
 import { SipState } from './sipState';
 import { SipCallManager } from './sipCallManager';
@@ -21,7 +22,7 @@ export class SipEventHandler {
       
       // Special handling for specific error codes
       if (msg.error_code === 446) {
-        console.error(`Invalid user address error detected. Try entering just the username without '@domain'.`);
+        console.error(`Username format should be in the form username@domain`);
       }
       
       this.sipState.setRegistered(false);

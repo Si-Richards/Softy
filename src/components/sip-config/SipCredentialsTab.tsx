@@ -12,7 +12,7 @@ const SipCredentialsTab = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   // Set the default SIP host but keep it hidden from UI
-  const [sipHost, setSipHost] = useState("hpbx.voicehost.co.uk:5060");
+  const [sipHost, setSipHost] = useState("st.voicehost.co.uk:5060");
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -85,7 +85,7 @@ const SipCredentialsTab = () => {
         apiSecret: 'overlord',
         success: async () => {
           try {
-            // Important: Pass just the username without any formatting - the SipRegistrationManager will handle it
+            // Pass just the username - the SipRegistrationManager will handle domain formatting
             console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
             
             await janusService.register(username, password, sipHost);
@@ -118,7 +118,7 @@ const SipCredentialsTab = () => {
             
             // Add specific guidance for error code 446
             if (error.message && error.message.includes('446')) {
-              errorMsg = `${errorMsg} Please enter just your username without '@domain' part.`;
+              errorMsg = `${errorMsg} Try a different username format.`;
             }
             
             console.error(errorMsg);
@@ -198,7 +198,7 @@ const SipCredentialsTab = () => {
             disabled={isLoading || registrationStatus === "connecting"}
           />
           <p className="text-xs text-gray-500">
-            Enter only your username (e.g., "16331*201") without the "@domain" part
+            Enter only your username (e.g., "38997*200") without the "@domain" part
           </p>
         </div>
         <div className="space-y-2">
