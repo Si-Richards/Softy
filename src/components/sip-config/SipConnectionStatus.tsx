@@ -1,10 +1,10 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { SipConnectionStatus } from "@/hooks/useSipConnection";
+import type { SipConnectionStatus as SipConnectionStatusType } from "@/hooks/useSipConnection";
 
 interface SipConnectionStatusProps {
-  status: SipConnectionStatus;
+  status: SipConnectionStatusType;
   errorMessage: string | null;
   progressValue: number;
   isLoading: boolean;
