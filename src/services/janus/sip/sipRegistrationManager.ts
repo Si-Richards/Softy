@@ -21,34 +21,29 @@ export class SipRegistrationManager {
       
       // Format username correctly - handle special characters
       const cleanUsername = username
-        .replace(/^sip:/, '') // Remove any 'sip:' prefix
-        .split('@')[0];       // Remove any domain part
+        .replace(/^sip:/, '') // Remove any 'sip:' prefix if present
+        .split('@')[0];       // Remove any domain part if present
       
       // Save username for display purposes
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
-      // Format SIP URI correctly - include the domain in the username field
-      // This is the key change - include the host in the username field
-      const fullUsername = `${cleanUsername}@${host}`;
-      const sipUri = `sip:${fullUsername}`;
+      console.log(`SIP Registration: Attempting to register with username: ${cleanUsername}, host: ${host}:${port}`);
 
-      console.log(`SIP Registration: Attempting registration for ${sipUri} via ${host}:${port}`);
-
-      // Send registration with proper authentication parameters
+      // Try alternative formatting - some SIP servers need different formats
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: fullUsername, // Use username with domain
-          display_name: cleanUsername, // Display name can be just the username part
-          authuser: cleanUsername, // Auth username is typically just the username part
+          username: cleanUsername,       // Just the username part WITHOUT domain
+          display_name: cleanUsername,   // Display name is just the username part
+          authuser: cleanUsername,       // Auth username is just the username part
           secret: password,
-          proxy: `sip:${host}:${port}`,
+          proxy: `sip:${host}:${port}`,  // The proxy includes the full SIP URI
           register_ttl: 3600,
           force_tcp: false,
           sips: false
         },
         success: () => {
-          console.log(`SIP Registration: Request sent for ${fullUsername} via ${host}:${port}`);
+          console.log(`SIP Registration: Request sent for ${cleanUsername} via ${host}:${port}`);
           resolve();
         },
         error: (error: any) => {

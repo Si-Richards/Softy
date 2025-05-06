@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,10 +85,9 @@ const SipCredentialsTab = () => {
         apiSecret: 'overlord',
         success: async () => {
           try {
-            // Log the raw username for debugging
-            console.log(`Attempting to register with raw username: ${username}, host: ${sipHost}`);
+            // Important: Pass just the username without any formatting - the SipRegistrationManager will handle it
+            console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
             
-            // Pass username directly without pre-processing
             await janusService.register(username, password, sipHost);
             
             setProgressValue(80);
@@ -110,7 +108,7 @@ const SipCredentialsTab = () => {
                 setIsLoading(false);
                 setErrorMessage("Registration timed out. Please check your credentials and try again.");
               }
-            }, 3000); // Increased timeout to allow for more time to connect
+            }, 3000);
           } catch (error: any) {
             setRegistrationStatus("failed");
             setIsLoading(false);
@@ -120,7 +118,7 @@ const SipCredentialsTab = () => {
             
             // Add specific guidance for error code 446
             if (error.message && error.message.includes('446')) {
-              errorMsg = `${errorMsg}. Make sure your username is in the correct format. If using special characters like '*', ensure they are supported by your SIP provider.`;
+              errorMsg = `${errorMsg} Please enter just your username without '@domain' part.`;
             }
             
             console.error(errorMsg);
@@ -200,7 +198,7 @@ const SipCredentialsTab = () => {
             disabled={isLoading || registrationStatus === "connecting"}
           />
           <p className="text-xs text-gray-500">
-            {username.includes('*') && "Note: Special characters like * will be automatically encoded"}
+            Enter only your username (e.g., "16331*201") without the "@domain" part
           </p>
         </div>
         <div className="space-y-2">
@@ -214,7 +212,6 @@ const SipCredentialsTab = () => {
             disabled={isLoading || registrationStatus === "connecting"}
           />
         </div>
-        {/* SIP Host field is hidden as requested */}
       </CardContent>
       <CardFooter>
         <Button 
