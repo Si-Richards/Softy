@@ -1,25 +1,12 @@
+// This file contains type declarations for testing libraries
+// We're keeping this simple since these types aren't essential for the main app
 
-/// <reference types="jest" />
-/// <reference types="@testing-library/jest-dom" />
-
-// Extend the global jest namespace to include the Jest DOM matchers
-declare namespace jest {
-  interface Matchers<R> {
-    toBeInTheDocument(): R;
-    toBeVisible(): R;
-    toHaveTextContent(text: string | RegExp): R;
-    toHaveClass(className: string): R;
-    // Add other matchers as needed
-  }
-}
-
-// Augment the global expect function with Jest DOM matchers
+// Simple type declarations for Jest DOM
 interface CustomMatchers<R = unknown> {
   toBeInTheDocument(): R;
   toBeVisible(): R;
   toHaveTextContent(text: string | RegExp): R;
   toHaveClass(className: string): R;
-  // Add other matchers as needed
 }
 
 declare global {
@@ -29,3 +16,5 @@ declare global {
     interface InverseAsymmetricMatchers extends CustomMatchers {}
   }
 }
+
+export {};

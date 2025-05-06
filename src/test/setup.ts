@@ -1,5 +1,4 @@
-// Import the required modules for testing
-import '@testing-library/jest-dom';
+// Basic test setup without @testing-library/jest-dom dependency
 
 // Mock the window.Janus object
 global.window.Janus = {
