@@ -12,9 +12,16 @@ export class SipRegistrationManager {
         return;
       }
 
-      const sipUri = `sip:${username}@${sipHost}`;
+      // Format host name correctly - remove port if included in sipHost
+      const hostParts = sipHost.split(':');
+      const host = hostParts[0];
+      const port = hostParts.length > 1 ? hostParts[1] : '5060';
+      
+      // Format SIP URI correctly
+      const sipUri = `sip:${username}@${host}`;
       this.sipState.setCurrentCredentials({ username, password, sipHost });
 
+      // Send registration with correct format
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
@@ -22,10 +29,13 @@ export class SipRegistrationManager {
           display_name: username,
           authuser: username,
           secret: password,
-          proxy: `sip:${sipHost}`
+          proxy: `sip:${host}:${port}`, 
+          // Make sure we're using proper SIP format with protocol
+          force_tcp: false, // Try without forcing TCP
+          sips: false // Use standard SIP, not secure SIP
         },
         success: () => {
-          console.log(`SIP registration request sent for ${username}@${sipHost}`);
+          console.log(`SIP registration request sent for ${username}@${host}:${port}`);
           resolve();
         },
         error: (error: any) => {
