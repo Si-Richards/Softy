@@ -7,16 +7,20 @@ import MobileDialpadDrawer from "./MobileDialpadDrawer";
 import IncomingCallHandler from "./IncomingCallHandler";
 import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
 
+// Define user presence type
 type UserPresence = "available" | "away" | "busy" | "offline";
 
 const MainLayout = () => {
+  // State management
   const [activeTab, setActiveTab] = useState("home");
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "connecting">("disconnected");
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
   
+  // Get Janus connection status
   const { isJanusConnected } = useJanusSetup();
   
+  // Update connection status when Janus connection changes
   useEffect(() => {
     if (isJanusConnected) {
       setConnectionStatus("connected");
@@ -40,6 +44,7 @@ const MainLayout = () => {
         </div>
       </div>
 
+      {/* Mobile and call handling elements */}
       <MobileDialpadDrawer />
       <IncomingCallHandler />
     </div>
