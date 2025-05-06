@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import janusService from "@/services/JanusService";
 import { useIncomingCall } from '@/hooks/useIncomingCall';
@@ -9,7 +10,8 @@ export const useJanusSetup = () => {
     handleAcceptCall,
     handleRejectCall,
     handleIncomingCall,
-    handleCallEnded
+    handleCallEnded,
+    notificationsEnabled
   } = useIncomingCall();
 
   const {
@@ -59,6 +61,7 @@ export const useJanusSetup = () => {
     handleRejectCall,
     initializeJanus,
     registerWithJanus,
-    janusService
+    janusService,
+    notificationsEnabled
   };
 };
