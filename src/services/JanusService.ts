@@ -110,16 +110,8 @@ class JanusService {
     return this.mediaHandler.getRemoteStream();
   }
 
-  getMediaHandler(): JanusMediaHandler {
-    return this.mediaHandler;
-  }
-
   register(username: string, password: string, sipHost: string): Promise<void> {
     return this.sipHandler.register(username, password, sipHost);
-  }
-
-  unregister(): Promise<void> {
-    return this.sipHandler.unregister();
   }
 
   call(uri: string, isVideoCall: boolean = false): Promise<void> {
@@ -139,18 +131,6 @@ class JanusService {
   }
 
   disconnect(): void {
-    // Before disconnecting, make sure we unregister from the SIP server
-    if (this.isRegistered()) {
-      try {
-        // Attempt to unregister, but don't wait for it
-        this.unregister().catch(err => {
-          console.error("Error while unregistering during disconnect:", err);
-        });
-      } catch (e) {
-        console.error("Error during unregister attempt:", e);
-      }
-    }
-    
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
   }

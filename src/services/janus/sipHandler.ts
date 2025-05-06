@@ -1,3 +1,4 @@
+
 import type { SipCredentials, SipEventHandlers } from './sip/types';
 import { SipState } from './sip/sipState';
 import { SipEventHandler } from './sip/sipEventHandler';
@@ -38,41 +39,7 @@ export class JanusSipHandler {
   }
 
   async register(username: string, password: string, sipHost: string): Promise<void> {
-    // Ensure we want to maintain registration
-    this.sipState.setKeepRegistered(true);
     return this.registrationManager.register(username, password, sipHost);
-  }
-
-  async unregister(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      if (!this.sipState.getSipPlugin()) {
-        resolve();
-        return;
-      }
-      
-      // Set keepRegistered to false to prevent automatic re-registration
-      this.sipState.setKeepRegistered(false);
-      
-      // Clear any registration refresh interval
-      this.registrationManager.clearRegistrationRefresh();
-
-      this.sipState.getSipPlugin().send({
-        message: { request: "unregister" },
-        success: () => {
-          console.log("Unregister request sent");
-          this.sipState.setRegistered(false);
-          this.sipState.setCurrentCredentials(null);
-          resolve();
-        },
-        error: (error: any) => {
-          console.error("Error unregistering:", error);
-          // Still consider us unregistered even if there was an error
-          this.sipState.setRegistered(false);
-          this.sipState.setCurrentCredentials(null);
-          reject(error);
-        }
-      });
-    });
   }
 
   async call(uri: string, isVideoCall: boolean = false): Promise<void> {
