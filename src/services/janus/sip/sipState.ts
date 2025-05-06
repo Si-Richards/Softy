@@ -5,6 +5,7 @@ export class SipState {
   private sipPlugin: any = null;
   private registered: boolean = false;
   private currentCredentials: SipCredentials | null = null;
+  private keepRegistered: boolean = true; // Default to keeping registered
 
   setSipPlugin(plugin: any) {
     this.sipPlugin = plugin;
@@ -28,5 +29,13 @@ export class SipState {
 
   setCurrentCredentials(credentials: SipCredentials | null) {
     this.currentCredentials = credentials;
+  }
+
+  getKeepRegistered(): boolean {
+    return this.keepRegistered;
+  }
+
+  setKeepRegistered(keep: boolean): void {
+    this.keepRegistered = keep;
   }
 }

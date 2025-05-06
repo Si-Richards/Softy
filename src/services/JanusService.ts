@@ -1,3 +1,4 @@
+
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -114,6 +115,10 @@ class JanusService {
     return this.sipHandler.register(username, password, sipHost);
   }
 
+  unregister(): Promise<void> {
+    return this.sipHandler.unregister();
+  }
+
   call(uri: string, isVideoCall: boolean = false): Promise<void> {
     return this.sipHandler.call(uri, isVideoCall);
   }
@@ -131,6 +136,18 @@ class JanusService {
   }
 
   disconnect(): void {
+    // Before disconnecting, make sure we unregister from the SIP server
+    if (this.isRegistered()) {
+      try {
+        // Attempt to unregister, but don't wait for it
+        this.unregister().catch(err => {
+          console.error("Error while unregistering during disconnect:", err);
+        });
+      } catch (e) {
+        console.error("Error during unregister attempt:", e);
+      }
+    }
+    
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
   }

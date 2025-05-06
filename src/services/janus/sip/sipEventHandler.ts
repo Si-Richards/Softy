@@ -50,6 +50,25 @@ export class SipEventHandler {
       case "registering":
         console.log("Registering with the SIP server");
         break;
+      case "unregistered":
+        console.log("Unregistered from the SIP server", result);
+        // Only set as unregistered if this was intentional
+        if (!this.sipState.getKeepRegistered()) {
+          this.sipState.setRegistered(false);
+        } else {
+          // If we want to stay registered, attempt to re-register
+          console.log("Attempting to re-register...");
+          const credentials = this.sipState.getCurrentCredentials();
+          if (credentials) {
+            setTimeout(() => {
+              const plugin = this.sipState.getSipPlugin();
+              if (plugin) {
+                this.reRegister(credentials.username, credentials.password, credentials.sipHost);
+              }
+            }, 3000); // Wait 3 seconds before trying to re-register
+          }
+        }
+        break;
       case "registration_failed":
         console.log("Registration failed:", result);
         this.sipState.setRegistered(false);
@@ -89,5 +108,29 @@ export class SipEventHandler {
         }
         break;
     }
+  }
+
+  private reRegister(username: string, password: string, sipHost: string): void {
+    const sipPlugin = this.sipState.getSipPlugin();
+    if (!sipPlugin) return;
+    
+    const sipUri = `sip:${username}@${sipHost}`;
+    
+    sipPlugin.send({
+      message: {
+        request: "register",
+        username: sipUri,
+        display_name: username,
+        authuser: username,
+        secret: password,
+        proxy: `sip:${sipHost}`
+      },
+      success: () => {
+        console.log(`SIP re-registration request sent for ${username}@${sipHost}`);
+      },
+      error: (error: any) => {
+        console.error(`Error sending SIP re-registration: ${error}`);
+      }
+    });
   }
 }

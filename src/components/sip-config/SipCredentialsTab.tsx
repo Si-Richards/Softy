@@ -16,13 +16,16 @@ const SipCredentialsTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [registrationCheckInterval, setRegistrationCheckInterval] = useState<number | null>(null);
 
   useEffect(() => {
     // Set up error handler
     janusService.setOnError((error) => {
       setErrorMessage(error);
-      setRegistrationStatus("failed");
-      setIsLoading(false);
+      if (error.includes("registration")) {
+        setRegistrationStatus("failed");
+        setIsLoading(false);
+      }
       toast({
         title: "Registration Error",
         description: error,
@@ -30,12 +33,40 @@ const SipCredentialsTab = () => {
       });
     });
 
+    // Check if we're already registered
+    if (janusService.isRegistered()) {
+      setRegistrationStatus("connected");
+    }
+
+    // Set up periodic registration check
+    const intervalId = window.setInterval(() => {
+      if (janusService.isRegistered()) {
+        setRegistrationStatus("connected");
+      } else if (registrationStatus === "connected") {
+        setRegistrationStatus("failed");
+        toast({
+          title: "Registration Lost",
+          description: "Connection to SIP server was lost",
+          variant: "destructive",
+        });
+      }
+    }, 5000);
+
+    setRegistrationCheckInterval(intervalId);
+
     // Cleanup when component unmounts
     return () => {
       // Clear error handler
       janusService.setOnError(() => {});
+      // Clear interval
+      if (registrationCheckInterval) {
+        clearInterval(registrationCheckInterval);
+      }
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
-  }, []);
+  }, [registrationStatus]);
 
   const handleSave = async () => {
     // Form validation
@@ -63,20 +94,32 @@ const SipCredentialsTab = () => {
             await janusService.register(username, password, sipHost);
             
             // We don't immediately set connected because the actual registration happens asynchronously
-            // The status is updated in the event handler in JanusService
-            
-            setIsLoading(false);
-            
-            // Check if registration was successful after a short delay
-            setTimeout(() => {
+            // Periodically check registration status
+            let attempts = 0;
+            const checkRegistration = setInterval(() => {
+              attempts++;
               if (janusService.isRegistered()) {
                 setRegistrationStatus("connected");
+                setIsLoading(false);
+                clearInterval(checkRegistration);
                 toast({
                   title: "Registration Successful",
                   description: "SIP credentials saved and connected",
                 });
+              } else if (attempts >= 10) {
+                // After 10 attempts (5 seconds), give up
+                setRegistrationStatus("failed");
+                setIsLoading(false);
+                setErrorMessage("Failed to confirm registration status");
+                clearInterval(checkRegistration);
+                toast({
+                  title: "Registration Failed",
+                  description: "Failed to confirm SIP registration status",
+                  variant: "destructive",
+                });
               }
-            }, 1500);
+            }, 500);
+            
           } catch (error) {
             setRegistrationStatus("failed");
             setIsLoading(false);
@@ -174,13 +217,36 @@ const SipCredentialsTab = () => {
           />
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex justify-between">
         <Button 
           onClick={handleSave} 
           disabled={isLoading || registrationStatus === "connecting" || !username || !password}
         >
           {isLoading ? "Connecting..." : registrationStatus === "connected" ? "Reconnect" : "Save & Connect"}
         </Button>
+        
+        {registrationStatus === "connected" && (
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              janusService.unregister().then(() => {
+                setRegistrationStatus("idle");
+                toast({
+                  title: "Unregistered",
+                  description: "Successfully unregistered from SIP server",
+                });
+              }).catch(error => {
+                toast({
+                  title: "Error",
+                  description: `Failed to unregister: ${error}`,
+                  variant: "destructive",
+                });
+              });
+            }}
+          >
+            Unregister
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
