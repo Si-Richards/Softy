@@ -1,4 +1,3 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -109,6 +108,10 @@ class JanusService {
 
   getRemoteStream(): MediaStream | null {
     return this.mediaHandler.getRemoteStream();
+  }
+
+  getMediaHandler(): JanusMediaHandler {
+    return this.mediaHandler;
   }
 
   register(username: string, password: string, sipHost: string): Promise<void> {

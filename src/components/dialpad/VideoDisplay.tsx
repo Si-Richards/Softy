@@ -14,6 +14,8 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
   isVideoEnabled,
   isCallActive,
 }) => {
+  const audioOutputInitialized = useRef(false);
+
   // Add check for audio output device
   useEffect(() => {
     const checkAudioOutput = async () => {
@@ -28,12 +30,56 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       }
     };
     
-    if (isCallActive) {
+    if (isCallActive && !audioOutputInitialized.current) {
       checkAudioOutput();
+      audioOutputInitialized.current = true;
+    }
+
+    if (!isCallActive) {
+      audioOutputInitialized.current = false;
     }
   }, [isCallActive, remoteVideoRef]);
 
-  // Only show video container if video is enabled
+  // Create a hidden audio element as a fallback for audio-only calls
+  useEffect(() => {
+    if (isCallActive) {
+      // Create hidden audio element as fallback for browsers that might have issues
+      const audioEl = document.createElement('audio');
+      audioEl.id = 'fallback-audio';
+      audioEl.style.display = 'none';
+      audioEl.autoplay = true;
+      audioEl.playsInline = true;
+      
+      // Check if video element has remote stream and clone it for audio
+      if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+        audioEl.srcObject = remoteVideoRef.current.srcObject;
+        document.body.appendChild(audioEl);
+        console.log("Fallback audio element created");
+      }
+      
+      return () => {
+        // Clean up when call ends
+        if (document.getElementById('fallback-audio')) {
+          document.getElementById('fallback-audio')?.remove();
+        }
+      };
+    }
+  }, [isCallActive, remoteVideoRef]);
+
+  // For audio-only calls, we still need a hidden video element
+  if (isCallActive && !isVideoEnabled) {
+    return (
+      <div className="hidden">
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+        ></video>
+      </div>
+    );
+  }
+
+  // Only show visible video container if video is enabled
   if (!isVideoEnabled) return null;
 
   return (
