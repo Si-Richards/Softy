@@ -26,18 +26,18 @@ export class SipRegistrationManager {
 
       console.log(`Attempting SIP registration for ${sipUri} via ${host}:${port}`);
 
-      // Send registration with correct format - using proper SIP protocol parameters
+      // Send registration with correct format - adjusting authentication parameters
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: sipUri, // Full SIP URI for identity
+          username: cleanUsername, // Send just the username without SIP URI for authentication
           display_name: cleanUsername,
-          authuser: cleanUsername, // Authentication username should be clean without domain
+          authuser: cleanUsername, // Authentication username
           secret: password,
-          proxy: `sip:${host}:${port}`, // Properly formatted proxy address
-          register_ttl: 3600, // Registration time to live in seconds
-          force_tcp: false, // Let the protocol be determined automatically
-          sips: false // Not using secure SIP by default
+          proxy: `sip:${host}:${port}`,
+          register_ttl: 3600,
+          force_tcp: false,
+          sips: false
         },
         success: () => {
           console.log(`SIP registration request sent for ${cleanUsername}@${host}:${port}`);
