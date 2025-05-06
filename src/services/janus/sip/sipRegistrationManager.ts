@@ -28,13 +28,13 @@ export class SipRegistrationManager {
 
       console.log(`SIP Registration: Attempting registration for ${sipUri} via ${host}:${port}`);
 
-      // Send registration with correct format
+      // Send registration with proper authentication parameters
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: sipUri, // Use full SIP URI for registration
+          username: cleanUsername, // Use just the username for the register request
           display_name: cleanUsername,
-          authuser: cleanUsername, // Authentication username
+          authuser: cleanUsername, // Authentication username without domain
           secret: password,
           proxy: `sip:${host}:${port}`,
           register_ttl: 3600,

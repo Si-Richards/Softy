@@ -4,90 +4,74 @@ import { SipState } from './sipState';
 import { SipCallManager } from './sipCallManager';
 
 export class SipEventHandler {
-  constructor(
-    private sipState: SipState,
-    private sipCallManager: SipCallManager
-  ) {}
+  constructor(private sipState: SipState, private callManager: SipCallManager) {}
 
-  handleSipMessage(msg: SipPluginMessage, jsep: any, eventHandlers: SipEventHandlers): void {
-    if (!this.sipState.getSipPlugin()) return;
-
-    const result = msg.result;
-    if (result) {
-      if (result.event) {
-        this.handleEvent(result.event, result, jsep, eventHandlers);
-      }
+  handleSipMessage(msg: any, jsep: any, eventHandlers: SipEventHandlers): void {
+    if (!msg || !msg.result) {
+      console.warn("Received empty or invalid SIP message");
+      return;
     }
 
-    if (msg.error) {
-      console.error("SIP error:", msg.error);
-      if (eventHandlers.onError) {
-        eventHandlers.onError(`SIP error: ${msg.error}`);
-      }
-    }
+    const event = msg.result?.event;
+    console.log(`SIP event received: ${event}`, msg.result);
 
-    // Only handle jsep separately if it's not already handled in an event
-    // This prevents calling handleRemoteJsep multiple times for the same jsep object
-    if (jsep && !result?.event) {
-      console.log("Handling SIP jsep separately", jsep);
-      this.sipState.getSipPlugin().handleRemoteJsep({ jsep });
-    }
-  }
-
-  private handleEvent(
-    event: string,
-    result: SipPluginMessage['result'],
-    jsep: any,
-    eventHandlers: SipEventHandlers
-  ): void {
-    console.log(`SIP event received: ${event}`, result);
-    
     switch (event) {
-      case "registered":
+      case 'registering':
+        console.log("Registering with the SIP server");
+        break;
+        
+      case 'registration_failed':
+        const code = msg.result.code;
+        const reason = msg.result.reason || 'Unknown reason';
+        console.log(`Registration failed: ${JSON.stringify(msg.result)}`);
+        this.sipState.setRegistered(false);
+        
+        if (eventHandlers.onError) {
+          eventHandlers.onError(`SIP registration failed (${code}): ${reason}`);
+        }
+        break;
+        
+      case 'registered':
         console.log("Successfully registered with the SIP server");
         this.sipState.setRegistered(true);
         break;
-      case "registering":
-        console.log("Registering with the SIP server");
-        break;
-      case "registration_failed":
-        console.log("Registration failed:", result);
-        this.sipState.setRegistered(false);
-        if (eventHandlers.onError) {
-          eventHandlers.onError(`SIP registration failed: ${result.code || "Unknown error"}`);
-        }
-        break;
-      case "calling":
-        console.log("Calling...");
-        break;
-      case "incomingcall": {
-        const username = result.username || "Unknown caller";
-        console.log("Incoming call from", username);
         
-        // Don't handle jsep here as we'll need it in the accept method
-        if (jsep) {
-          console.log("Processing incoming call jsep:", jsep);
-        }
+      case 'calling':
+        console.log("Call in progress...");
+        break;
         
+      case 'incomingcall':
+        console.log(`Incoming call from: ${msg.result.username}`);
         if (eventHandlers.onIncomingCall) {
-          // Pass both username and jsep to the callback
-          eventHandlers.onIncomingCall(username, jsep);
+          eventHandlers.onIncomingCall(msg.result.username, jsep);
         }
-        break;
-      }
-      case "accepted":
-        console.log("Call accepted");
+        
+        // Handle the incoming call offer
         if (jsep) {
-          console.log("Processing accepted call jsep:", jsep);
-          this.sipState.getSipPlugin().handleRemoteJsep({ jsep });
+          this.callManager.handleRemoteJsep(jsep);
         }
         break;
-      case "hangup":
-        console.log("Call hung up");
+        
+      case 'accepted':
+        console.log("Call accepted");
+        
+        // If this is an answer to our offer, handle the JSEP answer
+        if (jsep) {
+          this.callManager.handleRemoteJsep(jsep);
+        }
+        break;
+        
+      case 'hangup':
+        console.log(`Call hung up: ${msg.result.reason}`);
+        this.sipState.setRegistered(true); // We're still registered after hangup
+        
         if (eventHandlers.onCallEnded) {
           eventHandlers.onCallEnded();
         }
         break;
+        
+      default:
+        console.log(`Unhandled SIP event: ${event}`, msg.result);
     }
   }
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ const SipCredentialsTab = () => {
   useEffect(() => {
     // Set up error handler
     janusService.setOnError((error) => {
+      console.error("SIP Error in handler:", error);
       setErrorMessage(error);
       setRegistrationStatus("failed");
       setIsLoading(false);
@@ -59,6 +61,7 @@ const SipCredentialsTab = () => {
         apiSecret: 'overlord',
         success: async () => {
           try {
+            console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
             // After successful initialization, register with SIP credentials
             await janusService.register(username, password, sipHost);
             
@@ -75,15 +78,21 @@ const SipCredentialsTab = () => {
                   title: "Registration Successful",
                   description: "SIP credentials saved and connected",
                 });
+              } else {
+                // If not registered after a delay, show an error
+                setRegistrationStatus("failed");
+                setErrorMessage("Registration timed out. Please check your credentials and try again.");
               }
             }, 1500);
-          } catch (error) {
+          } catch (error: any) {
             setRegistrationStatus("failed");
             setIsLoading(false);
-            setErrorMessage(`Registration error: ${error}`);
+            const errorMsg = `Registration error: ${error.message || error}`;
+            console.error(errorMsg);
+            setErrorMessage(errorMsg);
             toast({
               title: "Registration Failed",
-              description: `Failed to register with SIP server: ${error}`,
+              description: errorMsg,
               variant: "destructive",
             });
           }
@@ -91,21 +100,25 @@ const SipCredentialsTab = () => {
         error: (error) => {
           setRegistrationStatus("failed");
           setIsLoading(false);
-          setErrorMessage(`Connection error: ${error}`);
+          const errorMsg = `Connection error: ${error}`;
+          console.error(errorMsg);
+          setErrorMessage(errorMsg);
           toast({
             title: "Connection Error",
-            description: `Failed to connect to WebRTC server: ${error}`,
+            description: errorMsg,
             variant: "destructive",
           });
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       setRegistrationStatus("failed");
       setIsLoading(false);
-      setErrorMessage(`Error: ${error}`);
+      const errorMsg = `Error: ${error.message || error}`;
+      console.error(errorMsg);
+      setErrorMessage(errorMsg);
       toast({
         title: "Error",
-        description: `Failed to initialize WebRTC: ${error}`,
+        description: errorMsg,
         variant: "destructive",
       });
     }
