@@ -24,14 +24,13 @@ export class SipRegistrationManager {
         .replace(/^sip:/, '') // Remove any 'sip:' prefix
         .split('@')[0];       // Remove any domain part
       
-      // Do NOT encode special characters - the SIP server expects raw characters
-      // The previous version was encoding * as %2a which caused errors
-      
       // Save username for display purposes
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
-      // Format SIP URI correctly - use original characters for the actual request
-      const sipUri = `sip:${cleanUsername}@${host}`;
+      // Format SIP URI correctly - include the domain in the username field
+      // This is the key change - include the host in the username field
+      const fullUsername = `${cleanUsername}@${host}`;
+      const sipUri = `sip:${fullUsername}`;
 
       console.log(`SIP Registration: Attempting registration for ${sipUri} via ${host}:${port}`);
 
@@ -39,9 +38,9 @@ export class SipRegistrationManager {
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: cleanUsername, // Use clean username without encoding special characters
-          display_name: cleanUsername,
-          authuser: cleanUsername, // Authentication username without encoding
+          username: fullUsername, // Use username with domain
+          display_name: cleanUsername, // Display name can be just the username part
+          authuser: cleanUsername, // Auth username is typically just the username part
           secret: password,
           proxy: `sip:${host}:${port}`,
           register_ttl: 3600,
@@ -49,7 +48,7 @@ export class SipRegistrationManager {
           sips: false
         },
         success: () => {
-          console.log(`SIP Registration: Request sent for ${cleanUsername}@${host}:${port}`);
+          console.log(`SIP Registration: Request sent for ${fullUsername} via ${host}:${port}`);
           resolve();
         },
         error: (error: any) => {

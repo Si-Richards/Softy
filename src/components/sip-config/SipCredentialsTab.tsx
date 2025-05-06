@@ -86,7 +86,7 @@ const SipCredentialsTab = () => {
         apiSecret: 'overlord',
         success: async () => {
           try {
-            // Log the raw username for debugging - don't modify it here
+            // Log the raw username for debugging
             console.log(`Attempting to register with raw username: ${username}, host: ${sipHost}`);
             
             // Pass username directly without pre-processing
@@ -114,7 +114,15 @@ const SipCredentialsTab = () => {
           } catch (error: any) {
             setRegistrationStatus("failed");
             setIsLoading(false);
-            const errorMsg = `Registration error: ${error.message || error}`;
+            
+            // Enhanced error message for specific errors
+            let errorMsg = `Registration error: ${error.message || error}`;
+            
+            // Add specific guidance for error code 446
+            if (error.message && error.message.includes('446')) {
+              errorMsg = `${errorMsg}. Make sure your username is in the correct format. If using special characters like '*', ensure they are supported by your SIP provider.`;
+            }
+            
             console.error(errorMsg);
             setErrorMessage(errorMsg);
             toast({
