@@ -17,6 +17,7 @@ export interface SipPluginMessage {
     event?: string;
     username?: string;
     code?: string;
+    reason?: string;  // Added missing reason property
   };
   error?: string;
 }
