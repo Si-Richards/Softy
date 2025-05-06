@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
 import DialpadGrid from "./dialpad/DialpadGrid";
@@ -10,8 +10,6 @@ import { useDTMFTone } from "@/hooks/useDTMFTone";
 import { useKeypadInput } from "@/hooks/useKeypadInput";
 import { useVideoStreams } from "@/hooks/useVideoStreams";
 import { useCallControls } from "@/hooks/useCallControls";
-import { Button } from "@/components/ui/button";
-import { VolumeX, Volume2 } from "lucide-react";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -21,7 +19,6 @@ const Dialpad = () => {
   const { isJanusConnected, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
   const voicemailNumber = "1571"; // Updated voicemail number
-  const [audioTrouble, setAudioTrouble] = useState(false);
   
   const {
     isCallActive,
@@ -42,21 +39,7 @@ const Dialpad = () => {
   };
 
   useKeypadInput(addDigitToNumber);
-  const { forceAudioPlayback } = useVideoStreams(isCallActive, localVideoRef, remoteVideoRef);
-
-  // Set a timeout to check if audio might be having issues
-  useEffect(() => {
-    if (isCallActive) {
-      const audioTroubleTimer = setTimeout(() => {
-        setAudioTrouble(true);
-      }, 5000); // Show audio help button after 5 seconds of active call
-      
-      return () => {
-        clearTimeout(audioTroubleTimer);
-        setAudioTrouble(false);
-      };
-    }
-  }, [isCallActive]);
+  useVideoStreams(isCallActive, localVideoRef, remoteVideoRef);
 
   const handleKeyPress = (key: string) => {
     addDigitToNumber(key);
@@ -76,15 +59,6 @@ const Dialpad = () => {
     });
   };
 
-  const handleFixAudio = () => {
-    forceAudioPlayback();
-    toast({
-      title: "Audio Reset",
-      description: "Trying to restore audio connection...",
-    });
-    setAudioTrouble(false);
-  };
-
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <VideoDisplay
@@ -97,18 +71,6 @@ const Dialpad = () => {
       {errorMessage && (
         <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
           {errorMessage}
-        </div>
-      )}
-
-      {isCallActive && audioTrouble && (
-        <div className="mb-4 p-2 flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded">
-          <div className="flex items-center text-yellow-700">
-            <VolumeX className="w-5 h-5 mr-2" />
-            <span>Can't hear audio?</span>
-          </div>
-          <Button size="sm" variant="outline" className="text-xs" onClick={handleFixAudio}>
-            <Volume2 className="w-4 h-4 mr-1" /> Fix Audio
-          </Button>
         </div>
       )}
 
