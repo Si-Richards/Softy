@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,8 @@ import janusService from "@/services/JanusService";
 const SipCredentialsTab = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [sipHost, setSipHost] = useState("hpbx.voicehost.co.uk:5060");
+  // Set the default SIP host but keep it hidden from UI
+  const [sipHost, setSipHost] = useState("hpbx08.tw140-l6.lon.gb.voicehost.co.uk:5060");
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
