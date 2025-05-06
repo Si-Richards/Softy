@@ -8,7 +8,9 @@ export class SipRegistrationManager {
   async register(username: string, password: string, sipHost: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.sipState.getSipPlugin()) {
-        reject(new Error("SIP plugin not attached"));
+        const errorMsg = "SIP plugin not attached";
+        console.error(`SIP Error: ${errorMsg}`);
+        reject(new Error(errorMsg));
         return;
       }
 
@@ -24,7 +26,7 @@ export class SipRegistrationManager {
       const sipUri = `sip:${cleanUsername}@${host}`;
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
-      console.log(`Attempting SIP registration for ${sipUri} via ${host}:${port}`);
+      console.log(`SIP Registration: Attempting registration for ${sipUri} via ${host}:${port}`);
 
       // Send registration with correct format - adjusting authentication parameters
       this.sipState.getSipPlugin().send({
@@ -40,11 +42,12 @@ export class SipRegistrationManager {
           sips: false
         },
         success: () => {
-          console.log(`SIP registration request sent for ${cleanUsername}@${host}:${port}`);
+          console.log(`SIP Registration: Request sent for ${cleanUsername}@${host}:${port}`);
           resolve();
         },
         error: (error: any) => {
-          const errorMsg = `Error sending SIP registration: ${error}`;
+          const errorMsg = `SIP Registration Error: ${error}`;
+          console.error(errorMsg);
           this.sipState.setRegistered(false);
           reject(new Error(errorMsg));
         }

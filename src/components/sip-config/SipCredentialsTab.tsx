@@ -143,16 +143,6 @@ const SipCredentialsTab = () => {
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="sipHost">SIP Host</Label>
-          <Input 
-            id="sipHost" 
-            value={sipHost} 
-            onChange={(e) => setSipHost(e.target.value)}
-            placeholder="Enter SIP host (e.g. example.com:5060)"
-            disabled={isLoading || registrationStatus === "connecting"}
-          />
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
           <Input
             id="username"
