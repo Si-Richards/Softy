@@ -19,6 +19,13 @@ export class SipEventHandler {
     // Special handling for SIP error messages
     if (msg.error) {
       console.error(`SIP Error: ${msg.error} (Code: ${msg.error_code || 'unknown'})`);
+      
+      // Special handling for specific error codes
+      if (msg.error_code === 446) {
+        console.error(`Invalid user address error detected. This typically means the username format is not accepted by the server.`);
+        console.error(`Username format should typically be a plain username without special URL encoding.`);
+      }
+      
       this.sipState.setRegistered(false);
       
       if (eventHandlers.onError) {

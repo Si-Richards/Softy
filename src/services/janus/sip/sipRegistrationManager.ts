@@ -23,15 +23,15 @@ export class SipRegistrationManager {
       const cleanUsername = username
         .replace(/^sip:/, '') // Remove any 'sip:' prefix
         .split('@')[0];       // Remove any domain part
-
-      // Important: Because a star in the username needs special handling
-      const processedUsername = cleanUsername.replace(/\*/g, '%2a');
       
-      // Save username without encoding for display purposes
+      // Do NOT encode special characters - the SIP server expects raw characters
+      // The previous version was encoding * as %2a which caused errors
+      
+      // Save username for display purposes
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
-      // Format SIP URI correctly - URL encoded version for the actual request
-      const sipUri = `sip:${processedUsername}@${host}`;
+      // Format SIP URI correctly - use original characters for the actual request
+      const sipUri = `sip:${cleanUsername}@${host}`;
 
       console.log(`SIP Registration: Attempting registration for ${sipUri} via ${host}:${port}`);
 
@@ -39,9 +39,9 @@ export class SipRegistrationManager {
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: processedUsername, // Send clean username without sip: prefix
+          username: cleanUsername, // Use clean username without encoding special characters
           display_name: cleanUsername,
-          authuser: processedUsername, // Authentication username without encoding
+          authuser: cleanUsername, // Authentication username without encoding
           secret: password,
           proxy: `sip:${host}:${port}`,
           register_ttl: 3600,

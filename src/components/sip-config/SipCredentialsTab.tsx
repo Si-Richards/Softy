@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,16 +80,16 @@ const SipCredentialsTab = () => {
     setErrorMessage(null);
 
     try {
-      // Initialize Janus first with more debug logging
+      // Initialize Janus first with detailed debug logging
       await janusService.initialize({
         server: 'wss://devrtc.voicehost.io:443/janus',
         apiSecret: 'overlord',
         success: async () => {
           try {
-            // Log the raw username for debugging
-            console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
+            // Log the raw username for debugging - don't modify it here
+            console.log(`Attempting to register with raw username: ${username}, host: ${sipHost}`);
             
-            // Let the registration manager handle the encoding of special characters
+            // Pass username directly without pre-processing
             await janusService.register(username, password, sipHost);
             
             setProgressValue(80);
