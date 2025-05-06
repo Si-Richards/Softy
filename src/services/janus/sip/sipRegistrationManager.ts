@@ -24,29 +24,28 @@ export class SipRegistrationManager {
         .replace(/^sip:/, '')  // Remove any 'sip:' prefix if present
         .split('@')[0];        // Remove any domain part if present
       
-      // Full SIP identity should include domain
-      const sipIdentity = `${cleanUsername}@${host}`;
+      // Properly format the SIP identity with the sip: prefix
+      const sipIdentity = `sip:${cleanUsername}@${host}`;
       
       // Save username for display purposes
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
-      console.log(`SIP Registration: Attempting registration for sip:${sipIdentity} via ${host}:${port}`);
+      console.log(`SIP Registration: Attempting registration with ${sipIdentity}`);
 
-      // Send registration request with proper formatting
+      // Send registration request with proper SIP formatting
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: sipIdentity,     // Full SIP identity: username@domain
-          display_name: cleanUsername, // Just the username for display
-          authuser: cleanUsername,   // Auth username without domain
+          username: sipIdentity,          // Full SIP identity with sip: prefix: sip:username@domain
           secret: password,
-          proxy: `sip:${host}:${port}`,
-          register_ttl: 3600,
-          force_tcp: false,
-          sips: false
+          proxy: `sip:${host}:${port}`,   // Add sip: prefix to proxy
+          registrar: `sip:${host}`,       // Add separate registrar with sip: prefix
+          contact_params: "transport=udp", // Add transport parameter for contact
+          sips: false,                    // Use sip: not sips:
+          refresh: true                   // Enable registration refresh
         },
         success: () => {
-          console.log(`SIP Registration: Request sent for ${sipIdentity} via ${host}:${port}`);
+          console.log(`SIP Registration: Request sent for ${sipIdentity}`);
           resolve();
         },
         error: (error: any) => {

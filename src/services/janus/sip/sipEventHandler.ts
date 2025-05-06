@@ -1,104 +1,98 @@
 
-import type { SipEventHandlers, SipPluginMessage } from './types';
 import { SipState } from './sipState';
 import { SipCallManager } from './sipCallManager';
+import { SipPluginMessage, SipEventHandlers } from './types';
 
 export class SipEventHandler {
-  constructor(private sipState: SipState, private callManager: SipCallManager) {}
+  constructor(
+    private sipState: SipState,
+    private callManager: SipCallManager
+  ) {}
 
-  handleSipMessage(msg: any, jsep: any, eventHandlers: SipEventHandlers): void {
-    // Better validation with detailed logging
-    if (!msg) {
-      console.warn("Received empty SIP message");
-      return;
-    }
-
-    // Debug the complete message
+  handleSipMessage(msg: SipPluginMessage, jsep: any, eventHandlers: SipEventHandlers): void {
     console.log("SIP Message received:", JSON.stringify(msg, null, 2));
-
-    // Special handling for SIP error messages
+    
     if (msg.error) {
-      console.error(`SIP Error: ${msg.error} (Code: ${msg.error_code || 'unknown'})`);
-      
-      // Special handling for specific error codes
-      if (msg.error_code === 446) {
-        console.error(`Username format should be in the form username@domain`);
-      }
-      
-      this.sipState.setRegistered(false);
-      
+      console.error(`SIP Error: ${msg.error}`);
       if (eventHandlers.onError) {
-        eventHandlers.onError(`SIP error: ${msg.error} (Code: ${msg.error_code || 'unknown'})`);
+        eventHandlers.onError(`SIP error: ${msg.error}`);
       }
       return;
     }
 
-    // Handle normal SIP events
-    if (msg.result) {
-      const event = msg.result.event;
-      console.log(`SIP event received: ${event}`, JSON.stringify(msg.result, null, 2));
+    if (!msg.result) {
+      return;
+    }
 
-      switch (event) {
-        case 'registering':
-          console.log("Registering with the SIP server");
-          break;
-          
-        case 'registration_failed':
-          const code = msg.result.code || 'unknown';
-          const reason = msg.result.reason || 'Unknown reason';
-          console.error(`Registration failed: Code ${code} - ${reason}`);
-          this.sipState.setRegistered(false);
+    const result = msg.result;
+    const event = result.event;
+
+    switch (event) {
+      case "registration_failed": {
+        console.error(`SIP Registration failed: ${result.code || "Unknown error"}`);
+        
+        // Add specific error handling for common SIP registration errors
+        if (result.code === "446") {
+          console.error(`Username format should include the full SIP address with sip: prefix: sip:username@domain`);
           
           if (eventHandlers.onError) {
-            eventHandlers.onError(`SIP registration failed (${code}): ${reason}`);
+            eventHandlers.onError(`SIP registration failed: Invalid user address (Code: 446). Please use the correct format.`);
           }
-          break;
-          
-        case 'registered':
-          console.log("Successfully registered with the SIP server");
-          this.sipState.setRegistered(true);
-          break;
-          
-        case 'calling':
-          console.log("Call in progress...");
-          break;
-          
-        case 'incomingcall':
-          console.log(`Incoming call from: ${msg.result.username || 'unknown'}`);
-          if (eventHandlers.onIncomingCall) {
-            eventHandlers.onIncomingCall(msg.result.username || 'unknown', jsep);
+        } else {
+          if (eventHandlers.onError) {
+            eventHandlers.onError(`SIP registration failed: ${result.code || "Unknown error"}`);
           }
-          
-          // Handle the incoming call offer
-          if (jsep) {
-            this.callManager.handleRemoteJsep(jsep);
-          }
-          break;
-          
-        case 'accepted':
-          console.log("Call accepted");
-          
-          // If this is an answer to our offer, handle the JSEP answer
-          if (jsep) {
-            this.callManager.handleRemoteJsep(jsep);
-          }
-          break;
-          
-        case 'hangup':
-          console.log(`Call hung up: ${msg.result.reason || 'Call ended'}`);
-          this.sipState.setRegistered(true); // We're still registered after hangup
-          
-          if (eventHandlers.onCallEnded) {
-            eventHandlers.onCallEnded();
-          }
-          break;
-          
-        default:
-          console.log(`Unhandled SIP event: ${event}`, JSON.stringify(msg.result, null, 2));
+        }
+        
+        this.sipState.setRegistered(false);
+        break;
       }
-    } else {
-      // Log any other messages that don't follow the expected format
-      console.log("Received non-standard SIP message:", JSON.stringify(msg, null, 2));
+
+      case "registered": {
+        console.log("SIP registration successful");
+        this.sipState.setRegistered(true);
+        break;
+      }
+
+      case "registration_progress": {
+        console.log("SIP registration process starting");
+        break;
+      }
+
+      case "incomingcall": {
+        // Handle incoming call
+        console.log("Incoming SIP call");
+        if (eventHandlers.onIncomingCall && result.username) {
+          eventHandlers.onIncomingCall(result.username, jsep);
+        }
+        break;
+      }
+
+      case "accepted": {
+        // Call accepted
+        console.log("SIP call accepted");
+        if (eventHandlers.onCallConnected) {
+          eventHandlers.onCallConnected();
+        }
+        break;
+      }
+
+      case "hangup": {
+        // Call ended
+        console.log("SIP call ended");
+        if (eventHandlers.onCallEnded) {
+          eventHandlers.onCallEnded();
+        }
+        break;
+      }
+
+      default:
+        console.log(`Unhandled SIP event: ${event}`);
+    }
+
+    // Handle JSep if provided
+    if (jsep) {
+      this.callManager.handleRemoteJsep(jsep);
     }
   }
 }
