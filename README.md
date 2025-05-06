@@ -1,43 +1,19 @@
-## Project info
 
-**URL**: https://lovable.dev/projects/8f6378fb-c7ed-488b-8c28-8730560f05d9
+# Softphone App
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Running Tests
 
-Follow these steps:
+To run tests without modifying package.json, use the following command:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+node src/test/runTests.js
 ```
 
-**Use GitHub Codespaces**
+This will execute all tests using Vitest with the proper configuration.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Available Scripts
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/8f6378fb-c7ed-488b-8c28-8730560f05d9) and click on Share -> Publish.
+- **Start Development Server**: `npm run dev`
+- **Build for Production**: `npm run build`
+- **Preview Production Build**: `npm run preview`
+- **Run Tests**: `node src/test/runTests.js`
