@@ -1,6 +1,7 @@
 
 import janusService from "@/services/JanusService";
 import { toast } from "@/hooks/use-toast";
+import { SipConnectionStatus } from "./sipConnectionTypes";
 
 /**
  * Load previously stored SIP credentials
@@ -40,7 +41,7 @@ export const forgetCredentials = (
   setUsername: (value: string) => void,
   setPassword: (value: string) => void,
   setSipHost: (value: string) => void,
-  setRegistrationStatus: (status: string) => void,
+  setRegistrationStatus: React.Dispatch<React.SetStateAction<SipConnectionStatus>>,
   setErrorMessage: (error: string | null) => void
 ): void => {
   // Remove stored credentials

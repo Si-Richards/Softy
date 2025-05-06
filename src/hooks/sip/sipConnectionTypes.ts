@@ -1,5 +1,7 @@
 
 // Types for SIP connection states and operations
+import React from "react";
+
 export type SipConnectionStatus = "idle" | "connecting" | "connected" | "failed";
 
 export interface SipConnectionState {

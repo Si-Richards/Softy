@@ -1,6 +1,8 @@
 
 import janusService from "@/services/JanusService";
 import { toast } from "@/hooks/use-toast";
+import { SipConnectionStatus } from "./sipConnectionTypes";
+import React from "react";
 
 /**
  * Initialize Janus WebRTC connection
@@ -40,7 +42,7 @@ export const performRegistration = async (
   password: string,
   sipHost: string,
   setProgressValue: (value: number) => void,
-  setRegistrationStatus: (status: string) => void,
+  setRegistrationStatus: React.Dispatch<React.SetStateAction<SipConnectionStatus>>,
   setIsLoading: (loading: boolean) => void,
   setErrorMessage: (error: string | null) => void
 ): Promise<boolean> => {
@@ -100,7 +102,7 @@ export const performRegistration = async (
  */
 export const handleRegistrationError = (
   error: any,
-  setRegistrationStatus: (status: string) => void,
+  setRegistrationStatus: React.Dispatch<React.SetStateAction<SipConnectionStatus>>,
   setIsLoading: (loading: boolean) => void,
   setErrorMessage: (error: string | null) => void
 ): void => {
