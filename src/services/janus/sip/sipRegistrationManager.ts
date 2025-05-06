@@ -40,7 +40,6 @@ export class SipRegistrationManager {
           secret: password,
           proxy: `sip:${host}:${port}`,   // Add sip: prefix to proxy
           registrar: `sip:${host}`,       // Add separate registrar with sip: prefix
-          contact_params: "transport=udp", // Add transport parameter for contact
           sips: false,                    // Use sip: not sips:
           refresh: true                   // Enable registration refresh
         },
