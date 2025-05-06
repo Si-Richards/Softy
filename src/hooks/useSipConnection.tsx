@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 
 export type SipConnectionStatus = "idle" | "connecting" | "connected" | "failed";
@@ -15,9 +14,11 @@ export function useSipConnection() {
   const [progressValue, setProgressValue] = useState(0);
   const [serverChecked, setServerChecked] = useState(false);
 
+  const { toast } = useToast();
+
   useEffect(() => {
     // Set up error handler
-    janusService.setOnError((error) => {
+    const errorHandler = (error: string) => {
       console.error("SIP Error in handler:", error);
       setErrorMessage(error);
       setRegistrationStatus("failed");
@@ -27,11 +28,15 @@ export function useSipConnection() {
         description: error,
         variant: "destructive",
       });
-    });
+    };
+    
+    janusService.setOnError(errorHandler);
 
-    // Check if already registered
+    // Check if already registered on mount
     if (janusService.isRegistered()) {
+      console.log("SIP Registration detected on component mount");
       setRegistrationStatus("connected");
+      setProgressValue(100);
     }
 
     // Progress animation for a better UX
@@ -52,15 +57,15 @@ export function useSipConnection() {
 
     // Cleanup when component unmounts
     return () => {
-      // Clear error handler
-      janusService.setOnError(() => {});
-      // Clear interval
+      // Don't clear error handler on unmount to keep global error handling
+      // Only clear interval
       if (interval) clearInterval(interval);
     };
-  }, [registrationStatus]);
+  }, [registrationStatus, toast]);
 
   const initializeJanusConnection = async () => {
     try {
+      console.log("Initializing Janus connection...");
       // Initialize Janus first with detailed debug logging
       await janusService.initialize({
         server: 'wss://devrtc.voicehost.io:443/janus',
@@ -71,6 +76,7 @@ export function useSipConnection() {
           setServerChecked(true);
         },
         error: (error) => {
+          console.error("Janus initialization error:", error);
           throw new Error(`Connection error: ${error}`);
         }
       });
@@ -92,6 +98,7 @@ export function useSipConnection() {
       // Check if registration was successful after a short delay
       setTimeout(() => {
         if (janusService.isRegistered()) {
+          console.log("SIP Registration confirmed successful");
           setRegistrationStatus("connected");
           setProgressValue(100);
           setIsLoading(false);
@@ -101,11 +108,17 @@ export function useSipConnection() {
           });
         } else {
           // If not registered after a delay, show an error
+          console.warn("SIP Registration check failed after timeout");
           setRegistrationStatus("failed");
           setIsLoading(false);
           setErrorMessage("Registration timed out. Please check your credentials and try again.");
+          toast({
+            title: "Registration Failed",
+            description: "Registration timed out. Please check your credentials and try again.",
+            variant: "destructive",
+          });
         }
-      }, 3000);
+      }, 5000); // Increased timeout to 5 seconds for more reliability
     } catch (error) {
       throw error;
     }
@@ -156,8 +169,10 @@ export function useSipConnection() {
     try {
       // Check if Janus is already connected or connect to it
       if (!janusService.isJanusConnected()) {
+        console.log("Janus not connected, initializing...");
         await initializeJanusConnection();
       } else {
+        console.log("Janus already connected, skipping initialization");
         setProgressValue(30);
         setServerChecked(true);
       }
@@ -177,6 +192,7 @@ export function useSipConnection() {
     password,
     setPassword,
     sipHost,
+    setSipHost,  // Adding the ability to change the SIP host
     isLoading,
     registrationStatus,
     errorMessage,

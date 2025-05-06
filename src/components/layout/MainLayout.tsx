@@ -18,14 +18,23 @@ const MainLayout = () => {
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
   
   // Get Janus connection status
-  const { isJanusConnected } = useJanusSetup();
+  const { isJanusConnected, isRegistered } = useJanusSetup();
   
   // Update connection status when Janus connection changes
   useEffect(() => {
+    console.log("MainLayout: isJanusConnected =", isJanusConnected, "isRegistered =", isRegistered);
+    
     if (isJanusConnected) {
-      setConnectionStatus("connected");
+      if (isRegistered) {
+        setConnectionStatus("connected");
+      } else {
+        // Connected to WebRTC server but not registered with SIP
+        setConnectionStatus("connecting");
+      }
+    } else {
+      setConnectionStatus("disconnected");
     }
-  }, [isJanusConnected]);
+  }, [isJanusConnected, isRegistered]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex">

@@ -1,5 +1,4 @@
-
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import janusService from "@/services/JanusService";
 import { useIncomingCall } from '@/hooks/useIncomingCall';
 import { useJanusInitialization } from '@/hooks/useJanusInitialization';
@@ -25,6 +24,7 @@ export const useJanusSetup = () => {
     setIsRegistered
   } = useJanusInitialization();
 
+  // Perform a connection status check on component mount and periodically
   useEffect(() => {
     // Set up Janus event handlers
     janusService.setOnIncomingCall(handleIncomingCall);
@@ -41,14 +41,28 @@ export const useJanusSetup = () => {
     janusService.setOnError(handleError);
 
     // Check if Janus is already initialized
-    if (janusService.isRegistered()) {
+    if (janusService.isJanusConnected()) {
       setIsJanusConnected(true);
-      setIsRegistered(true);
+      
+      if (janusService.isRegistered()) {
+        setIsRegistered(true);
+      }
     }
 
+    // Setup periodic check (every 10 seconds) for connection status
+    const checkConnectionInterval = setInterval(() => {
+      const connected = janusService.isJanusConnected();
+      const registered = janusService.isRegistered();
+      
+      setIsJanusConnected(connected);
+      setIsRegistered(registered);
+      
+      console.log("Connection status check: Janus connected:", connected, "SIP registered:", registered);
+    }, 10000);
+
     return () => {
+      clearInterval(checkConnectionInterval);
       // Don't disconnect on unmount - we want to keep the connection active for the entire app session
-      // We'll handle disconnection separately when the user logs out or the app closes
     };
   }, [handleIncomingCall, handleCallEnded, handleError, setIsJanusConnected, setIsRegistered]);
 

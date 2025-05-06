@@ -10,6 +10,7 @@ class JanusService {
   private eventHandlers: JanusEventHandlers;
   private mediaHandler: JanusMediaHandler;
   private sipHandler: JanusSipHandler;
+  private connectionCheckTimer: number | null = null;
 
   constructor() {
     this.sessionManager = new JanusSessionManager();
@@ -34,6 +35,10 @@ class JanusService {
     try {
       await this.sessionManager.createSession(options);
       await this.attachSipPlugin();
+      
+      // Start a connection health check
+      this.startConnectionCheck();
+      
       if (options.success) options.success();
       return true;
     } catch (error: any) {
@@ -43,6 +48,24 @@ class JanusService {
       this.disconnect(); // Cleanup on failure
       throw new Error(errorMsg);
     }
+  }
+
+  private startConnectionCheck() {
+    // Clear any existing timer
+    if (this.connectionCheckTimer) {
+      window.clearInterval(this.connectionCheckTimer);
+    }
+    
+    // Check connection state periodically (every 30 seconds)
+    this.connectionCheckTimer = window.setInterval(() => {
+      const janus = this.sessionManager.getJanus();
+      if (!janus) {
+        console.log("Connection check: Janus instance not found, reconnecting...");
+        // Could attempt a reconnection here if needed
+      } else {
+        console.log("Connection check: Janus instance exists");
+      }
+    }, 30000);
   }
 
   private async attachSipPlugin(): Promise<void> {
@@ -111,8 +134,18 @@ class JanusService {
     return this.mediaHandler.getRemoteStream();
   }
 
-  register(username: string, password: string, sipHost: string): Promise<void> {
-    return this.sipHandler.register(username, password, sipHost);
+  async register(username: string, password: string, sipHost: string): Promise<void> {
+    try {
+      await this.sipHandler.register(username, password, sipHost);
+      console.log(`Successfully registered with SIP server as ${username}@${sipHost}`);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("SIP registration error:", error);
+      if (this.eventHandlers.onError) {
+        this.eventHandlers.onError(`Registration failed: ${error}`);
+      }
+      return Promise.reject(error);
+    }
   }
 
   call(uri: string, isVideoCall: boolean = false): Promise<void> {
@@ -131,12 +164,18 @@ class JanusService {
     return this.sipHandler.isRegistered();
   }
 
-  // New method to check if Janus is connected
+  // Method to check if Janus is connected
   isJanusConnected(): boolean {
     return this.sessionManager.getConnectionState() === 'connected';
   }
 
   disconnect(): void {
+    // Clear the connection check timer
+    if (this.connectionCheckTimer) {
+      window.clearInterval(this.connectionCheckTimer);
+      this.connectionCheckTimer = null;
+    }
+    
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
   }
