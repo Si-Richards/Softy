@@ -1,20 +1,26 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
+import { useCallHistory } from "@/hooks/useCallHistory";
 
 export const useJanusSetup = () => {
   const [isJanusConnected, setIsJanusConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
+  const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const { toast } = useToast();
+  const { addCallToHistory } = useCallHistory();
 
   useEffect(() => {
     // Set up Janus event handlers
     janusService.setOnIncomingCall((from, jsep) => {
       console.log(`Incoming call from ${from} with JSEP:`, jsep);
       setIncomingCall({ from, jsep });
+      
+      // Record the incoming call
+      const incomingTime = new Date();
+      setCallStartTime(incomingTime);
     });
 
     janusService.setOnCallConnected(() => {
@@ -29,6 +35,27 @@ export const useJanusSetup = () => {
         title: "Call Ended",
         description: "The call has ended",
       });
+      
+      // If we had an incoming call that ended, log it to history
+      if (incomingCall && callStartTime) {
+        const now = new Date();
+        const durationMs = now.getTime() - callStartTime.getTime();
+        const minutes = Math.floor(durationMs / 60000);
+        const seconds = Math.floor((durationMs % 60000) / 1000);
+        const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        addCallToHistory({
+          number: incomingCall.from,
+          name: incomingCall.from, // In a real app, this would be looked up from contacts
+          time: callStartTime,
+          duration: durationStr,
+          type: "incoming",
+          status: "completed"
+        });
+        
+        setIncomingCall(null);
+        setCallStartTime(null);
+      }
     });
 
     janusService.setOnError((error) => {
@@ -50,18 +77,18 @@ export const useJanusSetup = () => {
       // Don't disconnect on unmount - we want to keep the connection active for the entire app session
       // We'll handle disconnection separately when the user logs out or the app closes
     };
-  }, [toast]);
+  }, [toast, addCallToHistory]);
 
   const handleAcceptCall = useCallback(async () => {
     if (incomingCall?.jsep) {
       try {
         console.log("Accepting incoming call with JSEP:", incomingCall.jsep);
         await janusService.acceptCall(incomingCall.jsep);
-        setIncomingCall(null);
         toast({
           title: "Call Accepted",
           description: "You have accepted the call",
         });
+        // We keep the incomingCall data until the call is ended
       } catch (error) {
         console.error("Error accepting call:", error);
         toast({
@@ -82,13 +109,28 @@ export const useJanusSetup = () => {
 
   const handleRejectCall = useCallback(() => {
     console.log("Rejecting incoming call");
+    
+    // Log the missed call to history
+    if (incomingCall && callStartTime) {
+      addCallToHistory({
+        number: incomingCall.from,
+        name: incomingCall.from, // In a real app, this would be looked up from contacts
+        time: callStartTime,
+        duration: "-",
+        type: "incoming",
+        status: "missed"
+      });
+    }
+    
     janusService.hangup();
     setIncomingCall(null);
+    setCallStartTime(null);
+    
     toast({
       title: "Call Rejected",
       description: "You have rejected the call",
     });
-  }, [toast]);
+  }, [toast, incomingCall, callStartTime, addCallToHistory]);
 
   const initializeJanus = async (username?: string, password?: string, host?: string) => {
     try {

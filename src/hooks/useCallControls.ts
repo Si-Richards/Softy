@@ -1,13 +1,17 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
+import { useCallHistory } from "./useCallHistory";
 
 export const useCallControls = () => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [audioTestInterval, setAudioTestInterval] = useState<NodeJS.Timeout | null>(null);
+  const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const { toast } = useToast();
+  const { addCallToHistory } = useCallHistory();
 
   useEffect(() => {
     return () => {
@@ -23,8 +27,28 @@ export const useCallControls = () => {
         if (isJanusConnected) {
           await janusService.hangup();
         }
+        
+        // Log the call to history when ended
+        if (callStartTime) {
+          const now = new Date();
+          const durationMs = now.getTime() - callStartTime.getTime();
+          const minutes = Math.floor(durationMs / 60000);
+          const seconds = Math.floor((durationMs % 60000) / 1000);
+          const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          
+          addCallToHistory({
+            number,
+            name: number, // In a real app, this would be looked up from contacts
+            time: callStartTime,
+            duration: durationStr,
+            type: "outgoing",
+            status: "completed"
+          });
+        }
+        
         setIsCallActive(false);
         setIsVideoEnabled(false);
+        setCallStartTime(null);
         
         if (audioTestInterval) {
           clearInterval(audioTestInterval);
@@ -38,6 +62,7 @@ export const useCallControls = () => {
         try {
           await janusService.call(number, false);
           setIsCallActive(true);
+          setCallStartTime(new Date());
           
           const interval = setInterval(() => {
             const remoteStream = janusService.getRemoteStream();
@@ -69,9 +94,21 @@ export const useCallControls = () => {
             description: "Failed to establish WebRTC call",
             variant: "destructive",
           });
+          
+          // Log failed call to history
+          addCallToHistory({
+            number,
+            name: number,
+            time: new Date(),
+            duration: "-",
+            type: "outgoing",
+            status: "missed"
+          });
         }
       } else {
         setIsCallActive(true);
+        setCallStartTime(new Date());
+        
         toast({
           title: "Simulated Call",
           description: "WebRTC server not connected. This is a simulated call.",
