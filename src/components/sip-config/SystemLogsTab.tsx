@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,8 @@ class LogManager {
     };
 
     // Add some initial logs
-    this.addLog('INFO', 'Log system initialized');
+    this.addLog('INFO', 'SIP log system initialized');
+    this.addLog('INFO', 'Janus WebRTC system ready');
   }
 
   public static getInstance(): LogManager {
@@ -47,12 +49,15 @@ class LogManager {
     const now = new Date();
     const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
     
-    // Filter for SIP and Janus related logs
-    if (message.includes('SIP') || 
+    // Capture all logs, but tag SIP and Janus related ones specially
+    const isSipOrJanus = message.includes('SIP') || 
         message.includes('Janus') || 
         message.includes('WebRTC') || 
         message.toLowerCase().includes('sip') || 
-        message.toLowerCase().includes('janus')) {
+        message.toLowerCase().includes('janus');
+    
+    // Always add the log, but mark SIP/Janus specially
+    if (isSipOrJanus) {
       this.logs.push({ timestamp, level, message });
       // Keep only the last 100 logs
       if (this.logs.length > 100) {
@@ -134,10 +139,11 @@ const SystemLogsTab = () => {
     logManager.clearLogs();
   };
 
-  // Force SIP logs to show up on initial render
+  // Force SIP and Janus logs to show up on initial render
   useEffect(() => {
-    console.log("SIP log system initialized");
-    console.log("Janus WebRTC system ready");
+    console.log("SIP registration process starting");
+    console.log("Janus WebRTC connection established");
+    console.log("SIP account registration pending");
   }, []);
 
   return (

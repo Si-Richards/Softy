@@ -163,6 +163,7 @@ const SipCredentialsTab = () => {
             disabled={isLoading || registrationStatus === "connecting"}
           />
         </div>
+        {/* SIP Host field is hidden as requested */}
       </CardContent>
       <CardFooter>
         <Button 
