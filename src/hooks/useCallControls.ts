@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
@@ -36,6 +37,11 @@ export const useCallControls = () => {
     } else if (number) {
       if (isJanusConnected) {
         try {
+          // Wake up audio context before initiating call to help with autoplay policies
+          if (janusService.mediaHandler && typeof janusService.mediaHandler.ensureAudioPlayback === 'function') {
+            janusService.mediaHandler.ensureAudioPlayback();
+          }
+          
           await janusService.call(number, false);
           setIsCallActive(true);
           
@@ -58,6 +64,16 @@ export const useCallControls = () => {
                   track.enabled = true;
                 }
               });
+              
+              // Force audio volume at regular intervals
+              if (janusService.mediaHandler && typeof janusService.mediaHandler.setAudioVolume === 'function') {
+                const volume = localStorage.getItem('masterVolume');
+                if (volume) {
+                  janusService.mediaHandler.setAudioVolume(parseInt(volume, 10));
+                } else {
+                  janusService.mediaHandler.setAudioVolume(100); // Default to full volume
+                }
+              }
             }
           }, 3000);
           

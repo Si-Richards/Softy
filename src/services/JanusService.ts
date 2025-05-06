@@ -7,7 +7,7 @@ import type { JanusOptions, SipCredentials } from './janus/types';
 class JanusService {
   private sessionManager: JanusSessionManager;
   private eventHandlers: JanusEventHandlers;
-  private mediaHandler: JanusMediaHandler;
+  mediaHandler: JanusMediaHandler; // Made public for direct access
   private sipHandler: JanusSipHandler;
 
   constructor() {
@@ -107,7 +107,7 @@ class JanusService {
   }
 
   getRemoteStream(): MediaStream | null {
-    return this.mediaHandler.getRemoteStream();
+    return this.remoteStream = this.mediaHandler.getRemoteStream();
   }
 
   register(username: string, password: string, sipHost: string): Promise<void> {
@@ -133,6 +133,11 @@ class JanusService {
   disconnect(): void {
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
+  }
+  
+  // New method to set audio volume
+  setAudioVolume(volume: number): void {
+    this.mediaHandler.setAudioVolume(volume);
   }
 }
 
