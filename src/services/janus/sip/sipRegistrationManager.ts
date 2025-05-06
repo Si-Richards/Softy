@@ -19,10 +19,12 @@ export class SipRegistrationManager {
       const host = hostParts[0];
       const port = hostParts.length > 1 ? hostParts[1] : '5060';
       
-      // Format username correctly (strip any 'sip:' prefix if present)
-      const cleanUsername = username.startsWith('sip:') ? username.substring(4).split('@')[0] : username;
+      // Format username correctly - handle special characters
+      const cleanUsername = username
+        .replace(/^sip:/, '') // Remove any 'sip:' prefix
+        .split('@')[0];       // Remove any domain part
       
-      // Format SIP URI correctly - this is the user's identity
+      // Format SIP URI correctly
       const sipUri = `sip:${cleanUsername}@${host}`;
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
 
@@ -32,9 +34,9 @@ export class SipRegistrationManager {
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: cleanUsername, // Use just the username for the register request
+          username: sipUri, // Use full SIP URI for registration
           display_name: cleanUsername,
-          authuser: cleanUsername, // Authentication username without domain
+          authuser: cleanUsername, // Authentication username
           secret: password,
           proxy: `sip:${host}:${port}`,
           register_ttl: 3600,

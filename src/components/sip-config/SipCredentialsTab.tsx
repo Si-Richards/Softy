@@ -17,6 +17,7 @@ const SipCredentialsTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progressValue, setProgressValue] = useState(0);
 
   useEffect(() => {
     // Set up error handler
@@ -32,12 +33,35 @@ const SipCredentialsTab = () => {
       });
     });
 
+    // Check if already registered
+    if (janusService.isRegistered()) {
+      setRegistrationStatus("connected");
+    }
+
+    // Progress animation for a better UX
+    let interval: ReturnType<typeof setInterval> | null = null;
+    
+    if (registrationStatus === "connecting") {
+      let progress = 0;
+      interval = setInterval(() => {
+        progress += 5;
+        if (progress > 95) {
+          progress = 95; // Cap at 95% until we get confirmation
+        }
+        setProgressValue(progress);
+      }, 200);
+    } else {
+      setProgressValue(registrationStatus === "connected" ? 100 : 0);
+    }
+
     // Cleanup when component unmounts
     return () => {
       // Clear error handler
       janusService.setOnError(() => {});
+      // Clear interval
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [registrationStatus]);
 
   const handleSave = async () => {
     // Form validation
@@ -52,6 +76,7 @@ const SipCredentialsTab = () => {
 
     setIsLoading(true);
     setRegistrationStatus("connecting");
+    setProgressValue(10);
     setErrorMessage(null);
 
     try {
@@ -61,19 +86,21 @@ const SipCredentialsTab = () => {
         apiSecret: 'overlord',
         success: async () => {
           try {
-            console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
+            // Format username correctly (strip any '*' characters or format properly)
+            const formattedUsername = username.replace(/[*]/g, "%2a"); 
+            
+            console.log(`Attempting to register with username: ${formattedUsername}, host: ${sipHost}`);
             // After successful initialization, register with SIP credentials
-            await janusService.register(username, password, sipHost);
+            await janusService.register(formattedUsername, password, sipHost);
             
-            // We don't immediately set connected because the actual registration happens asynchronously
-            // The status is updated in the event handler in JanusService
-            
-            setIsLoading(false);
+            setProgressValue(80);
             
             // Check if registration was successful after a short delay
             setTimeout(() => {
               if (janusService.isRegistered()) {
                 setRegistrationStatus("connected");
+                setProgressValue(100);
+                setIsLoading(false);
                 toast({
                   title: "Registration Successful",
                   description: "SIP credentials saved and connected",
@@ -81,6 +108,7 @@ const SipCredentialsTab = () => {
               } else {
                 // If not registered after a delay, show an error
                 setRegistrationStatus("failed");
+                setIsLoading(false);
                 setErrorMessage("Registration timed out. Please check your credentials and try again.");
               }
             }, 1500);
@@ -142,9 +170,9 @@ const SipCredentialsTab = () => {
           <div className="space-y-2 mb-4">
             <div className="flex justify-between text-xs">
               <span>Connecting to SIP server...</span>
-              <span>{isLoading ? "Please wait" : ""}</span>
+              <span>{isLoading ? `${progressValue}%` : ""}</span>
             </div>
-            <Progress value={isLoading ? 50 : 100} />
+            <Progress value={progressValue} />
           </div>
         )}
         
@@ -164,6 +192,9 @@ const SipCredentialsTab = () => {
             placeholder="Enter your SIP username"
             disabled={isLoading || registrationStatus === "connecting"}
           />
+          <p className="text-xs text-gray-500">
+            {username.includes('*') && "Note: Special characters like * will be automatically encoded"}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
