@@ -14,9 +14,7 @@ export class SipEventHandler {
     
     if (msg.error) {
       console.error(`SIP Error: ${msg.error}`);
-      if (eventHandlers.onError) {
-        eventHandlers.onError(`SIP error: ${msg.error}`);
-      }
+      this.handleSipError(msg.error, eventHandlers);
       return;
     }
 
@@ -29,21 +27,9 @@ export class SipEventHandler {
 
     switch (event) {
       case "registration_failed": {
-        console.error(`SIP Registration failed: ${result.code || "Unknown error"}`);
+        console.error(`SIP Registration failed: ${result.code || "Unknown error"} - ${result.reason || "No reason provided"}`);
         
-        // Add specific error handling for common SIP registration errors
-        if (result.code === "446") {
-          console.error(`Username format should include the full SIP address with sip: prefix: sip:username@domain`);
-          
-          if (eventHandlers.onError) {
-            eventHandlers.onError(`SIP registration failed: Invalid user address (Code: 446). Please use the correct format.`);
-          }
-        } else {
-          if (eventHandlers.onError) {
-            eventHandlers.onError(`SIP registration failed: ${result.code || "Unknown error"}`);
-          }
-        }
-        
+        this.handleRegistrationFailure(result.code, result.reason, eventHandlers);
         this.sipState.setRegistered(false);
         break;
       }
@@ -93,6 +79,59 @@ export class SipEventHandler {
     // Handle JSep if provided
     if (jsep) {
       this.callManager.handleRemoteJsep(jsep);
+    }
+  }
+
+  private handleSipError(error: string, eventHandlers: SipEventHandlers): void {
+    // Enhanced error handling with descriptive messages
+    let enhancedError = error;
+
+    if (error.includes("Missing session") || error.includes("Sofia stack")) {
+      enhancedError = "Server SIP stack not initialized. Please try again in a few moments.";
+    } else if (error.includes("Unauthorized")) {
+      enhancedError = "Authentication failed: Please check your credentials.";
+    } else if (error.includes("Request Timeout")) {
+      enhancedError = "Request timed out: SIP server may be experiencing connectivity issues.";
+    } else if (error.includes("Not Found")) {
+      enhancedError = "SIP account not found. Please verify your username.";
+    }
+
+    if (eventHandlers.onError) {
+      eventHandlers.onError(enhancedError);
+    }
+  }
+
+  private handleRegistrationFailure(code: string | undefined, reason: string | undefined, eventHandlers: SipEventHandlers): void {
+    let errorMessage = "SIP registration failed";
+    
+    // Handle specific registration error codes
+    if (code) {
+      switch (code) {
+        case "401":
+        case "407":
+          errorMessage = "Authentication failed: Please check your credentials.";
+          break;
+        case "403":
+          errorMessage = "Registration forbidden: Your account may be disabled.";
+          break;
+        case "404":
+          errorMessage = "SIP account not found. Please verify your username.";
+          break;
+        case "408":
+          errorMessage = "Registration request timed out. Server may be unreachable.";
+          break;
+        case "499":
+          errorMessage = "Server SIP stack not initialized. Please try again in a few moments.";
+          break;
+        default:
+          errorMessage = `Registration failed with code ${code}${reason ? ': ' + reason : ''}`;
+      }
+    } else if (reason) {
+      errorMessage = `Registration failed: ${reason}`;
+    }
+    
+    if (eventHandlers.onError) {
+      eventHandlers.onError(errorMessage);
     }
   }
 }

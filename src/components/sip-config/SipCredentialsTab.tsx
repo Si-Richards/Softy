@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ const SipCredentialsTab = () => {
   const [registrationStatus, setRegistrationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressValue, setProgressValue] = useState(0);
+  const [serverChecked, setServerChecked] = useState(false);
 
   useEffect(() => {
     // Set up error handler
@@ -79,82 +81,99 @@ const SipCredentialsTab = () => {
     setErrorMessage(null);
 
     try {
+      // Check if Janus is already connected or connect to it
+      if (!janusService.isJanusConnected()) {
+        await initializeJanusConnection();
+      } else {
+        setProgressValue(30);
+        setServerChecked(true);
+      }
+
+      // If server check was successful, proceed with registration
+      if (serverChecked) {
+        await performRegistration();
+      }
+    } catch (error: any) {
+      handleRegistrationError(error);
+    }
+  };
+
+  const initializeJanusConnection = async () => {
+    try {
       // Initialize Janus first with detailed debug logging
       await janusService.initialize({
         server: 'wss://devrtc.voicehost.io:443/janus',
         apiSecret: 'overlord',
-        success: async () => {
-          try {
-            console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
-            
-            // Pass credentials to the SIP registration service
-            await janusService.register(username, password, sipHost);
-            
-            setProgressValue(80);
-            
-            // Check if registration was successful after a short delay
-            setTimeout(() => {
-              if (janusService.isRegistered()) {
-                setRegistrationStatus("connected");
-                setProgressValue(100);
-                setIsLoading(false);
-                toast({
-                  title: "Registration Successful",
-                  description: "SIP credentials saved and connected",
-                });
-              } else {
-                // If not registered after a delay, show an error
-                setRegistrationStatus("failed");
-                setIsLoading(false);
-                setErrorMessage("Registration timed out. Please check your credentials and try again.");
-              }
-            }, 3000);
-          } catch (error: any) {
-            setRegistrationStatus("failed");
-            setIsLoading(false);
-            
-            // Enhanced error message for specific errors
-            let errorMsg = `Registration error: ${error.message || error}`;
-            
-            // Add specific guidance for error code 446
-            if (error.message && error.message.includes('446')) {
-              errorMsg = `${errorMsg} Your username may be incorrectly formatted.`;
-            }
-            
-            console.error(errorMsg);
-            setErrorMessage(errorMsg);
-            toast({
-              title: "Registration Failed",
-              description: errorMsg,
-              variant: "destructive",
-            });
-          }
+        success: () => {
+          console.log("Janus initialized successfully");
+          setProgressValue(30);
+          setServerChecked(true);
         },
         error: (error) => {
-          setRegistrationStatus("failed");
-          setIsLoading(false);
-          const errorMsg = `Connection error: ${error}`;
-          console.error(errorMsg);
-          setErrorMessage(errorMsg);
-          toast({
-            title: "Connection Error",
-            description: errorMsg,
-            variant: "destructive",
-          });
+          throw new Error(`Connection error: ${error}`);
         }
       });
-    } catch (error: any) {
-      setRegistrationStatus("failed");
-      setIsLoading(false);
-      const errorMsg = `Error: ${error.message || error}`;
-      console.error(errorMsg);
-      setErrorMessage(errorMsg);
-      toast({
-        title: "Error",
-        description: errorMsg,
-        variant: "destructive",
-      });
+    } catch (error) {
+      setServerChecked(false);
+      throw error;
     }
+  };
+
+  const performRegistration = async () => {
+    try {
+      console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
+      
+      // Pass credentials to the SIP registration service
+      await janusService.register(username, password, sipHost);
+      
+      setProgressValue(80);
+      
+      // Check if registration was successful after a short delay
+      setTimeout(() => {
+        if (janusService.isRegistered()) {
+          setRegistrationStatus("connected");
+          setProgressValue(100);
+          setIsLoading(false);
+          toast({
+            title: "Registration Successful",
+            description: "SIP credentials saved and connected",
+          });
+        } else {
+          // If not registered after a delay, show an error
+          setRegistrationStatus("failed");
+          setIsLoading(false);
+          setErrorMessage("Registration timed out. Please check your credentials and try again.");
+        }
+      }, 3000);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleRegistrationError = (error: any) => {
+    setRegistrationStatus("failed");
+    setIsLoading(false);
+    
+    // Enhanced error message for specific errors
+    let errorMsg = `Registration error: ${error.message || error}`;
+    
+    // Add specific guidance for error code 446
+    if (error.message && error.message.includes('446')) {
+      errorMsg = `${errorMsg} Your username may be incorrectly formatted.`;
+    }
+    
+    // Add specific guidance for Sofia SIP stack errors
+    if (error.message && (error.message.includes('Missing session') || error.message.includes('Sofia stack'))) {
+      errorMsg = "Server SIP stack not initialized. Please try again in a few moments.";
+    }
+    
+    console.error(errorMsg);
+    setErrorMessage(errorMsg);
+    toast({
+      title: "Registration Failed",
+      description: errorMsg,
+      variant: "destructive",
+    });
   };
 
   return (

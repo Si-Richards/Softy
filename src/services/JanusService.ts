@@ -1,3 +1,4 @@
+
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -128,6 +129,11 @@ class JanusService {
 
   isRegistered(): boolean {
     return this.sipHandler.isRegistered();
+  }
+
+  // New method to check if Janus is connected
+  isJanusConnected(): boolean {
+    return this.sessionManager.getConnectionState() === 'connected';
   }
 
   disconnect(): void {
