@@ -198,7 +198,7 @@ const SipCredentialsTab = () => {
             disabled={isLoading || registrationStatus === "connecting"}
           />
           <p className="text-xs text-gray-500">
-            Enter only your username (e.g., "38997*200") without the "@domain" part
+            Enter only your username (e.g., "12345*200")
           </p>
         </div>
         <div className="space-y-2">
