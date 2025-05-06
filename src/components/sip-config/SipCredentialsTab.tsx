@@ -12,7 +12,7 @@ const SipCredentialsTab = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   // Set the default SIP host but keep it hidden from UI
-  const [sipHost, setSipHost] = useState("hpbx.voicehost.co.uk");
+  const [sipHost, setSipHost] = useState("sip:hpbx.voicehost.co.uk");
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
