@@ -1,5 +1,6 @@
 
-/// <reference types="@types/testing-library__jest-dom" />
+/// <reference types="jest" />
+/// <reference types="@testing-library/jest-dom" />
 
 // Extend the global jest namespace to include the Jest DOM matchers
 declare namespace jest {
