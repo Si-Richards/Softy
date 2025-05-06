@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,18 +79,17 @@ const SipCredentialsTab = () => {
     setErrorMessage(null);
 
     try {
-      // Initialize Janus first
+      // Initialize Janus first with more debug logging
       await janusService.initialize({
         server: 'wss://devrtc.voicehost.io:443/janus',
         apiSecret: 'overlord',
         success: async () => {
           try {
-            // Format username correctly (strip any '*' characters or format properly)
-            const formattedUsername = username.replace(/[*]/g, "%2a"); 
+            // Log the raw username for debugging
+            console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
             
-            console.log(`Attempting to register with username: ${formattedUsername}, host: ${sipHost}`);
-            // After successful initialization, register with SIP credentials
-            await janusService.register(formattedUsername, password, sipHost);
+            // Let the registration manager handle the encoding of special characters
+            await janusService.register(username, password, sipHost);
             
             setProgressValue(80);
             
@@ -111,7 +109,7 @@ const SipCredentialsTab = () => {
                 setIsLoading(false);
                 setErrorMessage("Registration timed out. Please check your credentials and try again.");
               }
-            }, 1500);
+            }, 3000); // Increased timeout to allow for more time to connect
           } catch (error: any) {
             setRegistrationStatus("failed");
             setIsLoading(false);

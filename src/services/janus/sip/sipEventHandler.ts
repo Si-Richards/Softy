@@ -13,6 +13,9 @@ export class SipEventHandler {
       return;
     }
 
+    // Debug the complete message
+    console.log("SIP Message received:", JSON.stringify(msg, null, 2));
+
     // Special handling for SIP error messages
     if (msg.error) {
       console.error(`SIP Error: ${msg.error} (Code: ${msg.error_code || 'unknown'})`);

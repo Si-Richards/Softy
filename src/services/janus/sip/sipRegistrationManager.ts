@@ -23,10 +23,15 @@ export class SipRegistrationManager {
       const cleanUsername = username
         .replace(/^sip:/, '') // Remove any 'sip:' prefix
         .split('@')[0];       // Remove any domain part
+
+      // Important: Because a star in the username needs special handling
+      const processedUsername = cleanUsername.replace(/\*/g, '%2a');
       
-      // Format SIP URI correctly
-      const sipUri = `sip:${cleanUsername}@${host}`;
+      // Save username without encoding for display purposes
       this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
+
+      // Format SIP URI correctly - URL encoded version for the actual request
+      const sipUri = `sip:${processedUsername}@${host}`;
 
       console.log(`SIP Registration: Attempting registration for ${sipUri} via ${host}:${port}`);
 
@@ -34,9 +39,9 @@ export class SipRegistrationManager {
       this.sipState.getSipPlugin().send({
         message: {
           request: "register",
-          username: sipUri, // Use full SIP URI for registration
+          username: processedUsername, // Send clean username without sip: prefix
           display_name: cleanUsername,
-          authuser: cleanUsername, // Authentication username
+          authuser: processedUsername, // Authentication username without encoding
           secret: password,
           proxy: `sip:${host}:${port}`,
           register_ttl: 3600,
