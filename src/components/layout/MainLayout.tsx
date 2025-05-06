@@ -6,6 +6,7 @@ import MainContent from "./MainContent";
 import MobileDialpadDrawer from "./MobileDialpadDrawer";
 import IncomingCallHandler from "./IncomingCallHandler";
 import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
+import { useToast } from "@/hooks/use-toast";
 
 // Define user presence type
 type UserPresence = "available" | "away" | "busy" | "offline";
@@ -18,7 +19,49 @@ const MainLayout = () => {
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
   
   // Get Janus connection status
-  const { isJanusConnected, isRegistered } = useJanusSetup();
+  const { isJanusConnected, isRegistered, janusService } = useJanusSetup();
+  const { toast } = useToast();
+  
+  // Check for stored credentials on mount and try to connect automatically
+  useEffect(() => {
+    try {
+      const storedCredentials = localStorage.getItem('sipCredentials');
+      if (storedCredentials && !isRegistered && !isJanusConnected) {
+        const { username, password, sipHost } = JSON.parse(storedCredentials);
+        if (username && password) {
+          console.log("Found stored credentials, attempting automatic registration");
+          
+          // Slight delay before auto-connecting to ensure components are ready
+          const timer = setTimeout(() => {
+            janusService.initialize({
+              server: 'wss://devrtc.voicehost.io:443/janus',
+              apiSecret: 'overlord',
+              success: async () => {
+                try {
+                  await janusService.register(username, password, sipHost || "hpbx.voicehost.co.uk");
+                  toast({
+                    title: "Auto-connected",
+                    description: "Successfully registered with saved credentials",
+                  });
+                } catch (error) {
+                  console.error("Auto-registration failed:", error);
+                }
+              },
+              error: (error) => {
+                console.error("Auto-connection failed:", error);
+              }
+            });
+          }, 1000);
+          
+          return () => clearTimeout(timer);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading stored credentials:", error);
+    }
+  // We only want this to run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Update connection status when Janus connection changes
   useEffect(() => {

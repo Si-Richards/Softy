@@ -10,6 +10,7 @@ interface SipCredentialsFormProps {
   setPassword: (value: string) => void;
   handleSave: () => void;
   isDisabled: boolean;
+  isReadOnly?: boolean;
   buttonText: string;
 }
 
@@ -20,6 +21,7 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
   setPassword,
   handleSave,
   isDisabled,
+  isReadOnly = false,
   buttonText
 }) => {
   return (
@@ -31,7 +33,9 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Enter your SIP username"
-          disabled={isDisabled}
+          disabled={isDisabled || isReadOnly}
+          className={isReadOnly ? "bg-gray-100" : ""}
+          readOnly={isReadOnly}
         />
         <p className="text-xs text-gray-500">
           Enter only your SIP username (e.g., "16331*201")
@@ -45,7 +49,9 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your SIP password"
-          disabled={isDisabled}
+          disabled={isDisabled || isReadOnly}
+          className={isReadOnly ? "bg-gray-100" : ""}
+          readOnly={isReadOnly}
         />
       </div>
       <div className="pt-4">
