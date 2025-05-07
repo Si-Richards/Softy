@@ -66,7 +66,9 @@ const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
             ...phone,
             id: phone.id,
             type: phone.type,
-            number: phone.number
+            number: phone.number,
+            // Make sure extension type has empty countryCode
+            countryCode: phone.type === "extension" ? "" : (phone.countryCode || "+1")
           }));
           setValue("phoneNumbers", validPhoneNumbers);
           const maxId = Math.max(...contact.phoneNumbers.map(p => p.id));
@@ -99,9 +101,12 @@ const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
         id: phone.id,
         type: phone.type,
         number: phone.number,
-        countryCode: phone.countryCode,
+        countryCode: phone.type === "extension" ? "" : (phone.countryCode || "+1"),
         isPrimary: phone.isPrimary
       }));
+      
+      // Find primary phone for main contact fields
+      const primaryPhone = phoneNumbersToSave.find(p => p.isPrimary) || phoneNumbersToSave[0];
       
       // For new contact, we would implement create functionality
       // This is a placeholder - in a real app, you'd call an API to create a new contact
@@ -119,8 +124,8 @@ const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
           name: data.name,
           favorite: data.favorite,
           phoneNumbers: phoneNumbersToSave,
-          number: data.phoneNumbers.find(p => p.isPrimary)?.number || data.phoneNumbers[0].number,
-          countryCode: data.phoneNumbers.find(p => p.isPrimary)?.countryCode || data.phoneNumbers[0].countryCode,
+          number: primaryPhone.number,
+          countryCode: primaryPhone.countryCode,
           presence: currentContact.presence,
           email: data.email,
           avatar: currentContact.avatar,

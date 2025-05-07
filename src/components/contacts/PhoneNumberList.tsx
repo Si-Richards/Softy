@@ -38,6 +38,12 @@ export const PhoneNumberList = ({
                   onValueChange={(value) => {
                     const current = [...phoneNumbers];
                     current[index].type = value as PhoneType;
+                    // Clear country code if extension type is selected
+                    if (value === "extension") {
+                      current[index].countryCode = "";
+                    } else if (!current[index].countryCode) {
+                      current[index].countryCode = "+1"; // Set default if switching from extension
+                    }
                     setValue("phoneNumbers", current);
                   }}
                 >
@@ -49,24 +55,27 @@ export const PhoneNumberList = ({
                     <SelectItem value="work">Work</SelectItem>
                     <SelectItem value="home">Home</SelectItem>
                     <SelectItem value="fax">Fax</SelectItem>
+                    <SelectItem value="extension">Extension</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="col-span-2">
-                <Input
-                  value={phone.countryCode || ""}
-                  onChange={(e) => {
-                    const current = [...phoneNumbers];
-                    current[index].countryCode = e.target.value;
-                    setValue("phoneNumbers", current);
-                  }}
-                  placeholder="+1"
-                />
-              </div>
+              {phone.type !== "extension" && (
+                <div className="col-span-2">
+                  <Input
+                    value={phone.countryCode || ""}
+                    onChange={(e) => {
+                      const current = [...phoneNumbers];
+                      current[index].countryCode = e.target.value;
+                      setValue("phoneNumbers", current);
+                    }}
+                    placeholder="+1"
+                  />
+                </div>
+              )}
 
-              <div className="col-span-5">
+              <div className={phone.type === "extension" ? "col-span-7" : "col-span-5"}>
                 <Input
                   value={phone.number}
                   onChange={(e) => {
@@ -74,7 +83,7 @@ export const PhoneNumberList = ({
                     current[index].number = e.target.value;
                     setValue("phoneNumbers", current);
                   }}
-                  placeholder="Phone number"
+                  placeholder={phone.type === "extension" ? "Extension number" : "Phone number"}
                 />
               </div>
 

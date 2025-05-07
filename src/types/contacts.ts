@@ -2,7 +2,7 @@
 import { ReactNode } from "react";
 
 export type PresenceStatus = "available" | "away" | "busy" | "offline";
-export type PhoneType = "mobile" | "work" | "home" | "other" | "fax";
+export type PhoneType = "mobile" | "work" | "home" | "other" | "fax" | "extension";
 
 export interface PhoneNumber {
   id: number;

@@ -18,11 +18,11 @@ const ContactEditWrapper = () => {
   
   // Convert the id param to a number and provide the onClose function
   const contactId = id ? parseInt(id, 10) : 0;
-  const handleClose = () => navigate("/");
+  const handleClose = () => navigate(-1); // Navigate back to previous page
   
   return (
     <Dialog open={true} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-2xl p-0 overflow-y-auto max-h-[90vh]">
+      <DialogContent className="max-w-2xl p-6 overflow-y-auto max-h-[90vh]">
         <ContactEdit contactId={contactId} onClose={handleClose} />
       </DialogContent>
     </Dialog>

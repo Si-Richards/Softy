@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Phone, MessageSquare, Video, Star, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -72,6 +73,9 @@ const ContactItem = ({ contact, onToggleFavorite, onEdit }: ContactItemProps) =>
     navigate(`/contacts/edit/${contact.id}`);
   };
 
+  // Check if primary number is an extension
+  const isPrimaryExtension = contact.phoneNumbers?.find(p => p.isPrimary)?.type === "extension";
+
   return (
     <ContextMenu>
       <ContextMenuTrigger>
@@ -104,7 +108,12 @@ const ContactItem = ({ contact, onToggleFavorite, onEdit }: ContactItemProps) =>
           <div className="flex-1">
             <div className="font-medium">{contact.name}</div>
             <div className="text-sm text-gray-500 flex items-center gap-2">
-              <span>{contact.countryCode}</span>
+              {!isPrimaryExtension && contact.countryCode && (
+                <span>{contact.countryCode}</span>
+              )}
+              {isPrimaryExtension && (
+                <span className="text-gray-500 italic">Ext:</span>
+              )}
               <span>{contact.number}</span>
               {contact.company && (
                 <>
