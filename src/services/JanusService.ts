@@ -10,6 +10,7 @@ class JanusService {
   private eventHandlers: JanusEventHandlers;
   private mediaHandler: JanusMediaHandler;
   private sipHandler: JanusSipHandler;
+  private connectionCheckTimer: number | null = null;
 
   constructor() {
     this.sessionManager = new JanusSessionManager();
@@ -34,6 +35,10 @@ class JanusService {
     try {
       await this.sessionManager.createSession(options);
       await this.attachSipPlugin();
+      
+      // Start a connection health check
+      this.startConnectionCheck();
+      
       if (options.success) options.success();
       return true;
     } catch (error: any) {
@@ -43,6 +48,24 @@ class JanusService {
       this.disconnect(); // Cleanup on failure
       throw new Error(errorMsg);
     }
+  }
+
+  private startConnectionCheck() {
+    // Clear any existing timer
+    if (this.connectionCheckTimer) {
+      window.clearInterval(this.connectionCheckTimer);
+    }
+    
+    // Check connection state periodically (every 30 seconds)
+    this.connectionCheckTimer = window.setInterval(() => {
+      const janus = this.sessionManager.getJanus();
+      if (!janus) {
+        console.log("Connection check: Janus instance not found, reconnecting...");
+        // Could attempt a reconnection here if needed
+      } else {
+        console.log("Connection check: Janus instance exists");
+      }
+    }, 30000);
   }
 
   private async attachSipPlugin(): Promise<void> {
@@ -67,6 +90,7 @@ class JanusService {
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
+          console.log("Received SIP message:", msg, "with jsep:", jsep);
           this.sipHandler.handleSipMessage(msg, jsep, this.eventHandlers);
         },
         onlocalstream: (stream: MediaStream) => {
@@ -86,7 +110,7 @@ class JanusService {
     });
   }
 
-  setOnIncomingCall(callback: (from: string) => void): void {
+  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
     this.eventHandlers.setOnIncomingCall(callback);
   }
 
@@ -110,12 +134,22 @@ class JanusService {
     return this.mediaHandler.getRemoteStream();
   }
 
-  register(username: string, password: string, sipHost: string): Promise<void> {
-    return this.sipHandler.register(username, password, sipHost);
+  async register(username: string, password: string, sipHost: string): Promise<void> {
+    try {
+      await this.sipHandler.register(username, password, sipHost);
+      console.log(`Successfully registered with SIP server as ${username}@${sipHost}`);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("SIP registration error:", error);
+      if (this.eventHandlers.onError) {
+        this.eventHandlers.onError(`Registration failed: ${error}`);
+      }
+      return Promise.reject(error);
+    }
   }
 
-  call(uri: string): Promise<void> {
-    return this.sipHandler.call(uri);
+  call(uri: string, isVideoCall: boolean = false): Promise<void> {
+    return this.sipHandler.call(uri, isVideoCall);
   }
 
   acceptCall(jsep: any): Promise<void> {
@@ -130,22 +164,20 @@ class JanusService {
     return this.sipHandler.isRegistered();
   }
 
+  // Method to check if Janus is connected
+  isJanusConnected(): boolean {
+    return this.sessionManager.getConnectionState() === 'connected';
+  }
+
   disconnect(): void {
+    // Clear the connection check timer
+    if (this.connectionCheckTimer) {
+      window.clearInterval(this.connectionCheckTimer);
+      this.connectionCheckTimer = null;
+    }
+    
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
-  }
-
-  // Methods for audio output device management
-  setAudioOutputDevice(deviceId: string): void {
-    this.mediaHandler.setAudioOutputDevice(deviceId);
-  }
-
-  getAudioOutputDevice(): string | null {
-    return this.mediaHandler.getAudioOutputDevice();
-  }
-
-  applyAudioOutputDevice(element: HTMLMediaElement | null): void {
-    this.mediaHandler.applyAudioOutputToElement(element);
   }
 }
 

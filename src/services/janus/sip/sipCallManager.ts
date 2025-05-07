@@ -1,4 +1,3 @@
-
 import { SipState } from './sipState';
 import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';
@@ -10,7 +9,7 @@ export class SipCallManager {
     this.mediaConfig = new MediaConfigHandler();
   }
 
-  async call(uri: string): Promise<void> {
+  async call(uri: string, isVideoCall: boolean = false): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.sipState.getSipPlugin()) {
         reject(new Error("SIP plugin not attached"));
@@ -25,8 +24,11 @@ export class SipCallManager {
       // Format the number properly in E.164 format with SIP URI
       const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
 
-      const videoInput = localStorage.getItem('selectedVideoInput');
       const constraints = this.mediaConfig.getCallMediaConstraints();
+      if (isVideoCall) {
+        const videoInput = localStorage.getItem('selectedVideoInput');
+        constraints.video = videoInput ? { deviceId: { exact: videoInput } } : true;
+      }
 
       console.log("Getting user media with constraints:", JSON.stringify(constraints));
       
@@ -38,24 +40,15 @@ export class SipCallManager {
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
-            console.log("Audio track enabled:", track.enabled, "kind:", track.kind);
+            console.log("Audio track enabled:", track.enabled);
             track.enabled = true;
           });
 
-          // Create WebRTC offer with stream
           this.sipState.getSipPlugin().createOffer({
-            media: {
-              ...this.mediaConfig.getCallMediaConfig(videoInput), 
-              // Additional WebRTC config to ensure proper audio
-              audioSend: true,
-              audioRecv: true,
-              audio: true,
-              video: !!videoInput
-            },
+            media: this.mediaConfig.getCallMediaConfig(isVideoCall),
             stream: stream,
             success: (jsep: any) => {
-              console.log("SDP offer created:", jsep);
-              
+              console.log("Created offer with JSEP:", jsep);
               const message = {
                 request: "call",
                 uri: formattedUri
@@ -91,9 +84,10 @@ export class SipCallManager {
         return;
       }
 
+      console.log("SipCallManager: Accepting call with JSEP:", jsep);
+      
       // Get media constraints for answering calls
       const constraints = this.mediaConfig.getCallMediaConstraints();
-      const videoInput = localStorage.getItem('selectedVideoInput');
       
       console.log("Accepting call with constraints:", JSON.stringify(constraints));
       
@@ -103,96 +97,38 @@ export class SipCallManager {
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
-            console.log("Audio track enabled for accepting call:", track.enabled, "kind:", track.kind);
             track.enabled = true;
           });
           
-          // Create WebRTC answer
           this.sipState.getSipPlugin().createAnswer({
             jsep: jsep,
-            media: {
-              ...this.mediaConfig.getAnswerMediaConfig(),
-              // Additional WebRTC config to ensure proper audio
-              audioSend: true,
-              audioRecv: true,
-              audio: true,
-              video: !!videoInput
-            },
+            media: this.mediaConfig.getAnswerMediaConfig(),
             stream: stream,
             success: (ourjsep: any) => {
-              console.log("SDP answer created:", ourjsep);
-              
+              console.log("Created answer with JSEP:", ourjsep);
               const message = { request: "accept" };
               this.sipState.getSipPlugin().send({
                 message,
                 jsep: ourjsep,
                 success: () => {
-                  console.log("Call accepted");
+                  console.log("Call accepted successfully");
                   resolve();
                 },
                 error: (error: any) => {
+                  console.error(`Error accepting call: ${error}`);
                   reject(new Error(`Error accepting call: ${error}`));
                 }
               });
             },
             error: (error: any) => {
+              console.error(`WebRTC error when creating answer: ${error}`);
               reject(new Error(`WebRTC error: ${error}`));
             }
           });
         })
         .catch((error) => {
-          // For video errors, try again with audio only
-          if (videoInput && error.name === 'NotReadableError') {
-            console.log("Video failed, trying audio only");
-            const audioOnlyConstraints = {
-              audio: constraints.audio,
-              video: false
-            };
-            
-            navigator.mediaDevices.getUserMedia(audioOnlyConstraints)
-              .then(audioStream => {
-                console.log("Got audio-only stream as fallback");
-                
-                // Create WebRTC answer with audio only
-                this.sipState.getSipPlugin().createAnswer({
-                  jsep: jsep,
-                  media: {
-                    audioSend: true,
-                    audioRecv: true,
-                    videoSend: false,
-                    videoRecv: true,
-                    audio: true,
-                    video: false,
-                    removeVideo: true
-                  },
-                  stream: audioStream,
-                  success: (ourjsep: any) => {
-                    console.log("Audio-only SDP answer created");
-                    
-                    const message = { request: "accept" };
-                    this.sipState.getSipPlugin().send({
-                      message,
-                      jsep: ourjsep,
-                      success: () => {
-                        console.log("Audio-only call accepted");
-                        resolve();
-                      },
-                      error: (error: any) => {
-                        reject(new Error(`Error accepting audio-only call: ${error}`));
-                      }
-                    });
-                  },
-                  error: (error: any) => {
-                    reject(new Error(`WebRTC error in audio-only fallback: ${error}`));
-                  }
-                });
-              })
-              .catch(audioError => {
-                reject(new Error(`Media error when trying audio-only fallback: ${audioError}`));
-              });
-          } else {
-            reject(new Error(`Media error when accepting call: ${error}`));
-          }
+          console.error(`Media error when accepting call: ${error}`);
+          reject(new Error(`Media error when accepting call: ${error}`));
         });
     });
   }
@@ -214,6 +150,33 @@ export class SipCallManager {
           reject(new Error(`Error hanging up: ${error}`));
         }
       });
+    });
+  }
+
+  /**
+   * Handles remote JSEP (JavaScript Session Establishment Protocol) objects
+   * used in WebRTC signaling for SIP calls
+   * @param jsep The remote JSEP object containing SDP information
+   */
+  handleRemoteJsep(jsep: any): void {
+    if (!jsep) {
+      console.warn("Received empty JSEP in handleRemoteJsep");
+      return;
+    }
+
+    console.log("Handling remote JSEP:", jsep.type);
+    
+    const sipPlugin = this.sipState.getSipPlugin();
+    if (!sipPlugin) {
+      console.error("Cannot handle remote JSEP: SIP plugin not attached");
+      return;
+    }
+
+    sipPlugin.handleRemoteJsep({
+      jsep: jsep,
+      error: (error: any) => {
+        console.error(`Error handling remote JSEP: ${error}`);
+      }
     });
   }
 }

@@ -1,7 +1,6 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { UserPlus, ChevronDown } from "lucide-react";
 import ContactSearchBar from "./contacts/ContactSearchBar";
 import ContactItem from "./contacts/ContactItem";
 import { Contact } from "@/types/contacts";
@@ -9,6 +8,16 @@ import { useContacts } from "@/hooks/useContacts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import ContactEdit from "@/pages/ContactEdit";
+
+type SortOption = "nameAsc" | "nameDesc" | "company";
 
 const ContactSkeleton = () => (
   <div className="flex items-center p-3 space-x-4">
@@ -22,12 +31,46 @@ const ContactSkeleton = () => (
 
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("nameAsc");
+  const [editingContactId, setEditingContactId] = useState<number | null>(null);
+  const [showNewContactModal, setShowNewContactModal] = useState(false);
   const { contacts, isLoading, error, toggleFavorite } = useContacts();
   
-  const filteredContacts = contacts.filter(contact => 
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.number.includes(searchTerm)
-  );
+  const getSortedContacts = () => {
+    return contacts.filter(contact => 
+      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.number.includes(searchTerm)
+    ).sort((a, b) => {
+      switch (sortBy) {
+        case "nameAsc":
+          return a.name.localeCompare(b.name);
+        case "nameDesc":
+          return b.name.localeCompare(a.name);
+        case "company":
+          const companyA = a.company || "";
+          const companyB = b.company || "";
+          return companyA.localeCompare(companyB) || a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+  };
+
+  const handleAddNewContact = () => {
+    setShowNewContactModal(true);
+  };
+
+  const handleCloseNewContact = () => {
+    setShowNewContactModal(false);
+  };
+
+  const handleEditContact = (contactId: number) => {
+    setEditingContactId(contactId);
+  };
+
+  const handleCloseEditContact = () => {
+    setEditingContactId(null);
+  };
 
   if (isLoading) {
     return (
@@ -64,10 +107,34 @@ const Contacts = () => {
     <div className="w-full p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Contacts</h2>
-        <Button size="sm" className="bg-softphone-accent hover:bg-blue-600">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Contact
-        </Button>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Sort by <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setSortBy("nameAsc")}>
+                Name (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy("nameDesc")}>
+                Name (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy("company")}>
+                Company
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button 
+            size="sm" 
+            className="bg-softphone-accent hover:bg-blue-600"
+            onClick={handleAddNewContact}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Contact
+          </Button>
+        </div>
       </div>
       
       <ContactSearchBar 
@@ -76,20 +143,35 @@ const Contacts = () => {
       />
       
       <div className="space-y-2">
-        {filteredContacts.map((contact) => (
+        {getSortedContacts().map((contact) => (
           <ContactItem
             key={contact.id}
             contact={contact}
             onToggleFavorite={toggleFavorite}
+            onEdit={() => handleEditContact(contact.id)}
           />
         ))}
         
-        {filteredContacts.length === 0 && (
+        {getSortedContacts().length === 0 && (
           <div className="text-center py-6 text-gray-500">
             No contacts found
           </div>
         )}
       </div>
+
+      <Dialog open={editingContactId !== null} onOpenChange={handleCloseEditContact}>
+        <DialogContent>
+          {editingContactId !== null && (
+            <ContactEdit contactId={editingContactId} onClose={handleCloseEditContact} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNewContactModal} onOpenChange={setShowNewContactModal}>
+        <DialogContent>
+          <ContactEdit contactId={0} onClose={handleCloseNewContact} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,9 +1,10 @@
+
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Home, Phone, Clock, Users, Settings, Volume2, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { Home, Phone, Clock, Users, Settings, Laptop, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface SidebarProps {
@@ -15,16 +16,19 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const unreadVoicemails = 3;
-  const unreadMessages = 5;
-  const missedCalls = 3;
-
   const user = {
     name: "John Doe",
     avatar: "/placeholder.svg"
   };
 
   const version = "v1.0.0";
+
+  // Static badge counts - these won't update dynamically
+  const BADGE_COUNTS = {
+    history: 3,
+    messages: 5,
+    voicemail: 3
+  };
 
   const tabs = [
     { id: "home", label: "Home", icon: <Home className="w-[27.5px] h-[27.5px]" /> },
@@ -33,23 +37,23 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
       id: "history", 
       label: "Call History", 
       icon: <Clock className="w-[27.5px] h-[27.5px]" />,
-      badge: missedCalls
+      badge: BADGE_COUNTS.history
     },
     { id: "contacts", label: "Contacts", icon: <Users className="w-[27.5px] h-[27.5px]" /> },
     { 
       id: "messages", 
       label: "Messages", 
       icon: <MessageSquare className="w-[27.5px] h-[27.5px]" />,
-      badge: unreadMessages
+      badge: BADGE_COUNTS.messages
     },
     { 
       id: "voicemail", 
       label: "Voicemail", 
       icon: <Voicemail className="w-[27.5px] h-[27.5px]" />,
-      badge: unreadVoicemails 
+      badge: BADGE_COUNTS.voicemail
     },
     { id: "statistics", label: "Statistics", icon: <ChartBar className="w-[27.5px] h-[27.5px]" /> },
-    { id: "audio", label: "Audio", icon: <Volume2 className="w-[27.5px] h-[27.5px]" /> },
+    { id: "devices", label: "Devices", icon: <Laptop className="w-[27.5px] h-[27.5px]" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-[27.5px] h-[27.5px]" /> },
   ];
 
@@ -90,7 +94,7 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
       <TooltipProvider>
         <div className="flex-1 py-6 flex flex-col items-center">
           {tabs.map((tab) => (
-            <Tooltip key={tab.id}>
+            <Tooltip key={tab.id} delayDuration={300}>
               <TooltipTrigger asChild>
                 <div className="relative w-full px-3 mb-4">
                   <Button

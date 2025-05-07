@@ -13,45 +13,61 @@ export class MediaConfigHandler {
     const audioInput = localStorage.getItem('selectedAudioInput');
     const videoInput = localStorage.getItem('selectedVideoInput');
     
-    // Ensure we're explicitly requesting audio with echo cancellation and noise suppression
+    // Get audio settings from localStorage
+    let audioSettings;
+    try {
+      const storedSettings = localStorage.getItem('audioSettings');
+      if (storedSettings) {
+        audioSettings = JSON.parse(storedSettings);
+      }
+    } catch (error) {
+      console.error("Error parsing audio settings:", error);
+    }
+    
+    // Apply saved audio input device if available
+    console.log("Using saved audio input device:", audioInput || "default");
+    
+    // Enhanced audio constraints with saved preferences
     const audioConstraints = audioInput 
       ? { 
           deviceId: { exact: audioInput }, 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
+          echoCancellation: audioSettings?.echoSuppression !== false,
+          noiseSuppression: audioSettings?.noiseCancellation !== false,
+          autoGainControl: audioSettings?.autoGainControl !== false
         }
       : { 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
+          echoCancellation: audioSettings?.echoSuppression !== false, 
+          noiseSuppression: audioSettings?.noiseCancellation !== false,
+          autoGainControl: audioSettings?.autoGainControl !== false
         };
     
+    console.log("Using audio constraints:", audioConstraints);
+    
+    // Only include video constraints if explicitly requested with a device
     return {
       audio: audioConstraints,
-      video: videoInput ? { deviceId: { exact: videoInput } } : false
+      video: false // Default to no video
     };
   }
 
-  getCallMediaConfig(videoInput: string | null): MediaConfig {
+  getCallMediaConfig(isVideoCall: boolean): MediaConfig {
     return {
-      audioRecv: true,  // Always receive audio
-      videoRecv: true,  // Always be ready to receive video even if not displaying
-      audioSend: true,  // Always send audio
-      videoSend: !!videoInput, // Only send video if a camera is selected
+      audioRecv: true,
+      videoRecv: isVideoCall,
+      audioSend: true,
+      videoSend: isVideoCall,
       removeAudio: false, // Never remove audio
-      removeVideo: !videoInput // Remove video if no camera is selected
+      removeVideo: !isVideoCall
     };
   }
 
   getAnswerMediaConfig(): MediaConfig {
-    // For answering calls, ensure we are ready to receive all media
     return {
       audioRecv: true,
       videoRecv: true,
       audioSend: true,
       videoSend: true,
-      removeAudio: false,
+      removeAudio: false, // Never remove audio
       removeVideo: false
     };
   }

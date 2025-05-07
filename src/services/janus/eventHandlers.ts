@@ -2,12 +2,12 @@
 import type { EventHandlers } from './types';
 
 export class JanusEventHandlers implements EventHandlers {
-  onIncomingCall: ((from: string) => void) | null = null;
+  onIncomingCall: ((from: string, jsep: any) => void) | null = null;
   onCallConnected: (() => void) | null = null;
   onCallEnded: (() => void) | null = null;
   onError: ((error: string) => void) | null = null;
 
-  setOnIncomingCall(callback: (from: string) => void): void {
+  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
     this.onIncomingCall = callback;
   }
 
@@ -23,4 +23,3 @@ export class JanusEventHandlers implements EventHandlers {
     this.onError = callback;
   }
 }
-

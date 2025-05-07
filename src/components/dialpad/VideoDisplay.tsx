@@ -1,6 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
-import janusService from "@/services/JanusService";
+import React, { useEffect, useRef } from "react";
 
 interface VideoDisplayProps {
   localVideoRef: React.RefObject<HTMLVideoElement>;
@@ -9,96 +8,54 @@ interface VideoDisplayProps {
   isCallActive: boolean;
 }
 
-const VideoDisplay = ({ localVideoRef, remoteVideoRef, isVideoEnabled, isCallActive }: VideoDisplayProps) => {
-  // Create additional audio element reference for audio-only calls
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  
-  // Effect to handle remote stream when call is active
+const VideoDisplay: React.FC<VideoDisplayProps> = ({
+  localVideoRef,
+  remoteVideoRef,
+  isVideoEnabled,
+  isCallActive,
+}) => {
+  // Add check for audio output device
   useEffect(() => {
-    if (isCallActive) {
-      const remoteStream = janusService.getRemoteStream();
-      
-      // Always route remote stream to audio element regardless of video state
-      if (remoteStream) {
-        console.log("Setting remote stream to audio element", remoteStream);
-        
-        // Check for audio tracks and log their state
-        const audioTracks = remoteStream.getAudioTracks();
-        console.log(`Remote stream has ${audioTracks.length} audio tracks`);
-        audioTracks.forEach((track, i) => {
-          console.log(`Remote audio track ${i}: enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
-        });
-        
-        // Apply to audio element for all calls
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = remoteStream;
-          remoteAudioRef.current.play().catch(err => {
-            console.error("Error playing remote audio:", err);
-          });
-          janusService.applyAudioOutputDevice(remoteAudioRef.current);
+    const checkAudioOutput = async () => {
+      try {
+        const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+        if (savedAudioOutput && remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
+          await (remoteVideoRef.current as any).setSinkId(savedAudioOutput);
+          console.log("Audio output device set to:", savedAudioOutput);
         }
-        
-        // Also set to video element if video is enabled
-        if (isVideoEnabled && remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
-          janusService.applyAudioOutputDevice(remoteVideoRef.current);
-        }
-      } else {
-        console.warn("No remote stream available yet");
-      }
-    } else {
-      // Clean up when call ends
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = null;
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
-      }
-    }
-    
-    return () => {
-      // Clean up when component unmounts
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = null;
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
+      } catch (error) {
+        console.error("Error setting audio output device:", error);
       }
     };
-  }, [isCallActive, isVideoEnabled, remoteVideoRef]);
+    
+    if (isCallActive) {
+      checkAudioOutput();
+    }
+  }, [isCallActive, remoteVideoRef]);
+
+  // Only show video container if video is enabled
+  if (!isVideoEnabled) return null;
 
   return (
-    <>
-      {/* Always render the audio element, even for audio-only calls */}
-      <audio 
-        ref={remoteAudioRef} 
-        autoPlay 
-        playsInline
-        className="hidden"
-      />
-      
-      {isVideoEnabled && isCallActive && (
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <div className="aspect-video bg-gray-800 rounded overflow-hidden">
-            <video 
-              ref={localVideoRef} 
-              autoPlay 
-              muted 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="aspect-video bg-gray-800 rounded overflow-hidden">
-            <video 
-              ref={remoteVideoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      )}
-    </>
+    <div className={`relative mb-6 ${isCallActive ? "block" : "hidden"}`}>
+      <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
+        <video
+          ref={remoteVideoRef}
+          className="w-full h-full object-cover"
+          autoPlay
+          playsInline
+        ></video>
+      </div>
+      <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
+        <video
+          ref={localVideoRef}
+          className="w-full h-full object-cover"
+          autoPlay
+          playsInline
+          muted
+        ></video>
+      </div>
+    </div>
   );
 };
 

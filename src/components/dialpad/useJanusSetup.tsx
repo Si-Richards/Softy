@@ -1,117 +1,81 @@
-import { useState, useEffect } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from 'react';
 import janusService from "@/services/JanusService";
+import { useIncomingCall } from '@/hooks/useIncomingCall';
+import { useJanusInitialization } from '@/hooks/useJanusInitialization';
 
 export const useJanusSetup = () => {
-  const [isJanusConnected, setIsJanusConnected] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { toast } = useToast();
+  const {
+    incomingCall,
+    handleAcceptCall,
+    handleRejectCall,
+    handleIncomingCall,
+    handleCallEnded,
+    notificationsEnabled
+  } = useIncomingCall();
 
-  useEffect(() => {
-    // Set up Janus event handlers
-    janusService.setOnIncomingCall((from) => {
-      toast({
-        title: "Incoming Call",
-        description: `Call from ${from}`,
-      });
-    });
-
-    janusService.setOnCallConnected(() => {
-      toast({
-        title: "Call Connected",
-        description: "You are now connected",
-      });
-    });
-
-    janusService.setOnCallEnded(() => {
-      toast({
-        title: "Call Ended",
-        description: "The call has ended",
-      });
-    });
-
-    janusService.setOnError((error) => {
-      setErrorMessage(error);
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
-    });
-
-    // Check if Janus is already initialized
-    if (janusService.isRegistered()) {
-      setIsJanusConnected(true);
-      setIsRegistered(true);
-    }
-
-    return () => {
-      // Don't disconnect on unmount - we want to keep the connection active for the entire app session
-      // We'll handle disconnection separately when the user logs out or the app closes
-    };
-  }, [toast]);
-
-  const initializeJanus = async (username?: string, password?: string, host?: string) => {
-    try {
-      setErrorMessage(null);
-      
-      await janusService.initialize({
-        server: 'wss://devrtc.voicehost.io:443/janus',
-        apiSecret: 'overlord',
-        success: () => {
-          setIsJanusConnected(true);
-          toast({
-            title: "WebRTC Ready",
-            description: "Connected to Janus WebRTC server",
-          });
-          
-          // If credentials are provided, attempt to register
-          if (username && password && host) {
-            registerWithJanus(username, password, host);
-          }
-        },
-        error: (error) => {
-          console.error("Janus initialization error:", error);
-          setErrorMessage("Failed to connect to WebRTC server");
-        }
-      });
-    } catch (error) {
-      console.error("Janus initialization error:", error);
-      setErrorMessage("Failed to connect to WebRTC server");
-    }
-  };
-
-  const registerWithJanus = async (username: string, password: string, host: string) => {
-    try {
-      if (!isJanusConnected) {
-        await initializeJanus(username, password, host);
-        return;
-      }
-      
-      await janusService.register(username, password, host);
-      setIsRegistered(true);
-      toast({
-        title: "SIP Registration Successful",
-        description: "You are now registered with the SIP server",
-      });
-    } catch (error) {
-      console.error("Registration error:", error);
-      setErrorMessage("Failed to register with SIP server");
-      toast({
-        title: "Registration Failed",
-        description: "Failed to register with SIP server",
-        variant: "destructive",
-      });
-    }
-  };
-
-  return {
+  const {
     isJanusConnected,
     isRegistered,
     errorMessage,
     initializeJanus,
     registerWithJanus,
-    janusService
+    handleError,
+    setIsJanusConnected,
+    setIsRegistered
+  } = useJanusInitialization();
+
+  // Perform a connection status check on component mount and periodically
+  useEffect(() => {
+    // Set up Janus event handlers
+    janusService.setOnIncomingCall(handleIncomingCall);
+
+    janusService.setOnCallConnected(() => {
+      // This is handled by useCallControls
+    });
+
+    janusService.setOnCallEnded(() => {
+      // Call handleCallEnded from useIncomingCall to update history
+      handleCallEnded();
+    });
+
+    janusService.setOnError(handleError);
+
+    // Check if Janus is already initialized
+    if (janusService.isJanusConnected()) {
+      setIsJanusConnected(true);
+      
+      if (janusService.isRegistered()) {
+        setIsRegistered(true);
+      }
+    }
+
+    // Setup periodic check (every 10 seconds) for connection status
+    const checkConnectionInterval = setInterval(() => {
+      const connected = janusService.isJanusConnected();
+      const registered = janusService.isRegistered();
+      
+      setIsJanusConnected(connected);
+      setIsRegistered(registered);
+      
+      console.log("Connection status check: Janus connected:", connected, "SIP registered:", registered);
+    }, 10000);
+
+    return () => {
+      clearInterval(checkConnectionInterval);
+      // Don't disconnect on unmount - we want to keep the connection active for the entire app session
+    };
+  }, [handleIncomingCall, handleCallEnded, handleError, setIsJanusConnected, setIsRegistered]);
+
+  return {
+    isJanusConnected,
+    isRegistered,
+    errorMessage,
+    incomingCall,
+    handleAcceptCall,
+    handleRejectCall,
+    initializeJanus,
+    registerWithJanus,
+    janusService,
+    notificationsEnabled
   };
 };

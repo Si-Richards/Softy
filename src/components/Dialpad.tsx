@@ -1,141 +1,61 @@
-
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
 import DialpadGrid from "./dialpad/DialpadGrid";
 import NumberInput from "./dialpad/NumberInput";
 import CallControls from "./dialpad/CallControls";
 import { useJanusSetup } from "./dialpad/useJanusSetup";
-import janusService from "@/services/JanusService";
+import { useDTMFTone } from "@/hooks/useDTMFTone";
+import { useKeypadInput } from "@/hooks/useKeypadInput";
+import { useVideoStreams } from "@/hooks/useVideoStreams";
+import { useCallControls } from "@/hooks/useCallControls";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
-  const [muted, setMuted] = useState(false);
-  const [isCallActive, setIsCallActive] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
   const { isJanusConnected, errorMessage } = useJanusSetup();
-  const voicemailNumber = "*97";
+  const { playDTMFTone } = useDTMFTone();
+  const voicemailNumber = "1571"; // Updated voicemail number
+  
+  const {
+    isCallActive,
+    muted,
+    isVideoEnabled,
+    handleCall,
+    toggleMute,
+    toggleVideo,
+    startVideoCall,
+  } = useCallControls();
 
-  // Monitor remote stream changes
-  useEffect(() => {
-    if (isCallActive) {
-      // Check audio status periodically during active calls
-      const audioCheckInterval = setInterval(() => {
-        const remoteStream = janusService.getRemoteStream();
-        if (remoteStream) {
-          const audioTracks = remoteStream.getAudioTracks();
-          console.log(`Call active - Remote stream has ${audioTracks.length} audio tracks`);
-          audioTracks.forEach((track, i) => {
-            console.log(`Remote audio track ${i}: enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
-          });
-        }
-      }, 5000); // Check every 5 seconds
-      
-      return () => clearInterval(audioCheckInterval);
-    }
-  }, [isCallActive]);
+  const addDigitToNumber = (key: string) => {
+    setNumber((prev) => prev + key);
+  };
+
+  const handleBackspace = () => {
+    setNumber((prev) => prev.slice(0, -1));
+  };
+
+  useKeypadInput(addDigitToNumber);
+  useVideoStreams(isCallActive, localVideoRef, remoteVideoRef);
 
   const handleKeyPress = (key: string) => {
-    setNumber((prev) => prev + key);
+    addDigitToNumber(key);
+    playDTMFTone(key);
   };
 
   const clearNumber = () => {
     setNumber("");
   };
 
-  const handleCall = async () => {
-    if (isCallActive) {
-      try {
-        if (isJanusConnected) {
-          await janusService.hangup();
-        }
-        setIsCallActive(false);
-        setIsVideoEnabled(false);
-      } catch (error) {
-        console.error("Error hanging up:", error);
-      }
-    } else if (number) {
-      if (isJanusConnected) {
-        try {
-          await janusService.call(number);
-          setIsCallActive(true);
-          
-          // When call is initiated, check active status after a short delay
-          setTimeout(() => {
-            const remoteStream = janusService.getRemoteStream();
-            if (remoteStream) {
-              console.log("Remote stream after delay:", remoteStream);
-              console.log("Remote audio tracks:", remoteStream.getAudioTracks().length);
-              remoteStream.getAudioTracks().forEach(track => {
-                console.log("Remote audio track enabled:", track.enabled);
-                
-                // Explicitly ensure tracks are enabled
-                if (!track.enabled) {
-                  console.log("Enabling disabled remote audio track");
-                  track.enabled = true;
-                }
-              });
-            } else {
-              console.warn("No remote stream available yet after delay");
-            }
-          }, 2000);
-          
-        } catch (error) {
-          console.error("Error making call:", error);
-          toast({
-            title: "Call Failed",
-            description: "Failed to establish WebRTC call",
-            variant: "destructive",
-          });
-        }
-      } else {
-        setIsCallActive(true);
-        toast({
-          title: "Simulated Call",
-          description: "WebRTC server not connected. This is a simulated call.",
-        });
-      }
-    }
-  };
-
-  const toggleMute = () => {
-    const newMutedState = !muted;
-    setMuted(newMutedState);
-    
-    if (janusService.getLocalStream()) {
-      janusService.getLocalStream()?.getAudioTracks().forEach(track => {
-        console.log("Setting audio track enabled:", !newMutedState);
-        track.enabled = !newMutedState;
-      });
-    }
-  };
-
-  const toggleVideo = () => {
-    setIsVideoEnabled(!isVideoEnabled);
-    if (janusService.getLocalStream()) {
-      janusService.getLocalStream()?.getVideoTracks().forEach(track => {
-        track.enabled = !isVideoEnabled;
-      });
-    }
-  };
-
   const callVoicemail = () => {
     setNumber(voicemailNumber);
-    setIsCallActive(true);
+    handleCall(voicemailNumber, isJanusConnected);
     toast({
       title: "Calling voicemail",
       description: "Connecting to voicemail service...",
     });
-  };
-
-  const startVideoCall = () => {
-    if (number) {
-      setIsCallActive(true);
-      setIsVideoEnabled(true);
-    }
   };
 
   return (
@@ -157,6 +77,7 @@ const Dialpad = () => {
         number={number}
         onChange={setNumber}
         onClear={clearNumber}
+        onBackspace={handleBackspace}
       />
 
       <DialpadGrid onKeyPress={handleKeyPress} />
@@ -166,11 +87,11 @@ const Dialpad = () => {
         muted={muted}
         isVideoEnabled={isVideoEnabled}
         number={number}
-        onCall={handleCall}
+        onCall={() => handleCall(number, isJanusConnected)}
         onToggleMute={toggleMute}
         onToggleVideo={toggleVideo}
         onCallVoicemail={callVoicemail}
-        onStartVideoCall={startVideoCall}
+        onStartVideoCall={() => startVideoCall(number)}
       />
     </div>
   );

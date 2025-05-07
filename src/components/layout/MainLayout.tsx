@@ -1,0 +1,106 @@
+
+import React, { useState, useEffect } from "react";
+import Sidebar from "@/components/Sidebar";
+import PageHeader from "./PageHeader";
+import MainContent from "./MainContent";
+import MobileDialpadDrawer from "./MobileDialpadDrawer";
+import IncomingCallHandler from "./IncomingCallHandler";
+import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
+import { useToast } from "@/hooks/use-toast";
+
+// Define user presence type
+type UserPresence = "available" | "away" | "busy" | "offline";
+
+const MainLayout = () => {
+  // State management
+  const [activeTab, setActiveTab] = useState("home");
+  const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "connecting">("disconnected");
+  const [doNotDisturb, setDoNotDisturb] = useState(false);
+  const [userPresence, setUserPresence] = useState<UserPresence>("available");
+  
+  // Get Janus connection status
+  const { isJanusConnected, isRegistered, janusService } = useJanusSetup();
+  const { toast } = useToast();
+  
+  // Check for stored credentials on mount and try to connect automatically
+  useEffect(() => {
+    try {
+      const storedCredentials = localStorage.getItem('sipCredentials');
+      if (storedCredentials && !isRegistered && !isJanusConnected) {
+        const { username, password, sipHost } = JSON.parse(storedCredentials);
+        if (username && password) {
+          console.log("Found stored credentials, attempting automatic registration");
+          
+          // Slight delay before auto-connecting to ensure components are ready
+          const timer = setTimeout(() => {
+            janusService.initialize({
+              server: 'wss://devrtc.voicehost.io:443/janus',
+              apiSecret: 'overlord',
+              success: async () => {
+                try {
+                  await janusService.register(username, password, sipHost || "hpbx.sipconvergence.co.uk:5060");
+                  toast({
+                    title: "Auto-connected",
+                    description: "Successfully registered with saved credentials",
+                  });
+                } catch (error) {
+                  console.error("Auto-registration failed:", error);
+                }
+              },
+              error: (error) => {
+                console.error("Auto-connection failed:", error);
+              }
+            });
+          }, 1000);
+          
+          return () => clearTimeout(timer);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading stored credentials:", error);
+    }
+  // We only want this to run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Update connection status when Janus connection changes
+  useEffect(() => {
+    console.log("MainLayout: isJanusConnected =", isJanusConnected, "isRegistered =", isRegistered);
+    
+    if (isJanusConnected) {
+      if (isRegistered) {
+        setConnectionStatus("connected");
+      } else {
+        // Connected to WebRTC server but not registered with SIP
+        setConnectionStatus("connecting");
+      }
+    } else {
+      setConnectionStatus("disconnected");
+    }
+  }, [isJanusConnected, isRegistered]);
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex">
+      <div className="w-full max-w-5xl mx-auto my-8 bg-white rounded-xl shadow-lg overflow-hidden flex">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        
+        <div className="flex-1 flex flex-col">
+          <PageHeader 
+            doNotDisturb={doNotDisturb}
+            setDoNotDisturb={setDoNotDisturb}
+            userPresence={userPresence}
+            connectionStatus={connectionStatus}
+          />
+          
+          <MainContent activeTab={activeTab} />
+        </div>
+      </div>
+
+      {/* Mobile and call handling elements */}
+      <MobileDialpadDrawer />
+      <IncomingCallHandler />
+    </div>
+  );
+};
+
+export default MainLayout;
