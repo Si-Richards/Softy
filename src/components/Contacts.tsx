@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, ChevronDown } from "lucide-react";
@@ -15,7 +14,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import ContactEdit from "@/pages/ContactEdit";
 
 type SortOption = "nameAsc" | "nameDesc" | "company";
 
@@ -32,14 +32,13 @@ const ContactSkeleton = () => (
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("nameAsc");
+  const [editingContactId, setEditingContactId] = useState<number | null>(null);
   const [showNewContactModal, setShowNewContactModal] = useState(false);
   const { contacts, isLoading, error, toggleFavorite } = useContacts();
-  const navigate = useNavigate();
   
   const getSortedContacts = () => {
     return contacts.filter(contact => 
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contact.company && contact.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
       contact.number.includes(searchTerm)
     ).sort((a, b) => {
       switch (sortBy) {
@@ -58,11 +57,19 @@ const Contacts = () => {
   };
 
   const handleAddNewContact = () => {
-    navigate("/contacts/edit/0");
+    setShowNewContactModal(true);
+  };
+
+  const handleCloseNewContact = () => {
+    setShowNewContactModal(false);
   };
 
   const handleEditContact = (contactId: number) => {
-    navigate(`/contacts/edit/${contactId}`);
+    setEditingContactId(contactId);
+  };
+
+  const handleCloseEditContact = () => {
+    setEditingContactId(null);
   };
 
   if (isLoading) {
@@ -151,6 +158,20 @@ const Contacts = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={editingContactId !== null} onOpenChange={handleCloseEditContact}>
+        <DialogContent>
+          {editingContactId !== null && (
+            <ContactEdit contactId={editingContactId} onClose={handleCloseEditContact} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNewContactModal} onOpenChange={setShowNewContactModal}>
+        <DialogContent>
+          <ContactEdit contactId={0} onClose={handleCloseNewContact} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

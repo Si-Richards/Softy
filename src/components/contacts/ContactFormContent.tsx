@@ -4,6 +4,9 @@ import { Form } from "@/components/ui/form";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ContactDetailsFields } from "./ContactDetailsFields";
+import { PhoneNumberList } from "./PhoneNumberList";
 import { UseFormReturn } from "react-hook-form";
 import { FormValues } from "./ContactEditForm";
 
@@ -24,22 +27,25 @@ export const ContactFormContent = ({
   removePhoneNumber,
   setPrimaryPhoneNumber,
 }: ContactFormContentProps) => {
+  const navigate = useNavigate();
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <CardContent>
-          <div className="space-y-4">
-            {/* Import from ContactDetailsFields would be here */}
-            <div className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* We don't have access to edit ContactDetailsFields.tsx, so we need to work with what we have */}
-              </div>
-            </div>
-          </div>
+          <ContactDetailsFields form={form} />
+          
+          <PhoneNumberList
+            form={form}
+            phoneNumbers={phoneNumbers}
+            onAddPhoneNumber={addPhoneNumber}
+            onRemovePhoneNumber={removePhoneNumber}
+            onSetPrimaryPhoneNumber={setPrimaryPhoneNumber}
+          />
         </CardContent>
 
         <CardFooter className="flex justify-between px-6">
-          <Button variant="outline" type="button" onClick={() => form.reset()}>
+          <Button variant="outline" type="button" onClick={() => navigate(-1)}>
             Cancel
           </Button>
           <Button type="submit" disabled={form.formState.isSubmitting}>
