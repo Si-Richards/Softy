@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dialpad from "@/components/Dialpad";
 import CallHistory from "@/components/CallHistory";
@@ -20,8 +20,6 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { DraggableDialogContent } from "@/components/ui/draggable-dialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import QuickDial from "@/components/QuickDial";
-import IncomingCallDialog from "@/components/dialpad/IncomingCallDialog";
-import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
 
 type UserPresence = "available" | "away" | "busy" | "offline";
 
@@ -31,25 +29,6 @@ const Index = () => {
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
   const [isDialpadOpen, setIsDialpadOpen] = useState(false);
-  
-  const { 
-    incomingCall, 
-    handleAcceptCall, 
-    handleRejectCall,
-    isJanusConnected
-  } = useJanusSetup();
-  
-  useEffect(() => {
-    if (isJanusConnected) {
-      setConnectionStatus("connected");
-    }
-  }, [isJanusConnected]);
-
-  useEffect(() => {
-    if (incomingCall) {
-      console.log("Index received incoming call:", incomingCall);
-    }
-  }, [incomingCall]);
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -67,7 +46,7 @@ const Index = () => {
         return <Voicemail />;
       case "statistics":
         return <Statistics />;
-      case "devices":
+      case "audio":
         return <AudioSettings />;
       case "settings":
         return <SIPConfig />;
@@ -83,18 +62,7 @@ const Index = () => {
       case "connecting":
         return "bg-yellow-500";
       case "disconnected":
-        return "bg-red-500";
-    }
-  };
-
-  const getStatusText = () => {
-    switch (connectionStatus) {
-      case "connected":
-        return "Connected";
-      case "connecting":
-        return "Connecting...";
-      case "disconnected":
-        return "Disconnected";
+        return "bg-gray-400";
     }
   };
 
@@ -164,7 +132,8 @@ const Index = () => {
                 <div className="flex items-center space-x-2">
                   <div className={cn("h-2.5 w-2.5 rounded-full", getStatusColor())}></div>
                   <span className="text-sm font-medium text-gray-600">
-                    {getStatusText()}
+                    {connectionStatus === "connected" ? "Connected" : 
+                     connectionStatus === "connecting" ? "Connecting..." : "Disconnected"}
                   </span>
                 </div>
 
@@ -196,15 +165,6 @@ const Index = () => {
           <Dialpad />
         </DrawerContent>
       </Drawer>
-
-      {incomingCall && (
-        <IncomingCallDialog
-          isOpen={!!incomingCall}
-          callerNumber={incomingCall.from}
-          onAccept={handleAcceptCall}
-          onReject={handleRejectCall}
-        />
-      )}
     </div>
   );
 };

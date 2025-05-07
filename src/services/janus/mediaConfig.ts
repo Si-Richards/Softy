@@ -13,7 +13,7 @@ export class MediaConfigHandler {
     const audioInput = localStorage.getItem('selectedAudioInput');
     const videoInput = localStorage.getItem('selectedVideoInput');
     
-    // Enhanced audio constraints with fallback options
+    // Ensure we're explicitly requesting audio with echo cancellation and noise suppression
     const audioConstraints = audioInput 
       ? { 
           deviceId: { exact: audioInput }, 
@@ -27,21 +27,20 @@ export class MediaConfigHandler {
           autoGainControl: true
         };
     
-    // Only include video constraints if explicitly requested with a device
     return {
       audio: audioConstraints,
-      video: false // Default to no video
+      video: videoInput ? { deviceId: { exact: videoInput } } : false
     };
   }
 
-  getCallMediaConfig(isVideoCall: boolean): MediaConfig {
+  getCallMediaConfig(videoInput: string | null): MediaConfig {
     return {
-      audioRecv: true, // Always receive audio
-      videoRecv: isVideoCall,
-      audioSend: true, // Always send audio
-      videoSend: isVideoCall,
-      removeAudio: false, // Never remove audio
-      removeVideo: !isVideoCall
+      audioRecv: true,
+      videoRecv: true,
+      audioSend: true,
+      videoSend: !!videoInput,
+      removeAudio: false,
+      removeVideo: !videoInput
     };
   }
 
@@ -51,7 +50,7 @@ export class MediaConfigHandler {
       videoRecv: true,
       audioSend: true,
       videoSend: true,
-      removeAudio: false, // Never remove audio
+      removeAudio: false,
       removeVideo: false
     };
   }

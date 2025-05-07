@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Phone, MessageSquare, Video, Star, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -24,10 +25,9 @@ import { useNavigate } from "react-router-dom";
 interface ContactItemProps {
   contact: Contact;
   onToggleFavorite: (contactId: number) => void;
-  onEdit: () => void;
 }
 
-const ContactItem = ({ contact, onToggleFavorite, onEdit }: ContactItemProps) => {
+const ContactItem = ({ contact, onToggleFavorite }: ContactItemProps) => {
   const navigate = useNavigate();
 
   const getInitials = (name: string) => {
@@ -103,15 +103,9 @@ const ContactItem = ({ contact, onToggleFavorite, onEdit }: ContactItemProps) =>
           
           <div className="flex-1">
             <div className="font-medium">{contact.name}</div>
-            <div className="text-sm text-gray-500 flex items-center gap-2">
-              <span>{contact.countryCode}</span>
-              <span>{contact.number}</span>
-              {contact.company && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <span>{contact.company}</span>
-                </>
-              )}
+            <div className="text-sm text-gray-500">
+              <span className="mr-2">{contact.countryCode}</span>
+              {contact.number}
             </div>
           </div>
           

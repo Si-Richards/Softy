@@ -10,7 +10,7 @@ export class SipCallManager {
     this.mediaConfig = new MediaConfigHandler();
   }
 
-  async call(uri: string, isVideoCall: boolean = false): Promise<void> {
+  async call(uri: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.sipState.getSipPlugin()) {
         reject(new Error("SIP plugin not attached"));
@@ -25,11 +25,8 @@ export class SipCallManager {
       // Format the number properly in E.164 format with SIP URI
       const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
 
+      const videoInput = localStorage.getItem('selectedVideoInput');
       const constraints = this.mediaConfig.getCallMediaConstraints();
-      if (isVideoCall) {
-        const videoInput = localStorage.getItem('selectedVideoInput');
-        constraints.video = videoInput ? { deviceId: { exact: videoInput } } : true;
-      }
 
       console.log("Getting user media with constraints:", JSON.stringify(constraints));
       
@@ -39,37 +36,18 @@ export class SipCallManager {
           console.log("Audio tracks:", stream.getAudioTracks().length);
           console.log("Video tracks:", stream.getVideoTracks().length);
           
-          // Ensure audio tracks are enabled and log their details
-          stream.getAudioTracks().forEach((track, idx) => {
-            console.log(`Local audio track ${idx}:`, {
-              enabled: track.enabled,
-              muted: track.muted,
-              readyState: track.readyState,
-              id: track.id,
-              label: track.label
-            });
+          // Ensure audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            console.log("Audio track enabled:", track.enabled, "kind:", track.kind);
             track.enabled = true;
-            
-            // Set audio processing constraints if possible
-            if (track.getConstraints && track.applyConstraints) {
-              try {
-                track.applyConstraints({
-                  echoCancellation: true,
-                  noiseSuppression: true,
-                  autoGainControl: true
-                });
-              } catch (e) {
-                console.warn("Couldn't apply audio constraints:", e);
-              }
-            }
           });
 
-          // Create a proper WebRTC offer
           this.sipState.getSipPlugin().createOffer({
-            media: this.mediaConfig.getCallMediaConfig(isVideoCall),
+            media: this.mediaConfig.getCallMediaConfig(videoInput),
             stream: stream,
             success: (jsep: any) => {
-              console.log("Created offer with JSEP:", jsep);
+              console.log("SDP offer created:", jsep);
+              
               const message = {
                 request: "call",
                 uri: formattedUri
@@ -105,8 +83,6 @@ export class SipCallManager {
         return;
       }
 
-      console.log("SipCallManager: Accepting call with JSEP:", jsep);
-      
       // Get media constraints for answering calls
       const constraints = this.mediaConfig.getCallMediaConstraints();
       
@@ -116,29 +92,10 @@ export class SipCallManager {
         .then((stream) => {
           console.log("Got local media stream for accepting call:", stream);
           
-          // Ensure audio tracks are enabled and log their details
-          stream.getAudioTracks().forEach((track, idx) => {
-            console.log(`Local audio track ${idx} for accepting call:`, {
-              enabled: track.enabled,
-              muted: track.muted,
-              readyState: track.readyState,
-              id: track.id,
-              label: track.label
-            });
+          // Ensure audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            console.log("Audio track enabled for accepting call:", track.enabled, "kind:", track.kind);
             track.enabled = true;
-            
-            // Set audio processing constraints if possible
-            if (track.getConstraints && track.applyConstraints) {
-              try {
-                track.applyConstraints({
-                  echoCancellation: true,
-                  noiseSuppression: true,
-                  autoGainControl: true
-                });
-              } catch (e) {
-                console.warn("Couldn't apply audio constraints:", e);
-              }
-            }
           });
           
           this.sipState.getSipPlugin().createAnswer({
@@ -146,29 +103,27 @@ export class SipCallManager {
             media: this.mediaConfig.getAnswerMediaConfig(),
             stream: stream,
             success: (ourjsep: any) => {
-              console.log("Created answer with JSEP:", ourjsep);
+              console.log("SDP answer created:", ourjsep);
+              
               const message = { request: "accept" };
               this.sipState.getSipPlugin().send({
                 message,
                 jsep: ourjsep,
                 success: () => {
-                  console.log("Call accepted successfully");
+                  console.log("Call accepted");
                   resolve();
                 },
                 error: (error: any) => {
-                  console.error(`Error accepting call: ${error}`);
                   reject(new Error(`Error accepting call: ${error}`));
                 }
               });
             },
             error: (error: any) => {
-              console.error(`WebRTC error when creating answer: ${error}`);
               reject(new Error(`WebRTC error: ${error}`));
             }
           });
         })
         .catch((error) => {
-          console.error(`Media error when accepting call: ${error}`);
           reject(new Error(`Media error when accepting call: ${error}`));
         });
     });

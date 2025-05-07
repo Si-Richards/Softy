@@ -1,3 +1,4 @@
+
 import { JanusEventHandlers } from './janus/eventHandlers';
 import { JanusSessionManager } from './janus/sessionManager';
 import { JanusMediaHandler } from './janus/mediaHandler';
@@ -66,7 +67,6 @@ class JanusService {
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
-          console.log("Received SIP message:", msg, "with jsep:", jsep);
           this.sipHandler.handleSipMessage(msg, jsep, this.eventHandlers);
         },
         onlocalstream: (stream: MediaStream) => {
@@ -86,7 +86,7 @@ class JanusService {
     });
   }
 
-  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
+  setOnIncomingCall(callback: (from: string) => void): void {
     this.eventHandlers.setOnIncomingCall(callback);
   }
 
@@ -114,8 +114,8 @@ class JanusService {
     return this.sipHandler.register(username, password, sipHost);
   }
 
-  call(uri: string, isVideoCall: boolean = false): Promise<void> {
-    return this.sipHandler.call(uri, isVideoCall);
+  call(uri: string): Promise<void> {
+    return this.sipHandler.call(uri);
   }
 
   acceptCall(jsep: any): Promise<void> {
@@ -133,6 +133,19 @@ class JanusService {
   disconnect(): void {
     this.sipHandler.setRegistered(false);
     this.sessionManager.disconnect();
+  }
+
+  // Methods for audio output device management
+  setAudioOutputDevice(deviceId: string): void {
+    this.mediaHandler.setAudioOutputDevice(deviceId);
+  }
+
+  getAudioOutputDevice(): string | null {
+    return this.mediaHandler.getAudioOutputDevice();
+  }
+
+  applyAudioOutputDevice(element: HTMLMediaElement | null): void {
+    this.mediaHandler.applyAudioOutputToElement(element);
   }
 }
 

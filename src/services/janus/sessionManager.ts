@@ -1,4 +1,3 @@
-
 import type { JanusOptions } from './types';
 import { ConnectionRetry } from './utils/connectionRetry';
 
@@ -80,20 +79,13 @@ export class JanusSessionManager {
       return new Promise<void>((resolve, reject) => {
         const connect = async () => {
           return new Promise<void>((innerResolve, innerReject) => {
-            // Default Google STUN servers that work well for most connections
-            const defaultIceServers = [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-              { urls: 'stun:stun2.l.google.com:19302' },
-              { urls: 'stun:stun3.l.google.com:19302' },
-              { urls: 'stun:stun4.l.google.com:19302' }
-            ];
-            
             this.janus = new window.Janus({
               server: options.server,
               apisecret: options.apiSecret,
               keepAlivePeriod: 30000,
-              iceServers: options.iceServers || defaultIceServers,
+              iceServers: options.iceServers || [
+                { urls: 'stun:stun.l.google.com:19302' }
+              ],
               success: () => {
                 console.log('Janus session created successfully');
                 this.connectionState = 'connected';

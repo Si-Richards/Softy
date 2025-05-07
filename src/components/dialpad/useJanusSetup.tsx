@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 
@@ -7,14 +6,15 @@ export const useJanusSetup = () => {
   const [isJanusConnected, setIsJanusConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     // Set up Janus event handlers
-    janusService.setOnIncomingCall((from, jsep) => {
-      console.log(`Incoming call from ${from} with JSEP:`, jsep);
-      setIncomingCall({ from, jsep });
+    janusService.setOnIncomingCall((from) => {
+      toast({
+        title: "Incoming Call",
+        description: `Call from ${from}`,
+      });
     });
 
     janusService.setOnCallConnected(() => {
@@ -50,44 +50,6 @@ export const useJanusSetup = () => {
       // Don't disconnect on unmount - we want to keep the connection active for the entire app session
       // We'll handle disconnection separately when the user logs out or the app closes
     };
-  }, [toast]);
-
-  const handleAcceptCall = useCallback(async () => {
-    if (incomingCall?.jsep) {
-      try {
-        console.log("Accepting incoming call with JSEP:", incomingCall.jsep);
-        await janusService.acceptCall(incomingCall.jsep);
-        setIncomingCall(null);
-        toast({
-          title: "Call Accepted",
-          description: "You have accepted the call",
-        });
-      } catch (error) {
-        console.error("Error accepting call:", error);
-        toast({
-          title: "Error",
-          description: "Failed to accept the call",
-          variant: "destructive",
-        });
-      }
-    } else {
-      console.error("No incoming call JSEP available");
-      toast({
-        title: "Error",
-        description: "Cannot accept call: missing call data",
-        variant: "destructive",
-      });
-    }
-  }, [incomingCall, toast]);
-
-  const handleRejectCall = useCallback(() => {
-    console.log("Rejecting incoming call");
-    janusService.hangup();
-    setIncomingCall(null);
-    toast({
-      title: "Call Rejected",
-      description: "You have rejected the call",
-    });
   }, [toast]);
 
   const initializeJanus = async (username?: string, password?: string, host?: string) => {
@@ -148,9 +110,6 @@ export const useJanusSetup = () => {
     isJanusConnected,
     isRegistered,
     errorMessage,
-    incomingCall,
-    handleAcceptCall,
-    handleRejectCall,
     initializeJanus,
     registerWithJanus,
     janusService
