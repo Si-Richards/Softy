@@ -54,7 +54,7 @@ export const forgetCredentials = (
   // Reset form state
   setUsername("");
   setPassword("");
-  setSipHost("hpbx.voicehost.co.uk");
+  setSipHost("hpbx.voicehost.co.uk:5060");
   setRegistrationStatus("idle");
   setErrorMessage(null);
   
