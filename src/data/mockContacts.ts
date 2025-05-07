@@ -1,5 +1,5 @@
 
-import { Contact, PresenceStatus, PhoneNumber } from "@/types/contacts";
+import { Contact, PresenceStatus, PhoneNumber, PhoneType } from "@/types/contacts";
 
 export const mockContacts: Contact[] = [
   { 
@@ -23,14 +23,14 @@ export const mockContacts: Contact[] = [
     phoneNumbers: [
       {
         id: 1,
-        type: "mobile",
+        type: "mobile" as PhoneType,
         number: "+44 (555) 987-6543",
         countryCode: "GB",
         isPrimary: true
       },
       {
         id: 2,
-        type: "extension",
+        type: "extension" as PhoneType,
         number: "213",
         isPrimary: false
       }
