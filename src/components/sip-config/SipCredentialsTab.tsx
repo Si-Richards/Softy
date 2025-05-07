@@ -12,6 +12,8 @@ const SipCredentialsTab: React.FC = () => {
     setUsername,
     password,
     setPassword,
+    sipHost,
+    setSipHost,
     isLoading,
     registrationStatus,
     errorMessage,
@@ -48,6 +50,8 @@ const SipCredentialsTab: React.FC = () => {
           setUsername={setUsername}
           password={password}
           setPassword={setPassword}
+          sipHost={sipHost}
+          setSipHost={setSipHost}
           handleSave={handleSave}
           isDisabled={isFormDisabled}
           isReadOnly={isRegistered}

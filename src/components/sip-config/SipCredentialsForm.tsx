@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
 interface SipCredentialsFormProps {
@@ -14,6 +14,8 @@ interface SipCredentialsFormProps {
   isDisabled: boolean;
   isReadOnly?: boolean;
   buttonText: string;
+  sipHost?: string;
+  setSipHost?: (value: string) => void;
 }
 
 const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
@@ -24,26 +26,55 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
   handleSave,
   isDisabled,
   isReadOnly = false,
-  buttonText
+  buttonText,
+  sipHost: externalSipHost,
+  setSipHost: setExternalSipHost
 }) => {
-  const [sipHost, setSipHost] = useState("hpbx.sipconvergence.co.uk:5060");
+  const [internalSipHost, setInternalSipHost] = useState("hpbx.sipconvergence.co.uk:5060");
+  
+  // Sync internal state with external prop if provided
+  useEffect(() => {
+    if (externalSipHost) {
+      setInternalSipHost(externalSipHost);
+    }
+  }, [externalSipHost]);
+  
+  // Handle SIP host changes
+  const handleSipHostChange = (value: string) => {
+    setInternalSipHost(value);
+    if (setExternalSipHost) {
+      setExternalSipHost(value);
+    }
+  };
   
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Save SIP host in localStorage
+    try {
+      localStorage.setItem('lastSipHost', internalSipHost);
+    } catch (error) {
+      console.error("Error saving SIP host to localStorage:", error);
+    }
+    
     handleSave();
   };
 
   const handleDebugInfo = () => {
     if (typeof window !== "undefined") {
+      const rtcSupport = 'RTCPeerConnection' in window;
+      const wsSupport = 'WebSocket' in window;
+      
       console.log("WebRTC Browser Info:", {
         userAgent: navigator.userAgent,
-        webrtcSupport: 'RTCPeerConnection' in window,
-        webSocketSupport: 'WebSocket' in window
+        webrtcSupport: rtcSupport,
+        webSocketSupport: wsSupport,
+        platform: navigator.platform
       });
       
       toast({
         title: "Debug Info",
-        description: "WebRTC support info logged to console",
+        description: `WebRTC support: ${rtcSupport ? '✅' : '❌'}, WebSockets: ${wsSupport ? '✅' : '❌'}`,
       });
     }
   };
@@ -82,13 +113,16 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
         <Label htmlFor="host">SIP Host</Label>
         <Input
           id="host"
-          value={sipHost}
-          onChange={(e) => setSipHost(e.target.value)}
+          value={internalSipHost}
+          onChange={(e) => handleSipHostChange(e.target.value)}
           placeholder="SIP Server Address"
           disabled={isDisabled || isReadOnly}
           className={isReadOnly ? "bg-gray-100" : ""}
           readOnly={isReadOnly}
         />
+        <p className="text-xs text-gray-500">
+          Format: hostname:port (e.g., "hpbx.sipconvergence.co.uk:5060")
+        </p>
       </div>
       <div className="pt-4 flex gap-2 flex-wrap">
         <Button 

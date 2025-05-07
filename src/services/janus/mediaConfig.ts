@@ -13,19 +13,32 @@ export class MediaConfigHandler {
     const audioInput = localStorage.getItem('selectedAudioInput');
     const videoInput = localStorage.getItem('selectedVideoInput');
     
-    // Enhanced audio constraints with fallback options
+    // Get audio settings from localStorage
+    let audioSettings;
+    try {
+      const storedSettings = localStorage.getItem('audioSettings');
+      if (storedSettings) {
+        audioSettings = JSON.parse(storedSettings);
+      }
+    } catch (error) {
+      console.error("Error parsing audio settings:", error);
+    }
+    
+    // Enhanced audio constraints with saved preferences
     const audioConstraints = audioInput 
       ? { 
           deviceId: { exact: audioInput }, 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
+          echoCancellation: audioSettings?.echoSuppression !== false,
+          noiseSuppression: audioSettings?.noiseCancellation !== false,
+          autoGainControl: audioSettings?.autoGainControl !== false
         }
       : { 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
+          echoCancellation: audioSettings?.echoSuppression !== false, 
+          noiseSuppression: audioSettings?.noiseCancellation !== false,
+          autoGainControl: audioSettings?.autoGainControl !== false
         };
+    
+    console.log("Using audio constraints:", audioConstraints);
     
     // Only include video constraints if explicitly requested with a device
     return {

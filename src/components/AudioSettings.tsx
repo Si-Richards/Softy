@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Camera, Mic, Speaker } from "lucide-react";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
+import { useToast } from "@/hooks/use-toast";
 
 const AudioSettings = () => {
   const {
@@ -21,6 +22,7 @@ const AudioSettings = () => {
     setSelectedVideoInput,
   } = useMediaDevices();
 
+  const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -59,6 +61,11 @@ const AudioSettings = () => {
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
+      toast({
+        title: "Camera Error",
+        description: "Could not access the selected camera",
+        variant: "destructive"
+      });
     }
   };
 
@@ -146,7 +153,13 @@ const AudioSettings = () => {
             
             <div className="space-y-2">
               <Label htmlFor="microphone">Input device</Label>
-              <Select value={selectedAudioInput} onValueChange={setSelectedAudioInput}>
+              <Select 
+                value={selectedAudioInput} 
+                onValueChange={(value) => {
+                  setSelectedAudioInput(value);
+                  console.log("Selected audio input:", value);
+                }}
+              >
                 <SelectTrigger id="microphone">
                   <SelectValue placeholder="Select microphone" />
                 </SelectTrigger>
@@ -169,7 +182,13 @@ const AudioSettings = () => {
             
             <div className="space-y-2">
               <Label htmlFor="speaker">Output device</Label>
-              <Select value={selectedAudioOutput} onValueChange={setSelectedAudioOutput}>
+              <Select 
+                value={selectedAudioOutput} 
+                onValueChange={(value) => {
+                  setSelectedAudioOutput(value);
+                  console.log("Selected audio output:", value);
+                }}
+              >
                 <SelectTrigger id="speaker">
                   <SelectValue placeholder="Select speaker" />
                 </SelectTrigger>
@@ -192,7 +211,13 @@ const AudioSettings = () => {
             
             <div className="space-y-2">
               <Label htmlFor="camera">Video device</Label>
-              <Select value={selectedVideoInput} onValueChange={setSelectedVideoInput}>
+              <Select 
+                value={selectedVideoInput} 
+                onValueChange={(value) => {
+                  setSelectedVideoInput(value);
+                  console.log("Selected video input:", value);
+                }}
+              >
                 <SelectTrigger id="camera">
                   <SelectValue placeholder="Select camera" />
                 </SelectTrigger>

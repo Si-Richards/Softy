@@ -49,12 +49,22 @@ export const useJanusInitialization = () => {
           console.error("Janus initialization error:", error);
           setErrorMessage("Failed to connect to WebRTC server");
           setIsJanusConnected(false);
+          toast({
+            title: "Connection Failed",
+            description: "Could not connect to WebRTC server. Please check your network connection.",
+            variant: "destructive",
+          });
         }
       });
     } catch (error) {
       console.error("Janus initialization error:", error);
       setErrorMessage("Failed to connect to WebRTC server");
       setIsJanusConnected(false);
+      toast({
+        title: "Connection Error",
+        description: `WebRTC connection failed: ${error}`,
+        variant: "destructive",
+      });
     }
   }, [toast]);
 
@@ -67,9 +77,14 @@ export const useJanusInitialization = () => {
       }
       
       console.log(`Attempting SIP registration for ${username}@${host}`);
+      
+      // Log registration attempt with detailed parameters
+      console.log(`Registration parameters: username=${username}, host=${host}`);
+      
       await janusService.register(username, password, host);
       
-      // Set a timeout to verify registration was successful
+      // Set a longer timeout to verify registration was successful
+      // Some SIP servers may take longer to respond
       setTimeout(() => {
         if (janusService.isRegistered()) {
           console.log("SIP registration confirmed successful");
@@ -82,15 +97,20 @@ export const useJanusInitialization = () => {
           console.warn("SIP registration check failed");
           setIsRegistered(false);
           setErrorMessage("Registration didn't complete properly. Please try again.");
+          toast({
+            title: "Registration Failed",
+            description: "Registration timed out. Please try again.",
+            variant: "destructive",
+          });
         }
-      }, 2000);
+      }, 5000); // Increased to 5 seconds for slower servers
     } catch (error) {
       console.error("Registration error:", error);
       setErrorMessage("Failed to register with SIP server");
       setIsRegistered(false);
       toast({
         title: "Registration Failed",
-        description: "Failed to register with SIP server",
+        description: "Failed to register with SIP server. Please check your credentials.",
         variant: "destructive",
       });
     }

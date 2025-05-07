@@ -41,16 +41,18 @@ export class SipRegistrationManager {
       .replace(/^sip:/, '')  // Remove any 'sip:' prefix if present
       .split('@')[0];        // Remove any domain part if present
     
-    console.log(`SIP Registration: Attempting registration with ${cleanUsername}@${host} (attempt ${this.retryAttempts + 1})`);
+    console.log(`SIP Registration: Attempting registration with ${cleanUsername}@${host}:${port} (attempt ${this.retryAttempts + 1})`);
 
     // Send registration request with simplified parameters for better compatibility with Asterisk
     this.sipState.getSipPlugin().send({
       message: {
         request: "register",
-        username: cleanUsername,   // Just the username without SIP: prefix
-        secret: password,
-        proxy: `sip:${host}:${port}`, // Full proxy with sip: prefix
-        refresh: true              // Enable registration refresh
+        username: cleanUsername,            // Just the username without SIP: prefix
+        secret: password,                   // The password provided
+        proxy: `sip:${host}:${port}`,       // Full proxy with sip: prefix and port
+        refresh: true,                      // Enable registration refresh
+        force_udp: port === "5060",         // Force UDP for standard SIP port 5060
+        sips: false                         // Don't use SIPS protocol
       },
       success: () => {
         console.log(`SIP Registration: Request sent for ${cleanUsername}@${host}:${port}`);
@@ -99,6 +101,12 @@ export class SipRegistrationManager {
       // Add more context for specific errors
       if (errorMsg.includes("Missing session") || errorMsg.includes("Sofia stack")) {
         enhancedErrorMsg += " - Server may not have initialized the SIP stack properly. Please try again in a few moments.";
+      } else if (errorMsg.includes("401") || errorMsg.includes("407")) {
+        enhancedErrorMsg += " - Authentication failed. Please check your username and password.";
+      } else if (errorMsg.includes("403")) {
+        enhancedErrorMsg += " - Access forbidden. You may not have permission to register with this server.";
+      } else if (errorMsg.includes("504")) {
+        enhancedErrorMsg += " - Server timeout. The SIP server did not respond in time.";
       }
       
       reject(new Error(enhancedErrorMsg));
