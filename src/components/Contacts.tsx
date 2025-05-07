@@ -15,9 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { DraggableDialogContent } from "@/components/ui/draggable-dialog";
-import ContactEdit from "@/pages/ContactEdit";
+import { useNavigate } from "react-router-dom";
 
 type SortOption = "nameAsc" | "nameDesc" | "company";
 
@@ -34,9 +32,9 @@ const ContactSkeleton = () => (
 const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("nameAsc");
-  const [editingContactId, setEditingContactId] = useState<number | null>(null);
   const [showNewContactModal, setShowNewContactModal] = useState(false);
   const { contacts, isLoading, error, toggleFavorite } = useContacts();
+  const navigate = useNavigate();
   
   const getSortedContacts = () => {
     return contacts.filter(contact => 
@@ -60,19 +58,11 @@ const Contacts = () => {
   };
 
   const handleAddNewContact = () => {
-    setShowNewContactModal(true);
-  };
-
-  const handleCloseNewContact = () => {
-    setShowNewContactModal(false);
+    navigate("/contacts/edit/0");
   };
 
   const handleEditContact = (contactId: number) => {
-    setEditingContactId(contactId);
-  };
-
-  const handleCloseEditContact = () => {
-    setEditingContactId(null);
+    navigate(`/contacts/edit/${contactId}`);
   };
 
   if (isLoading) {
@@ -161,22 +151,6 @@ const Contacts = () => {
           </div>
         )}
       </div>
-
-      {/* Use DraggableDialogContent for edit contact modal */}
-      <Dialog open={editingContactId !== null} onOpenChange={handleCloseEditContact}>
-        <DraggableDialogContent className="max-w-2xl p-6">
-          {editingContactId !== null && (
-            <ContactEdit contactId={editingContactId} onClose={handleCloseEditContact} />
-          )}
-        </DraggableDialogContent>
-      </Dialog>
-
-      {/* Use DraggableDialogContent for new contact modal */}
-      <Dialog open={showNewContactModal} onOpenChange={setShowNewContactModal}>
-        <DraggableDialogContent className="max-w-2xl p-6">
-          <ContactEdit contactId={0} onClose={handleCloseNewContact} />
-        </DraggableDialogContent>
-      </Dialog>
     </div>
   );
 };

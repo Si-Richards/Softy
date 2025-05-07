@@ -12,13 +12,13 @@ import { ContactEditLoading } from "@/components/contacts/ContactEditLoading";
 import { ContactEditError } from "@/components/contacts/ContactEditError";
 import { ContactFormContent } from "@/components/contacts/ContactFormContent";
 import { contactSchema, FormValues } from "@/components/contacts/ContactEditForm";
+import { useNavigate, useParams } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
 
-interface ContactEditProps {
-  contactId: number;
-  onClose: () => void;
-}
-
-const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
+const ContactEdit = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const contactId = parseInt(id || "0");
   const { contacts, isLoading, error, updateContact } = useContacts();
   const [nextPhoneId, setNextPhoneId] = useState(1);
   const isNewContact = contactId === 0;
@@ -46,6 +46,10 @@ const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
       .map(part => part?.[0] || '')
       .join('')
       .toUpperCase();
+  };
+
+  const onClose = () => {
+    navigate(-1);
   };
 
   useEffect(() => {
@@ -176,33 +180,37 @@ const ContactEdit = ({ contactId, onClose }: ContactEditProps) => {
   if (!isNewContact && !contacts.find(c => c.id === contactId)) return <ContactEditError />;
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <CardTitle>{title}</CardTitle>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-3xl">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <CardTitle>{title}</CardTitle>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-      <div className="flex items-center space-x-4 mb-6">
-        <Avatar className="h-20 w-20">
-          {form.watch("avatar") ? (
-            <AvatarImage src={form.watch("avatar") || ""} alt={form.watch("name")} />
-          ) : (
-            <AvatarFallback className="text-xl">{getInitials(form.watch("name"))}</AvatarFallback>
-          )}
-        </Avatar>
-      </div>
+          <div className="flex items-center space-x-4 mb-6">
+            <Avatar className="h-20 w-20">
+              {form.watch("avatar") ? (
+                <AvatarImage src={form.watch("avatar") || ""} alt={form.watch("name")} />
+              ) : (
+                <AvatarFallback className="text-xl">{getInitials(form.watch("name"))}</AvatarFallback>
+              )}
+            </Avatar>
+          </div>
 
-      <ContactFormContent
-        form={form}
-        phoneNumbers={phoneNumbers}
-        onSubmit={onSubmit}
-        addPhoneNumber={addPhoneNumber}
-        removePhoneNumber={removePhoneNumber}
-        setPrimaryPhoneNumber={setPrimaryPhoneNumber}
-      />
-    </>
+          <ContactFormContent
+            form={form}
+            phoneNumbers={phoneNumbers}
+            onSubmit={onSubmit}
+            addPhoneNumber={addPhoneNumber}
+            removePhoneNumber={removePhoneNumber}
+            setPrimaryPhoneNumber={setPrimaryPhoneNumber}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
