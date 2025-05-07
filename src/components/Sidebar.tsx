@@ -1,13 +1,15 @@
+
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Home, Phone, Clock, Users, Settings, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound, BellOff } from "lucide-react";
+import { Home, Phone, Clock, Users, Settings, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, User, BellOff } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import CallStatus from "@/components/CallStatus";
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -16,6 +18,7 @@ interface SidebarProps {
   setDoNotDisturb: (state: boolean) => void;
   userPresence: "available" | "away" | "busy" | "offline";
 }
+
 const Sidebar = ({
   activeTab,
   setActiveTab,
@@ -28,7 +31,7 @@ const Sidebar = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const user = {
     name: "John Doe",
-    avatar: "/placeholder.svg"
+    avatar: "" // Empty avatar to show the default icon
   };
   const version = "v1.0.0";
 
@@ -74,11 +77,13 @@ const Sidebar = ({
     label: "Settings",
     icon: <Settings className="w-[27.5px] h-[27.5px]" />
   }];
+
   const handleExpandToggle = () => {
     setIsTransitioning(true);
     setIsExpanded(!isExpanded);
     setTimeout(() => setIsTransitioning(false), 300);
   };
+
   const getPresenceColor = () => {
     if (doNotDisturb) return "bg-softphone-error";
     switch (userPresence) {
@@ -92,10 +97,12 @@ const Sidebar = ({
         return "bg-gray-400";
     }
   };
+
   const getPresenceText = () => {
     if (doNotDisturb) return "Do Not Disturb";
     return userPresence.charAt(0).toUpperCase() + userPresence.slice(1);
   };
+
   const getStatusColor = () => {
     switch (connectionStatus) {
       case "connected":
@@ -106,6 +113,7 @@ const Sidebar = ({
         return "bg-red-500";
     }
   };
+
   const getStatusText = () => {
     switch (connectionStatus) {
       case "connected":
@@ -116,14 +124,18 @@ const Sidebar = ({
         return "Disconnected";
     }
   };
+
   return <div className={cn("h-full bg-softphone-dark flex flex-col border-r border-gray-700 transition-all duration-300", isExpanded ? "w-52" : "w-20")}>
       <div className="p-4 border-b border-gray-700">
         <div className={cn("flex items-center gap-3", !isExpanded && "justify-center")}>
           <Avatar>
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>
-              <UserRound className="w-6 h-6 text-gray-400" />
-            </AvatarFallback>
+            {user.avatar ? (
+              <AvatarImage src={user.avatar} alt={user.name} />
+            ) : (
+              <AvatarFallback>
+                <User className="w-6 h-6 text-gray-400" />
+              </AvatarFallback>
+            )}
           </Avatar>
           {isExpanded && <div className={cn("flex flex-col transition-opacity duration-200", isTransitioning ? "opacity-0" : "opacity-100")}>
               <span className="text-sm font-medium text-white">{user.name}</span>
@@ -185,4 +197,5 @@ const Sidebar = ({
       </div>
     </div>;
 };
+
 export default Sidebar;

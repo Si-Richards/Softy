@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, ChevronDown } from "lucide-react";
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DraggableDialogContent } from "@/components/ui/draggable-dialog";
 import ContactEdit from "@/pages/ContactEdit";
 
 type SortOption = "nameAsc" | "nameDesc" | "company";
@@ -39,6 +41,7 @@ const Contacts = () => {
   const getSortedContacts = () => {
     return contacts.filter(contact => 
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (contact.company && contact.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
       contact.number.includes(searchTerm)
     ).sort((a, b) => {
       switch (sortBy) {
@@ -159,18 +162,20 @@ const Contacts = () => {
         )}
       </div>
 
+      {/* Use DraggableDialogContent for edit contact modal */}
       <Dialog open={editingContactId !== null} onOpenChange={handleCloseEditContact}>
-        <DialogContent>
+        <DraggableDialogContent className="max-w-2xl p-6">
           {editingContactId !== null && (
             <ContactEdit contactId={editingContactId} onClose={handleCloseEditContact} />
           )}
-        </DialogContent>
+        </DraggableDialogContent>
       </Dialog>
 
+      {/* Use DraggableDialogContent for new contact modal */}
       <Dialog open={showNewContactModal} onOpenChange={setShowNewContactModal}>
-        <DialogContent>
+        <DraggableDialogContent className="max-w-2xl p-6">
           <ContactEdit contactId={0} onClose={handleCloseNewContact} />
-        </DialogContent>
+        </DraggableDialogContent>
       </Dialog>
     </div>
   );
