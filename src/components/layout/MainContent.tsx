@@ -30,7 +30,6 @@ const MainContent = ({ activeTab }: MainContentProps) => {
         return <Voicemail />;
       case "statistics":
         return <Statistics />;
-      case "devices":
       case "settings":
         return <SIPConfig activeTab={activeTab} />;
       default:

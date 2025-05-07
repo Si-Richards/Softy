@@ -1,5 +1,5 @@
 
-import { Contact, PresenceStatus } from "@/types/contacts";
+import { Contact, PresenceStatus, PhoneNumber } from "@/types/contacts";
 
 export const mockContacts: Contact[] = [
   { 
@@ -18,7 +18,23 @@ export const mockContacts: Contact[] = [
     favorite: true,
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120&h=120",
     presence: "busy" as PresenceStatus,
-    countryCode: "GB"
+    countryCode: "GB",
+    company: "VoiceHost",
+    phoneNumbers: [
+      {
+        id: 1,
+        type: "mobile",
+        number: "+44 (555) 987-6543",
+        countryCode: "GB",
+        isPrimary: true
+      },
+      {
+        id: 2,
+        type: "extension",
+        number: "213",
+        isPrimary: false
+      }
+    ]
   },
   { 
     id: 3, 
