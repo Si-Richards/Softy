@@ -1,137 +1,93 @@
 
+import type { SipEventHandlers, SipPluginMessage } from './types';
 import { SipState } from './sipState';
 import { SipCallManager } from './sipCallManager';
-import { SipPluginMessage, SipEventHandlers } from './types';
 
 export class SipEventHandler {
   constructor(
     private sipState: SipState,
-    private callManager: SipCallManager
+    private sipCallManager: SipCallManager
   ) {}
 
   handleSipMessage(msg: SipPluginMessage, jsep: any, eventHandlers: SipEventHandlers): void {
-    console.log("SIP Message received:", JSON.stringify(msg, null, 2));
-    
-    if (msg.error) {
-      console.error(`SIP Error: ${msg.error}`);
-      this.handleSipError(msg.error, eventHandlers);
-      return;
-    }
-
-    if (!msg.result) {
-      return;
-    }
+    if (!this.sipState.getSipPlugin()) return;
 
     const result = msg.result;
-    const event = result.event;
-
-    switch (event) {
-      case "registration_failed": {
-        console.error(`SIP Registration failed: ${result.code || "Unknown error"} - ${result.reason || "No reason provided"}`);
-        
-        this.handleRegistrationFailure(result.code, result.reason, eventHandlers);
-        this.sipState.setRegistered(false);
-        break;
+    if (result) {
+      if (result.event) {
+        this.handleEvent(result.event, result, jsep, eventHandlers);
       }
+    }
 
-      case "registered": {
-        console.log("SIP registration successful");
+    if (msg.error) {
+      console.error("SIP error:", msg.error);
+      if (eventHandlers.onError) {
+        eventHandlers.onError(`SIP error: ${msg.error}`);
+      }
+    }
+
+    // Only handle jsep separately if it's not already handled in an event
+    // This prevents calling handleRemoteJsep multiple times for the same jsep object
+    if (jsep && !result?.event) {
+      console.log("Handling SIP jsep separately", jsep);
+      this.sipState.getSipPlugin().handleRemoteJsep({ jsep });
+    }
+  }
+
+  private handleEvent(
+    event: string,
+    result: SipPluginMessage['result'],
+    jsep: any,
+    eventHandlers: SipEventHandlers
+  ): void {
+    console.log(`SIP event received: ${event}`, result);
+    
+    switch (event) {
+      case "registered":
+        console.log("Successfully registered with the SIP server");
         this.sipState.setRegistered(true);
         break;
-      }
-
-      case "registration_progress": {
-        console.log("SIP registration process starting");
+      case "registering":
+        console.log("Registering with the SIP server");
         break;
-      }
-
+      case "registration_failed":
+        console.log("Registration failed:", result);
+        this.sipState.setRegistered(false);
+        if (eventHandlers.onError) {
+          eventHandlers.onError(`SIP registration failed: ${result.code || "Unknown error"}`);
+        }
+        break;
+      case "calling":
+        console.log("Calling...");
+        break;
       case "incomingcall": {
-        // Handle incoming call
-        console.log("Incoming SIP call");
-        if (eventHandlers.onIncomingCall && result.username) {
-          eventHandlers.onIncomingCall(result.username, jsep);
+        const username = result.username || "Unknown caller";
+        console.log("Incoming call from", username);
+        
+        // Don't handle jsep here as we'll need it in the accept method
+        if (jsep) {
+          console.log("Processing incoming call jsep:", jsep);
+        }
+        
+        if (eventHandlers.onIncomingCall) {
+          // Pass both username and jsep to the callback
+          eventHandlers.onIncomingCall(username, jsep);
         }
         break;
       }
-
-      case "accepted": {
-        // Call accepted
-        console.log("SIP call accepted");
-        if (eventHandlers.onCallConnected) {
-          eventHandlers.onCallConnected();
+      case "accepted":
+        console.log("Call accepted");
+        if (jsep) {
+          console.log("Processing accepted call jsep:", jsep);
+          this.sipState.getSipPlugin().handleRemoteJsep({ jsep });
         }
         break;
-      }
-
-      case "hangup": {
-        // Call ended
-        console.log("SIP call ended");
+      case "hangup":
+        console.log("Call hung up");
         if (eventHandlers.onCallEnded) {
           eventHandlers.onCallEnded();
         }
         break;
-      }
-
-      default:
-        console.log(`Unhandled SIP event: ${event}`);
-    }
-
-    // Handle JSep if provided
-    if (jsep) {
-      this.callManager.handleRemoteJsep(jsep);
-    }
-  }
-
-  private handleSipError(error: string, eventHandlers: SipEventHandlers): void {
-    // Enhanced error handling with descriptive messages
-    let enhancedError = error;
-
-    if (error.includes("Missing session") || error.includes("Sofia stack")) {
-      enhancedError = "Server SIP stack not initialized. Please try again in a few moments.";
-    } else if (error.includes("Unauthorized")) {
-      enhancedError = "Authentication failed: Please check your credentials.";
-    } else if (error.includes("Request Timeout")) {
-      enhancedError = "Request timed out: SIP server may be experiencing connectivity issues.";
-    } else if (error.includes("Not Found")) {
-      enhancedError = "SIP account not found. Please verify your username.";
-    }
-
-    if (eventHandlers.onError) {
-      eventHandlers.onError(enhancedError);
-    }
-  }
-
-  private handleRegistrationFailure(code: string | undefined, reason: string | undefined, eventHandlers: SipEventHandlers): void {
-    let errorMessage = "SIP registration failed";
-    
-    // Handle specific registration error codes
-    if (code) {
-      switch (code) {
-        case "401":
-        case "407":
-          errorMessage = "Authentication failed: Please check your credentials.";
-          break;
-        case "403":
-          errorMessage = "Registration forbidden: Your account may be disabled.";
-          break;
-        case "404":
-          errorMessage = "SIP account not found. Please verify your username.";
-          break;
-        case "408":
-          errorMessage = "Registration request timed out. Server may be unreachable.";
-          break;
-        case "499":
-          errorMessage = "Server SIP stack not initialized. Please try again in a few moments.";
-          break;
-        default:
-          errorMessage = `Registration failed with code ${code}${reason ? ': ' + reason : ''}`;
-      }
-    } else if (reason) {
-      errorMessage = `Registration failed: ${reason}`;
-    }
-    
-    if (eventHandlers.onError) {
-      eventHandlers.onError(errorMessage);
     }
   }
 }

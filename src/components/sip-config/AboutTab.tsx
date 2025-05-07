@@ -1,15 +1,18 @@
+
 import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-const AboutTab = () => <Card>
+
+const AboutTab = () => (
+  <Card>
     <CardHeader>
       <CardTitle>About</CardTitle>
       <CardDescription>Software information and version details</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
       <div>
-        <h3 className="text-lg font-medium">VoiceHost Softphone Application</h3>
-        <p className="text-sm text-gray-500">Enterprise Communication Solutions</p>
+        <h3 className="text-lg font-medium">My Company Softphone</h3>
+        <p className="text-sm text-gray-500">Enterprise Communication Solution</p>
       </div>
       <div className="grid grid-cols-2 gap-4 pt-2">
         <div>
@@ -45,5 +48,7 @@ const AboutTab = () => <Card>
       <Button variant="outline" size="sm">Check for Updates</Button>
       <Button size="sm">Support</Button>
     </CardFooter>
-  </Card>;
+  </Card>
+);
+
 export default AboutTab;

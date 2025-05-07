@@ -1,3 +1,4 @@
+
 import { SipState } from './sipState';
 import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';
@@ -150,33 +151,6 @@ export class SipCallManager {
           reject(new Error(`Error hanging up: ${error}`));
         }
       });
-    });
-  }
-
-  /**
-   * Handles remote JSEP (JavaScript Session Establishment Protocol) objects
-   * used in WebRTC signaling for SIP calls
-   * @param jsep The remote JSEP object containing SDP information
-   */
-  handleRemoteJsep(jsep: any): void {
-    if (!jsep) {
-      console.warn("Received empty JSEP in handleRemoteJsep");
-      return;
-    }
-
-    console.log("Handling remote JSEP:", jsep.type);
-    
-    const sipPlugin = this.sipState.getSipPlugin();
-    if (!sipPlugin) {
-      console.error("Cannot handle remote JSEP: SIP plugin not attached");
-      return;
-    }
-
-    sipPlugin.handleRemoteJsep({
-      jsep: jsep,
-      error: (error: any) => {
-        console.error(`Error handling remote JSEP: ${error}`);
-      }
     });
   }
 }
