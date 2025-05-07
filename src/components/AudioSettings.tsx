@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -74,7 +73,7 @@ const AudioSettings = () => {
     });
   };
 
-  // Test audio output
+  // Test audio output - fixed to address type issue
   const testSpeaker = () => {
     if (!selectedAudioOutput) {
       toast({
@@ -86,14 +85,24 @@ const AudioSettings = () => {
     }
 
     try {
+      // Create a properly typed audio element
       const audio = new Audio();
       audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; // Short beep
       
       // Set the audio output device if supported
-      if ('setSinkId' in audio) {
-        (audio as any).setSinkId(selectedAudioOutput)
+      if ('setSinkId' in HTMLMediaElement.prototype) {
+        (audio as HTMLAudioElement).setSinkId(selectedAudioOutput)
           .then(() => {
-            audio.play();
+            // Play after we've set the sink ID
+            audio.play().catch(err => {
+              console.error("Error playing test sound:", err);
+              toast({
+                title: "Speaker Test Failed",
+                description: "Could not play test sound: " + err.message,
+                variant: "destructive",
+              });
+            });
+            
             toast({
               title: "Speaker Test",
               description: "Playing test sound...",
@@ -110,7 +119,15 @@ const AudioSettings = () => {
           });
       } else {
         // Fall back to default device if setSinkId is not supported
-        audio.play();
+        audio.play().catch(err => {
+          console.error("Error playing test sound:", err);
+          toast({
+            title: "Speaker Test Failed",
+            description: "Could not play test sound: " + err.message,
+            variant: "destructive",
+          });
+        });
+        
         toast({
           title: "Speaker Test",
           description: "Playing test sound on default device (browser doesn't support output device selection)",
