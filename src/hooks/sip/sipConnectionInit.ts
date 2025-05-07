@@ -48,16 +48,29 @@ export const performRegistration = async (
   setErrorMessage: (error: string | null) => void
 ): Promise<boolean> => {
   try {
-    console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
+    // Make sure sipHost contains the UDP port 5060
+    const hostParts = sipHost.split(':');
+    const host = hostParts[0];
+    const completeHost = hostParts.length > 1 ? sipHost : `${host}:5060`;
+    
+    console.log(`Attempting to register with username: ${username}, host: ${completeHost} (UDP)`);
     
     // Pass credentials to the SIP registration service
-    await janusService.register(username, password, sipHost);
+    await janusService.register(username, password, completeHost);
     
     setProgressValue(80);
     
-    // Check if registration was successful after a short delay
+    // Extended check for registration success with increased timeout
     return new Promise((resolve) => {
-      setTimeout(() => {
+      // Start checking registration status repeatedly
+      let checkCount = 0;
+      const maxChecks = 10;
+      const checkInterval = 1000; // 1 second
+      
+      const checkRegistration = () => {
+        checkCount++;
+        console.log(`Checking registration status (attempt ${checkCount}/${maxChecks})...`);
+        
         if (janusService.isRegistered()) {
           console.log("SIP Registration confirmed successful");
           setRegistrationStatus("connected");
@@ -66,7 +79,11 @@ export const performRegistration = async (
           
           // Save credentials to localStorage
           try {
-            localStorage.setItem('sipCredentials', JSON.stringify({ username, password, sipHost }));
+            localStorage.setItem('sipCredentials', JSON.stringify({ 
+              username, 
+              password, 
+              sipHost: completeHost 
+            }));
           } catch (error) {
             console.error("Error saving credentials:", error);
           }
@@ -77,9 +94,15 @@ export const performRegistration = async (
           });
           
           resolve(true);
+          return;
+        }
+        
+        // Continue checking if we haven't exceeded max attempts
+        if (checkCount < maxChecks) {
+          setTimeout(checkRegistration, checkInterval);
         } else {
-          // If not registered after a delay, show an error
-          console.warn("SIP Registration check failed after timeout");
+          // Registration failed after all attempts
+          console.warn("SIP Registration check failed after multiple attempts");
           setRegistrationStatus("failed");
           setIsLoading(false);
           setErrorMessage("Registration timed out. Please check your credentials and try again.");
@@ -88,10 +111,12 @@ export const performRegistration = async (
             description: "Registration timed out. Please check your credentials and try again.",
             variant: "destructive",
           });
-          
           resolve(false);
         }
-      }, 5000); // 5 seconds timeout for more reliability
+      };
+      
+      // Start the registration check loop
+      setTimeout(checkRegistration, 1000);
     });
   } catch (error) {
     throw error;
@@ -121,6 +146,11 @@ export const handleRegistrationError = (
   // Add specific guidance for Sofia SIP stack errors
   if (error.message && (error.message.includes('Missing session') || error.message.includes('Sofia stack'))) {
     errorMsg = "Server SIP stack not initialized. Please try again in a few moments.";
+  }
+  
+  // Add guidance for UDP-specific issues
+  if (error.message && error.message.includes('timeout')) {
+    errorMsg = "Connection timed out. Make sure your SIP server accepts UDP connections on port 5060.";
   }
   
   console.error(errorMsg);

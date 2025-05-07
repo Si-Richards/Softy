@@ -24,6 +24,9 @@ export class MediaConfigHandler {
       console.error("Error parsing audio settings:", error);
     }
     
+    // Apply saved audio input device if available
+    console.log("Using saved audio input device:", audioInput || "default");
+    
     // Enhanced audio constraints with saved preferences
     const audioConstraints = audioInput 
       ? { 

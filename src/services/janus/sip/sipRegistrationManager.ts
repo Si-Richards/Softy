@@ -43,17 +43,24 @@ export class SipRegistrationManager {
     
     console.log(`SIP Registration: Attempting registration with ${cleanUsername}@${host}:${port} (attempt ${this.retryAttempts + 1})`);
 
-    // Send registration request with simplified parameters for better compatibility with Asterisk
+    // Enhanced registration message specifically for Asterisk over UDP port 5060
+    const registrationRequest = {
+      request: "register",
+      username: cleanUsername,            // Just the username without SIP: prefix
+      secret: password,                   // The password provided
+      proxy: `sip:${host}:${port}`,       // Full proxy with sip: prefix and port
+      refresh: true,                      // Enable registration refresh
+      force_udp: true,                    // Force UDP for Asterisk compatibility
+      sips: false,                        // Don't use SIPS protocol
+      rfc2543_cancel: true,               // Use RFC2543 style CANCEL for better Asterisk compatibility
+      master_id: undefined,               // No master ID for direct registration
+      register_ttl: 120                   // Longer registration TTL for stability
+    };
+
+    console.log("Sending SIP registration request:", JSON.stringify(registrationRequest));
+    
     this.sipState.getSipPlugin().send({
-      message: {
-        request: "register",
-        username: cleanUsername,            // Just the username without SIP: prefix
-        secret: password,                   // The password provided
-        proxy: `sip:${host}:${port}`,       // Full proxy with sip: prefix and port
-        refresh: true,                      // Enable registration refresh
-        force_udp: port === "5060",         // Force UDP for standard SIP port 5060
-        sips: false                         // Don't use SIPS protocol
-      },
+      message: registrationRequest,
       success: () => {
         console.log(`SIP Registration: Request sent for ${cleanUsername}@${host}:${port}`);
         

@@ -5,6 +5,7 @@ import { useSipConnection } from "@/hooks/useSipConnection";
 import SipConnectionStatus from "./SipConnectionStatus";
 import SipCredentialsForm from "./SipCredentialsForm";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SipCredentialsTab: React.FC = () => {
   const {
@@ -38,6 +39,13 @@ const SipCredentialsTab: React.FC = () => {
         <CardDescription>Enter your SIP account credentials</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Connection type notice */}
+        <Alert className="bg-blue-50 border-blue-200">
+          <AlertDescription className="text-blue-800">
+            <strong>Connection Info:</strong> Using UDP on port 5060 for SIP traffic
+          </AlertDescription>
+        </Alert>
+        
         <SipConnectionStatus 
           status={registrationStatus}
           errorMessage={errorMessage}
