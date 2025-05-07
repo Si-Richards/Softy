@@ -34,7 +34,7 @@ const MainLayout = () => {
           // Slight delay before auto-connecting to ensure components are ready
           const timer = setTimeout(() => {
             janusService.initialize({
-              server: 'wss://devrtc.voicehost.io:443/janus',
+              server: 'wss://devrtc.voicehost.io:8989/ws',
               apiSecret: 'overlord',
               success: async () => {
                 try {
