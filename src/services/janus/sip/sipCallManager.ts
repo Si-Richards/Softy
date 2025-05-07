@@ -39,12 +39,32 @@ export class SipCallManager {
           console.log("Audio tracks:", stream.getAudioTracks().length);
           console.log("Video tracks:", stream.getVideoTracks().length);
           
-          // Ensure audio tracks are enabled
-          stream.getAudioTracks().forEach(track => {
-            console.log("Audio track enabled:", track.enabled);
+          // Ensure audio tracks are enabled and log their details
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Local audio track ${idx}:`, {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id,
+              label: track.label
+            });
             track.enabled = true;
+            
+            // Set audio processing constraints if possible
+            if (track.getConstraints && track.applyConstraints) {
+              try {
+                track.applyConstraints({
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                });
+              } catch (e) {
+                console.warn("Couldn't apply audio constraints:", e);
+              }
+            }
           });
 
+          // Create a proper WebRTC offer
           this.sipState.getSipPlugin().createOffer({
             media: this.mediaConfig.getCallMediaConfig(isVideoCall),
             stream: stream,
@@ -96,9 +116,29 @@ export class SipCallManager {
         .then((stream) => {
           console.log("Got local media stream for accepting call:", stream);
           
-          // Ensure audio tracks are enabled
-          stream.getAudioTracks().forEach(track => {
+          // Ensure audio tracks are enabled and log their details
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Local audio track ${idx} for accepting call:`, {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id,
+              label: track.label
+            });
             track.enabled = true;
+            
+            // Set audio processing constraints if possible
+            if (track.getConstraints && track.applyConstraints) {
+              try {
+                track.applyConstraints({
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                });
+              } catch (e) {
+                console.warn("Couldn't apply audio constraints:", e);
+              }
+            }
           });
           
           this.sipState.getSipPlugin().createAnswer({

@@ -36,9 +36,9 @@ export class MediaConfigHandler {
 
   getCallMediaConfig(isVideoCall: boolean): MediaConfig {
     return {
-      audioRecv: true,
+      audioRecv: true, // Always receive audio
       videoRecv: isVideoCall,
-      audioSend: true,
+      audioSend: true, // Always send audio
       videoSend: isVideoCall,
       removeAudio: false, // Never remove audio
       removeVideo: !isVideoCall
