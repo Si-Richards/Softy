@@ -29,7 +29,7 @@ export const useJanusInitialization = () => {
       console.log("Initializing Janus connection...");
       
       await janusService.initialize({
-        server: 'wss://devrtc.voicehost.io:8989/ws',
+        server: 'wss://devrtc.voicehost.io:443/janus',
         apiSecret: 'overlord',
         success: () => {
           console.log("Janus initialized successfully");

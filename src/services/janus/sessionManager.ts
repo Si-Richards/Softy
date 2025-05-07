@@ -91,7 +91,7 @@ export class JanusSessionManager {
         const connect = async () => {
           return new Promise<void>((innerResolve, innerReject) => {
             // Make sure we're using the correct server URL
-            const serverUrl = options.server || 'wss://devrtc.voicehost.io:8989/ws';
+            const serverUrl = options.server || 'wss://devrtc.voicehost.io:443/janus';
             console.log(`Connecting to Janus server at ${serverUrl}`);
             
             this.janus = new window.Janus({

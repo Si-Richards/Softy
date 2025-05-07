@@ -34,11 +34,11 @@ const MainLayout = () => {
           // Slight delay before auto-connecting to ensure components are ready
           const timer = setTimeout(() => {
             janusService.initialize({
-              server: 'wss://devrtc.voicehost.io:8989/ws',
+              server: 'wss://devrtc.voicehost.io:443/janus',
               apiSecret: 'overlord',
               success: async () => {
                 try {
-                  await janusService.register(username, password, sipHost || "hpbx.voicehost.co.uk:5060");
+                  await janusService.register(username, password, sipHost || "hpbx.sipconvergence.co.uk:5060");
                   toast({
                     title: "Auto-connected",
                     description: "Successfully registered with saved credentials",
