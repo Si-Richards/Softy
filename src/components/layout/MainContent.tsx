@@ -1,4 +1,3 @@
-
 import React from "react";
 import QuickDial from "@/components/QuickDial";
 import Dialpad from "@/components/Dialpad";
@@ -8,12 +7,12 @@ import Messages from "@/components/Messages";
 import Voicemail from "@/components/Voicemail";
 import Statistics from "@/components/Statistics";
 import SIPConfig from "@/components/SIPConfig";
-
 interface MainContentProps {
   activeTab: string;
 }
-
-const MainContent = ({ activeTab }: MainContentProps) => {
+const MainContent = ({
+  activeTab
+}: MainContentProps) => {
   const renderActiveTab = () => {
     switch (activeTab) {
       case "home":
@@ -36,12 +35,8 @@ const MainContent = ({ activeTab }: MainContentProps) => {
         return <QuickDial />;
     }
   };
-
-  return (
-    <div className="flex-1 overflow-auto">
+  return <div className="flex-1 overflow-auto px-[5px]">
       {renderActiveTab()}
-    </div>
-  );
+    </div>;
 };
-
 export default MainContent;
