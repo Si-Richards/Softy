@@ -1,4 +1,3 @@
-
 import { JanusClient } from './janus/core/JanusClient';
 import { SipClient, SipCredentials } from './janus/sip/SipClient';
 import { MediaManager } from './janus/media/MediaManager';
@@ -388,7 +387,6 @@ const sipService = new SipService();
 export default sipService;
 
 // Re-export types - fixed with 'export type'
-export { SipCredentials } from './janus/sip/SipClient';
+export type { SipCredentials } from './janus/sip/SipClient';
 export type { AudioSettings, VideoSettings } from './janus/media/MediaManager';
 export type { ConnectionState, RegistrationState, CallState } from './janus/state/StateManager';
-
