@@ -42,8 +42,15 @@ export class SipCallManager {
             track.enabled = true;
           });
 
+          // Create WebRTC offer with stream
           this.sipState.getSipPlugin().createOffer({
-            media: this.mediaConfig.getCallMediaConfig(videoInput),
+            media: {
+              ...this.mediaConfig.getCallMediaConfig(videoInput), 
+              // Additional WebRTC config to ensure proper audio
+              audioSend: true,
+              audioRecv: true,
+              audio: true
+            },
             stream: stream,
             success: (jsep: any) => {
               console.log("SDP offer created:", jsep);
@@ -98,9 +105,16 @@ export class SipCallManager {
             track.enabled = true;
           });
           
+          // Create WebRTC answer
           this.sipState.getSipPlugin().createAnswer({
             jsep: jsep,
-            media: this.mediaConfig.getAnswerMediaConfig(),
+            media: {
+              ...this.mediaConfig.getAnswerMediaConfig(),
+              // Additional WebRTC config to ensure proper audio
+              audioSend: true,
+              audioRecv: true,
+              audio: true
+            },
             stream: stream,
             success: (ourjsep: any) => {
               console.log("SDP answer created:", ourjsep);

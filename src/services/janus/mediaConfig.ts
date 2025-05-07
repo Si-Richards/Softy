@@ -35,16 +35,17 @@ export class MediaConfigHandler {
 
   getCallMediaConfig(videoInput: string | null): MediaConfig {
     return {
-      audioRecv: true,
-      videoRecv: true,
-      audioSend: true,
-      videoSend: !!videoInput,
-      removeAudio: false,
-      removeVideo: !videoInput
+      audioRecv: true,  // Always receive audio
+      videoRecv: true,  // Always be ready to receive video even if not displaying
+      audioSend: true,  // Always send audio
+      videoSend: !!videoInput, // Only send video if a camera is selected
+      removeAudio: false, // Never remove audio
+      removeVideo: !videoInput // Remove video if no camera is selected
     };
   }
 
   getAnswerMediaConfig(): MediaConfig {
+    // For answering calls, ensure we are ready to receive all media
     return {
       audioRecv: true,
       videoRecv: true,

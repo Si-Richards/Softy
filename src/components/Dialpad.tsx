@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
@@ -19,26 +18,7 @@ const Dialpad = () => {
   const { isJanusConnected, errorMessage } = useJanusSetup();
   const voicemailNumber = "*97";
 
-  // Update the video elements with streams when they change
-  useEffect(() => {
-    if (isCallActive) {
-      const localStream = janusService.getLocalStream();
-      const remoteStream = janusService.getRemoteStream();
-      
-      console.log("Local stream in Dialpad:", localStream);
-      console.log("Remote stream in Dialpad:", remoteStream);
-      
-      if (localVideoRef.current && localStream) {
-        localVideoRef.current.srcObject = localStream;
-      }
-      
-      if (remoteVideoRef.current && remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
-        // Apply the selected audio output device to the remote video element
-        janusService.applyAudioOutputDevice(remoteVideoRef.current);
-      }
-    }
-  }, [isCallActive]);
+  // We'll let VideoDisplay handle stream attachment through its own useEffect
 
   const handleKeyPress = (key: string) => {
     setNumber((prev) => prev + key);
@@ -64,6 +44,19 @@ const Dialpad = () => {
         try {
           await janusService.call(number);
           setIsCallActive(true);
+          
+          // When call is initiated, check active status after a short delay
+          setTimeout(() => {
+            const remoteStream = janusService.getRemoteStream();
+            if (remoteStream) {
+              console.log("Remote stream after delay:", remoteStream);
+              console.log("Remote audio tracks:", remoteStream.getAudioTracks().length);
+              remoteStream.getAudioTracks().forEach(track => {
+                console.log("Remote audio track enabled:", track.enabled);
+              });
+            }
+          }, 2000);
+          
         } catch (error) {
           console.error("Error making call:", error);
           toast({
