@@ -18,11 +18,23 @@ const VideoDisplay = ({ localVideoRef, remoteVideoRef, isVideoEnabled, isCallAct
     if (isCallActive) {
       const remoteStream = janusService.getRemoteStream();
       
-      // Route remote stream to both video and audio elements
+      // Always route remote stream to audio element regardless of video state
       if (remoteStream) {
         console.log("Setting remote stream to audio element", remoteStream);
+        
+        // Check for audio tracks and log their state
+        const audioTracks = remoteStream.getAudioTracks();
+        console.log(`Remote stream has ${audioTracks.length} audio tracks`);
+        audioTracks.forEach((track, i) => {
+          console.log(`Remote audio track ${i}: enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
+        });
+        
+        // Apply to audio element for all calls
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = remoteStream;
+          remoteAudioRef.current.play().catch(err => {
+            console.error("Error playing remote audio:", err);
+          });
           janusService.applyAudioOutputDevice(remoteAudioRef.current);
         }
         
@@ -31,20 +43,33 @@ const VideoDisplay = ({ localVideoRef, remoteVideoRef, isVideoEnabled, isCallAct
           remoteVideoRef.current.srcObject = remoteStream;
           janusService.applyAudioOutputDevice(remoteVideoRef.current);
         }
+      } else {
+        console.warn("No remote stream available yet");
+      }
+    } else {
+      // Clean up when call ends
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
       }
     }
     
     return () => {
-      // Clean up audio element when component unmounts or call ends
+      // Clean up when component unmounts
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
       }
     };
   }, [isCallActive, isVideoEnabled, remoteVideoRef]);
 
-  // Always render the audio element, even for audio-only calls
   return (
     <>
+      {/* Always render the audio element, even for audio-only calls */}
       <audio 
         ref={remoteAudioRef} 
         autoPlay 

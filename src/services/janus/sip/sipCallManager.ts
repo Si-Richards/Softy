@@ -49,7 +49,8 @@ export class SipCallManager {
               // Additional WebRTC config to ensure proper audio
               audioSend: true,
               audioRecv: true,
-              audio: true
+              audio: true,
+              video: !!videoInput
             },
             stream: stream,
             success: (jsep: any) => {
@@ -92,6 +93,7 @@ export class SipCallManager {
 
       // Get media constraints for answering calls
       const constraints = this.mediaConfig.getCallMediaConstraints();
+      const videoInput = localStorage.getItem('selectedVideoInput');
       
       console.log("Accepting call with constraints:", JSON.stringify(constraints));
       
@@ -113,7 +115,8 @@ export class SipCallManager {
               // Additional WebRTC config to ensure proper audio
               audioSend: true,
               audioRecv: true,
-              audio: true
+              audio: true,
+              video: !!videoInput
             },
             stream: stream,
             success: (ourjsep: any) => {
@@ -138,7 +141,58 @@ export class SipCallManager {
           });
         })
         .catch((error) => {
-          reject(new Error(`Media error when accepting call: ${error}`));
+          // For video errors, try again with audio only
+          if (videoInput && error.name === 'NotReadableError') {
+            console.log("Video failed, trying audio only");
+            const audioOnlyConstraints = {
+              audio: constraints.audio,
+              video: false
+            };
+            
+            navigator.mediaDevices.getUserMedia(audioOnlyConstraints)
+              .then(audioStream => {
+                console.log("Got audio-only stream as fallback");
+                
+                // Create WebRTC answer with audio only
+                this.sipState.getSipPlugin().createAnswer({
+                  jsep: jsep,
+                  media: {
+                    audioSend: true,
+                    audioRecv: true,
+                    videoSend: false,
+                    videoRecv: true,
+                    audio: true,
+                    video: false,
+                    removeVideo: true
+                  },
+                  stream: audioStream,
+                  success: (ourjsep: any) => {
+                    console.log("Audio-only SDP answer created");
+                    
+                    const message = { request: "accept" };
+                    this.sipState.getSipPlugin().send({
+                      message,
+                      jsep: ourjsep,
+                      success: () => {
+                        console.log("Audio-only call accepted");
+                        resolve();
+                      },
+                      error: (error: any) => {
+                        reject(new Error(`Error accepting audio-only call: ${error}`));
+                      }
+                    });
+                  },
+                  error: (error: any) => {
+                    reject(new Error(`WebRTC error in audio-only fallback: ${error}`));
+                  }
+                });
+              })
+              .catch(audioError => {
+                reject(new Error(`Media error when trying audio-only fallback: ${audioError}`));
+              });
+          } else {
+            reject(new Error(`Media error when accepting call: ${error}`));
+          }
         });
     });
   }

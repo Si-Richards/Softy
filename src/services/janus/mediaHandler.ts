@@ -36,6 +36,12 @@ export class JanusMediaHandler {
         console.log(`Applying audio output to ${this.activeAudioElements.length} active elements`);
         this.activeAudioElements.forEach(element => {
           element.srcObject = stream;
+          
+          // Ensure we start playing - this is crucial for audio to work
+          if (element.paused) {
+            element.play().catch(err => console.error("Error playing audio:", err));
+          }
+          
           this.applyAudioOutputToElement(element);
         });
       }
@@ -96,11 +102,15 @@ export class JanusMediaHandler {
     
     // Ensure the element is playing if it has content
     if (element.srcObject && element.paused) {
-      element.play().catch(err => console.error("Error playing audio:", err));
+      console.log("Starting playback of audio element with remote stream");
+      element.play()
+        .then(() => console.log("Audio playback started successfully"))
+        .catch(err => console.error("Error playing audio:", err));
     }
   }
 
   clearStreams() {
+    console.log("Clearing all streams");
     this.localStream = null;
     this.remoteStream = null;
     

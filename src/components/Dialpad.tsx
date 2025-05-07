@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
@@ -18,7 +19,24 @@ const Dialpad = () => {
   const { isJanusConnected, errorMessage } = useJanusSetup();
   const voicemailNumber = "*97";
 
-  // We'll let VideoDisplay handle stream attachment through its own useEffect
+  // Monitor remote stream changes
+  useEffect(() => {
+    if (isCallActive) {
+      // Check audio status periodically during active calls
+      const audioCheckInterval = setInterval(() => {
+        const remoteStream = janusService.getRemoteStream();
+        if (remoteStream) {
+          const audioTracks = remoteStream.getAudioTracks();
+          console.log(`Call active - Remote stream has ${audioTracks.length} audio tracks`);
+          audioTracks.forEach((track, i) => {
+            console.log(`Remote audio track ${i}: enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
+          });
+        }
+      }, 5000); // Check every 5 seconds
+      
+      return () => clearInterval(audioCheckInterval);
+    }
+  }, [isCallActive]);
 
   const handleKeyPress = (key: string) => {
     setNumber((prev) => prev + key);
@@ -53,7 +71,15 @@ const Dialpad = () => {
               console.log("Remote audio tracks:", remoteStream.getAudioTracks().length);
               remoteStream.getAudioTracks().forEach(track => {
                 console.log("Remote audio track enabled:", track.enabled);
+                
+                // Explicitly ensure tracks are enabled
+                if (!track.enabled) {
+                  console.log("Enabling disabled remote audio track");
+                  track.enabled = true;
+                }
               });
+            } else {
+              console.warn("No remote stream available yet after delay");
             }
           }, 2000);
           
