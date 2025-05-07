@@ -16,9 +16,14 @@ export const initializeJanusConnection = async (
     
     // Initialize Janus with proper WebSocket URL and detailed debug logging
     await janusService.initialize({
-      // Use port 443 for WebSocket connections
+      // Use port 443 for WebSocket connections - secure WebSockets
       server: 'wss://devrtc.voicehost.io:443/janus',
       apiSecret: 'overlord',
+      // Add STUN servers for better NAT traversal (based on Janus demo)
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ],
       success: () => {
         console.log("Janus initialized successfully");
         setProgressValue(30);
@@ -182,7 +187,9 @@ export const handleRegistrationError = (
       errorMsg = `Access forbidden (403): Your account may be disabled or you don't have permission to register.`;
     } else if (error.message.includes('404')) {
       errorMsg = `User not found (404): The username doesn't exist on this SIP server.`;
-    } else if (error.message.includes('408') || error.message.includes('timeout') || error.message.includes('Timeout')) {
+    } else if (error.message.includes('408') || error.message.includes('504')) {
+      errorMsg = `Server timeout (${error.message.includes('408') ? '408' : '504'}): The SIP server did not respond in time.`;
+    } else if (error.message.includes('timeout') || error.message.includes('Timeout')) {
       errorMsg = `Connection timeout: The SIP server did not respond. Please check your network and the server address.`;
     } else if (error.message.includes('Missing session') || error.message.includes('Sofia stack')) {
       errorMsg = `SIP server error: The server's SIP stack is not ready. Please try again in a few moments.`;

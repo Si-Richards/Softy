@@ -18,6 +18,9 @@ export interface SipPluginMessage {
     username?: string;
     code?: string;
     reason?: string;  // Added missing reason property
+    displayname?: string;
+    call_id?: string;
+    referrer?: string;
   };
   error?: string;
 }

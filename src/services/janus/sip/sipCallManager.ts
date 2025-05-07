@@ -1,3 +1,4 @@
+
 import { SipState } from './sipState';
 import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';
@@ -44,6 +45,14 @@ export class SipCallManager {
             track.enabled = true;
           });
 
+          // Configure SDP constraints based on Janus SIP demo
+          const sdpConstraints = {
+            'mandatory': {
+              'OfferToReceiveAudio': true,
+              'OfferToReceiveVideo': isVideoCall
+            }
+          };
+
           this.sipState.getSipPlugin().createOffer({
             media: this.mediaConfig.getCallMediaConfig(isVideoCall),
             stream: stream,
@@ -51,7 +60,14 @@ export class SipCallManager {
               console.log("Created offer with JSEP:", jsep);
               const message = {
                 request: "call",
-                uri: formattedUri
+                uri: formattedUri,
+                // Adding headers from Janus SIP demo for better compatibility
+                headers: {
+                  "User-Agent": "Lovable WebRTC SoftPhone",
+                  "X-SIP-Client": "Janus SIP Plugin"
+                },
+                srtp: 'optional',  // SRTP support
+                srtpProfile: 'AES_CM_128_HMAC_SHA1_80' // SRTP profile
               };
 
               this.sipState.getSipPlugin().send({
@@ -104,9 +120,17 @@ export class SipCallManager {
             jsep: jsep,
             media: this.mediaConfig.getAnswerMediaConfig(),
             stream: stream,
+            // Following Janus SIP demo pattern for SDP constraints
             success: (ourjsep: any) => {
               console.log("Created answer with JSEP:", ourjsep);
-              const message = { request: "accept" };
+              const message = { 
+                request: "accept",
+                // Add headers for better Asterisk compatibility
+                headers: {
+                  "User-Agent": "Lovable WebRTC SoftPhone",
+                  "X-SIP-Client": "Janus SIP Plugin"
+                }
+              };
               this.sipState.getSipPlugin().send({
                 message,
                 jsep: ourjsep,

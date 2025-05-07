@@ -53,18 +53,24 @@ export class SipRegistrationManager {
     console.log(`SIP Registration: Attempting registration with ${formattedUsername} at ${host}:${port} (attempt ${this.retryAttempts + 1})`);
 
     // Enhanced registration message with detailed options
+    // Following Janus SIP demo structure for PJSIP compatibility
     const registrationRequest = {
       request: "register",
       username: formattedUsername, // Using formatted username
+      display_name: username, // Add display name for caller ID
       secret: password,
       proxy: `sip:${host}:${port}`,
-      refresh: true,
-      force_udp: true,    // Force UDP for Asterisk compatibility
-      sips: false,        // Don't use SIPS protocol
-      rfc2543_cancel: true, // Use RFC2543 style CANCEL
+      ha1_secret: false,      // Use plain password, not HA1 hash
+      authuser: undefined,    // Use the same as username
+      refresh: true,          // Enable session refresh
+      contact_params: undefined,
+      force_udp: true,        // Force UDP for Asterisk compatibility
+      force_tcp: false,       // Don't use TCP
+      sips: false,            // Don't use SIPS protocol
+      rfc2543_cancel: true,   // Use RFC2543 style CANCEL
       master_id: undefined,
-      register_ttl: 180,  // Increased from 120 to 180 for longer registration
-      transport: "udp"    // Explicitly set UDP transport
+      register_ttl: 180,      // Registration timeout in seconds
+      transport: "udp"        // Explicitly set UDP transport
     };
 
     console.log("Sending SIP registration request:", JSON.stringify(registrationRequest));
@@ -149,20 +155,22 @@ export class SipRegistrationManager {
       let enhancedErrorMsg = errorMsg;
       
       // Add more context for specific errors
-      if (errorMsg.includes("Missing session") || errorMsg.includes("Sofia stack")) {
-        enhancedErrorMsg += " - Server may not have initialized the SIP stack properly. Please try again in a few moments.";
-      } else if (errorMsg.includes("401") || errorMsg.includes("407")) {
+      if (errorMsg.includes('446')) {
+        enhancedErrorMsg += " - Username format error. Your username may be incorrectly formatted or contain invalid characters.";
+      } else if (errorMsg.includes('401') || errorMsg.includes('407')) {
         enhancedErrorMsg += " - Authentication failed. Please check your username and password.";
-      } else if (errorMsg.includes("403")) {
-        enhancedErrorMsg += " - Access forbidden. You may not have permission to register with this server.";
-      } else if (errorMsg.includes("404")) {
-        enhancedErrorMsg += " - User not found. Please verify your username is correct.";
-      } else if (errorMsg.includes("504")) {
+      } else if (errorMsg.includes('403')) {
+        enhancedErrorMsg += " - Access forbidden. Your account may be disabled or you don't have permission to register.";
+      } else if (errorMsg.includes('404')) {
+        enhancedErrorMsg += " - User not found. The username doesn't exist on this SIP server.";
+      } else if (errorMsg.includes('504')) {
         enhancedErrorMsg += " - Server timeout. The SIP server did not respond in time.";
-      } else if (errorMsg.includes("timeout") || errorMsg.includes("Timeout")) {
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
         enhancedErrorMsg += " - Connection timed out. Please check if the SIP server is reachable and the port is correct.";
-      } else {
-        enhancedErrorMsg += " - Please check your network connection and SIP account details.";
+      } else if (errorMsg.includes('Missing session') || errorMsg.includes('Sofia stack')) {
+        enhancedErrorMsg += " - SIP server error: The server's SIP stack is not ready. Please try again in a few moments.";
+      } else if (errorMsg.includes('transport')) {
+        enhancedErrorMsg += " - Transport error: There was a problem with the UDP connection to the SIP server.";
       }
       
       reject(new Error(enhancedErrorMsg));
