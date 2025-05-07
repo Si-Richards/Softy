@@ -38,7 +38,7 @@ const MainLayout = () => {
               apiSecret: 'overlord',
               success: async () => {
                 try {
-                  await janusService.register(username, password, sipHost || "hpbx.voicehost.co.uk");
+                  await janusService.register(username, password, sipHost || "hpbx.voicehost.co.uk:5060");
                   toast({
                     title: "Auto-connected",
                     description: "Successfully registered with saved credentials",
