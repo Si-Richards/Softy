@@ -12,7 +12,14 @@ export class SipRegistrationManager {
         return;
       }
 
+      // Format the SIP URI correctly for UDP transport on port 5060
       const sipUri = `sip:${username}@${sipHost}`;
+      
+      // For explicit UDP usage on port 5060
+      const proxy = `sip:${sipHost};transport=udp`;
+      
+      console.log(`Attempting to register with SIP URI: ${sipUri} and proxy: ${proxy}`);
+      
       this.sipState.setCurrentCredentials({ username, password, sipHost });
 
       this.sipState.getSipPlugin().send({
@@ -22,7 +29,9 @@ export class SipRegistrationManager {
           display_name: username,
           authuser: username,
           secret: password,
-          proxy: `sip:${sipHost}`
+          proxy: proxy,
+          // Add debugging to understand the registration process
+          register_ttl: 300 // 5 minutes registration TTL for debugging
         },
         success: () => {
           console.log(`SIP registration request sent for ${username}@${sipHost}`);

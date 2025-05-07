@@ -20,3 +20,11 @@ export interface SipPluginMessage {
   };
   error?: string;
 }
+
+// Added RTCIceServer interface for TypeScript type safety
+export interface RTCIceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+  credentialType?: RTCIceCredentialType;
+}
