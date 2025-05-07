@@ -387,7 +387,8 @@ class SipService {
 const sipService = new SipService();
 export default sipService;
 
-// Re-export types
+// Re-export types - fixed with 'export type'
 export { SipCredentials } from './janus/sip/SipClient';
 export type { AudioSettings, VideoSettings } from './janus/media/MediaManager';
 export type { ConnectionState, RegistrationState, CallState } from './janus/state/StateManager';
+
