@@ -26,7 +26,7 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
   isReadOnly = false,
   buttonText
 }) => {
-  const [sipHost, setSipHost] = useState("hpbx.voicehost.co.uk:5060");
+  const [sipHost, setSipHost] = useState("hpbx.sipconvergence.co.uk:5060");
   
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +62,7 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
           readOnly={isReadOnly}
         />
         <p className="text-xs text-gray-500">
-          Enter only your SIP username (e.g., "16331*201")
+          Enter only your SIP username (e.g., "101" or "extension")
         </p>
       </div>
       <div className="space-y-2">

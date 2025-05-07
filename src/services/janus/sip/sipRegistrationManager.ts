@@ -41,31 +41,27 @@ export class SipRegistrationManager {
       .replace(/^sip:/, '')  // Remove any 'sip:' prefix if present
       .split('@')[0];        // Remove any domain part if present
     
-    // Properly format the SIP identity with the sip: prefix
-    const sipIdentity = `sip:${cleanUsername}@${host}`;
-    
-    // Save username for display purposes
-    this.sipState.setCurrentCredentials({ username: cleanUsername, password, sipHost });
+    console.log(`SIP Registration: Attempting registration with ${cleanUsername}@${host} (attempt ${this.retryAttempts + 1})`);
 
-    console.log(`SIP Registration: Attempting registration with ${sipIdentity} (attempt ${this.retryAttempts + 1})`);
-
-    // Send registration request with proper SIP formatting and additional parameters to help Sofia SIP stack
+    // Send registration request with simplified parameters for better compatibility with Asterisk
     this.sipState.getSipPlugin().send({
       message: {
         request: "register",
-        username: sipIdentity,          // Full SIP identity with sip: prefix: sip:username@domain
+        username: cleanUsername,   // Just the username without SIP: prefix
         secret: password,
-        proxy: `sip:${host}:${port}`,   // Add sip: prefix to proxy
-        registrar: `sip:${host}`,       // Add separate registrar with sip: prefix
-        authuser: cleanUsername,        // Explicitly provide authuser for authentication
-        display_name: cleanUsername,    // Set display name
-        user_agent: "VoiceHost Softphone", // Set user agent
-        sips: false,                    // Use sip: not sips:
-        refresh: true,                  // Enable registration refresh
-        register_ttl: 120               // 2-minute registration refresh time
+        proxy: `sip:${host}:${port}`, // Full proxy with sip: prefix
+        refresh: true              // Enable registration refresh
       },
       success: () => {
-        console.log(`SIP Registration: Request sent for ${sipIdentity}`);
+        console.log(`SIP Registration: Request sent for ${cleanUsername}@${host}:${port}`);
+        
+        // Store current credentials for future reference
+        this.sipState.setCurrentCredentials({ 
+          username: cleanUsername, 
+          password, 
+          sipHost 
+        });
+        
         resolve();
       },
       error: (error: any) => {
