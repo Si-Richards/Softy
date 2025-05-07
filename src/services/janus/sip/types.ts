@@ -17,10 +17,35 @@ export interface SipPluginMessage {
     event?: string;
     username?: string;
     code?: string;
-    reason?: string;  // Added missing reason property
+    reason?: string;
     displayname?: string;
     call_id?: string;
     referrer?: string;
+    srtp?: string;
+    srtpProfile?: string;
   };
   error?: string;
+  error_code?: number;
+}
+
+export interface SipRegistrationRequest {
+  request: string;
+  username: string;
+  display_name?: string;
+  secret?: string;
+  ha1_secret?: boolean;
+  authuser?: string;
+  proxy?: string;
+  outbound_proxy?: string;
+  headers?: Record<string, string>;
+  refresh?: boolean;
+  register?: boolean; 
+  contact_params?: string;
+  master_id?: string;
+  force_udp?: boolean;
+  force_tcp?: boolean;
+  sips?: boolean;
+  rfc2543_cancel?: boolean;
+  register_ttl?: number;
+  transport?: string;
 }

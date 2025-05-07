@@ -19,11 +19,15 @@ export const initializeJanusConnection = async (
       // Use port 443 for WebSocket connections - secure WebSockets
       server: 'wss://devrtc.voicehost.io:443/janus',
       apiSecret: 'overlord',
-      // Add STUN servers for better NAT traversal (based on Janus demo)
+      // Add multiple STUN servers for better NAT traversal (based on Janus demo)
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun.voip.eutelia.it:3478' }
       ],
+      debug: "all", // Enable full debugging
       success: () => {
         console.log("Janus initialized successfully");
         setProgressValue(30);

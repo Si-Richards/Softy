@@ -50,11 +50,11 @@ export class JanusSessionManager {
     }
   }
 
-  private async initJanus(): Promise<void> {
+  private async initJanus(debug: string = "all"): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       try {
         window.Janus.init({
-          debug: "all",
+          debug: debug,
           callback: () => {
             console.log('Janus initialized successfully');
             this.initialized = true;
@@ -78,13 +78,13 @@ export class JanusSessionManager {
     }
 
     this.connectionState = 'connecting';
-    console.log('Creating Janus session...', options);
+    console.log('Creating Janus session with options:', options);
 
     try {
       await this.checkDependencies();
       
       if (!this.initialized) {
-        await this.initJanus();
+        await this.initJanus(options.debug || "all");
       }
 
       return new Promise<void>((resolve, reject) => {
@@ -94,13 +94,18 @@ export class JanusSessionManager {
             const serverUrl = options.server || 'wss://devrtc.voicehost.io:443/janus';
             console.log(`Connecting to Janus server at ${serverUrl}`);
             
-            this.janus = new window.Janus({
+            // Match the format used in Janus SIP demo
+            const janusOptions = {
               server: serverUrl,
               apisecret: options.apiSecret,
               keepAlivePeriod: 30000,
               iceServers: options.iceServers || [
                 { urls: 'stun:stun.l.google.com:19302' }
               ],
+              ipv6: false,           // Use IPv6 - default to false for better compatibility
+              withCredentials: false, // Whether withCredentials should be used for XHR
+              max_poll_events: 10,   // Maximum events per polling (0 = unlimited)
+              token: null,           // API token (can be useful with some backends)
               success: () => {
                 console.log('Janus session created successfully');
                 this.connectionState = 'connected';
@@ -116,7 +121,9 @@ export class JanusSessionManager {
                 this.connectionState = 'disconnected';
                 if (options.destroyed) options.destroyed();
               }
-            });
+            };
+            
+            this.janus = new window.Janus(janusOptions);
           });
         };
 

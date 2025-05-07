@@ -33,6 +33,7 @@ class JanusService {
     }
 
     try {
+      // Pass all options including debug setting to session manager
       await this.sessionManager.createSession(options);
       await this.attachSipPlugin();
       
@@ -136,6 +137,9 @@ class JanusService {
 
   async register(username: string, password: string, sipHost: string): Promise<void> {
     try {
+      // Log registration attempt
+      console.log(`Attempting SIP registration for ${username} at ${sipHost}`);
+      
       await this.sipHandler.register(username, password, sipHost);
       console.log(`Successfully registered with SIP server as ${username}@${sipHost}`);
       return Promise.resolve();

@@ -3,6 +3,7 @@ export interface JanusOptions {
   server: string;
   apiSecret?: string;
   iceServers?: RTCIceServer[];
+  debug?: string;
   success?: () => void;
   error?: (error: any) => void;
   destroyed?: () => void;

@@ -53,22 +53,28 @@ export class SipCallManager {
             }
           };
 
+          // Follow exact createOffer structure from Janus SIP demo
           this.sipState.getSipPlugin().createOffer({
-            media: this.mediaConfig.getCallMediaConfig(isVideoCall),
-            stream: stream,
+            media: {
+              audioSend: true, audioRecv: true,
+              videoSend: isVideoCall, videoRecv: isVideoCall,
+              data: false
+            },
+            simulcast: false,
             success: (jsep: any) => {
               console.log("Created offer with JSEP:", jsep);
+              
+              // Match call request from Janus SIP demo
               const message = {
                 request: "call",
                 uri: formattedUri,
-                // Adding headers from Janus SIP demo for better compatibility
                 headers: {
-                  "User-Agent": "Lovable WebRTC SoftPhone",
-                  "X-SIP-Client": "Janus SIP Plugin"
+                  "User-Agent": "Janus SIP Plugin",
+                  "X-Janus-SIP-Client": "Lovable WebRTC"
                 },
-                srtp: 'optional',  // SRTP support
-                srtpProfile: 'AES_CM_128_HMAC_SHA1_80' // SRTP profile
-              };
+                autoaccept: false,
+                srtp: "sdes_optional",
+            };
 
               this.sipState.getSipPlugin().send({
                 message,
@@ -116,19 +122,21 @@ export class SipCallManager {
             track.enabled = true;
           });
           
+          // Match createAnswer from Janus SIP demo
           this.sipState.getSipPlugin().createAnswer({
             jsep: jsep,
-            media: this.mediaConfig.getAnswerMediaConfig(),
-            stream: stream,
-            // Following Janus SIP demo pattern for SDP constraints
+            media: { 
+              audioSend: true, audioRecv: true,
+              videoSend: false, videoRecv: false,
+              data: false
+            },
             success: (ourjsep: any) => {
               console.log("Created answer with JSEP:", ourjsep);
               const message = { 
                 request: "accept",
-                // Add headers for better Asterisk compatibility
                 headers: {
-                  "User-Agent": "Lovable WebRTC SoftPhone",
-                  "X-SIP-Client": "Janus SIP Plugin"
+                  "User-Agent": "Janus SIP Plugin",
+                  "X-Janus-SIP-Client": "Lovable WebRTC"
                 }
               };
               this.sipState.getSipPlugin().send({
