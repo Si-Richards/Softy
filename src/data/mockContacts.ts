@@ -14,7 +14,7 @@ export const mockContacts: Contact[] = [
   { 
     id: 2, 
     name: "Alice Smith", 
-    number: "+44 (555) 987-6543", 
+    number: "213", 
     favorite: true,
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120&h=120",
     presence: "busy" as PresenceStatus,
