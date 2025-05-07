@@ -23,16 +23,9 @@ export const mockContacts: Contact[] = [
     phoneNumbers: [
       {
         id: 1,
-        type: "mobile" as PhoneType,
-        number: "+44 (555) 987-6543",
-        countryCode: "GB",
-        isPrimary: true
-      },
-      {
-        id: 2,
         type: "extension" as PhoneType,
         number: "213",
-        isPrimary: false
+        isPrimary: true
       }
     ]
   },
