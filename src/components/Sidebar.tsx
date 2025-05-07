@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -226,7 +225,7 @@ const Sidebar = ({
 
       <div className="p-4 border-t border-gray-700 flex flex-col gap-3">
         {isExpanded && (
-          <div className="flex items-center space-x-2 mb-2">
+          <div className="flex items-center space-x-2">
             <div className={cn("h-2 w-2 rounded-full", getStatusColor())}></div>
             <span className="text-xs text-gray-300">{getStatusText()}</span>
           </div>

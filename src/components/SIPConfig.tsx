@@ -39,7 +39,7 @@ const SIPConfig: React.FC<SIPConfigProps> = ({ activeTab = "settings" }) => {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto p-6">
+    <div className="w-full max-w-3xl mx-auto p-6">
       <h2 className="text-xl font-semibold mb-6">Settings</h2>
       <Tabs value={currentTab} onValueChange={setCurrentTab}>
         <TabsList className="grid grid-cols-6 mb-6">

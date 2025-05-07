@@ -165,7 +165,7 @@ const SystemLogsTab = () => {
   }, []);
 
   return (
-    <Card>
+    <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>System Logs</CardTitle>
         <CardDescription>SIP and Janus activity logs</CardDescription>
@@ -206,19 +206,21 @@ const SystemLogsTab = () => {
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
+      <CardFooter className="flex flex-row justify-between items-center">
         <Button variant="outline" onClick={handleClearLogs}>Clear Logs</Button>
-        <Button onClick={handleDownloadLogs}>
-          <Download className="mr-2 h-4 w-4" />
-          Download Logs
-        </Button>
-        <Button 
-          onClick={handleSendLogs} 
-          disabled={isSending || logs.length === 0} 
-          variant="secondary"
-        >
-          {isSending ? 'Sending...' : 'Send Logs to Support'}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleDownloadLogs}>
+            <Download className="mr-2 h-4 w-4" />
+            Download Logs
+          </Button>
+          <Button 
+            onClick={handleSendLogs} 
+            disabled={isSending || logs.length === 0} 
+            variant="secondary"
+          >
+            {isSending ? 'Sending...' : 'Send Logs to Support'}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

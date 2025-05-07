@@ -7,10 +7,11 @@ import { BrowserRouter, Routes, Route, useParams, useNavigate } from "react-rout
 import Index from "./pages/Index";
 import ContactEdit from "./pages/ContactEdit";
 import NotFound from "./pages/NotFound";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const queryClient = new QueryClient();
 
-// Wrapper component to handle the contact edit route params and navigation
+// Wrapper component to handle the contact edit as a modal dialog
 const ContactEditWrapper = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -19,7 +20,13 @@ const ContactEditWrapper = () => {
   const contactId = id ? parseInt(id, 10) : 0;
   const handleClose = () => navigate("/");
   
-  return <ContactEdit contactId={contactId} onClose={handleClose} />;
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="max-w-2xl p-0 overflow-y-auto max-h-[90vh]">
+        <ContactEdit contactId={contactId} onClose={handleClose} />
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 const App = () => (
