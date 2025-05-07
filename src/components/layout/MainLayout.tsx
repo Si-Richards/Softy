@@ -82,7 +82,14 @@ const MainLayout = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <div className="w-full max-w-5xl mx-auto my-8 bg-white rounded-xl shadow-lg overflow-hidden flex">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          connectionStatus={connectionStatus}
+          doNotDisturb={doNotDisturb}
+          setDoNotDisturb={setDoNotDisturb}
+          userPresence={userPresence}
+        />
         
         <div className="flex-1 flex flex-col">
           <PageHeader 

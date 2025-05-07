@@ -7,7 +7,6 @@ import Contacts from "@/components/Contacts";
 import Messages from "@/components/Messages";
 import Voicemail from "@/components/Voicemail";
 import Statistics from "@/components/Statistics";
-import AudioSettings from "@/components/AudioSettings";
 import SIPConfig from "@/components/SIPConfig";
 
 interface MainContentProps {
@@ -32,9 +31,8 @@ const MainContent = ({ activeTab }: MainContentProps) => {
       case "statistics":
         return <Statistics />;
       case "devices":
-        return <AudioSettings />;
       case "settings":
-        return <SIPConfig />;
+        return <SIPConfig activeTab={activeTab} />;
       default:
         return <QuickDial />;
     }

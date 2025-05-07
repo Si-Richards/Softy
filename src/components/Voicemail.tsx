@@ -4,9 +4,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Play, Trash2, Download, Phone, User } from "lucide-react";
+import { Play, Trash2, Download, Phone, User, FileText } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Sample voicemail data
 const mockVoicemails = [
@@ -73,6 +74,26 @@ const Voicemail = () => {
     );
   };
 
+  const handleDownloadTranscription = (id: number, callerName: string) => {
+    // Mock transcription text
+    const transcription = `Voicemail from ${callerName} (ID: ${id}):\n\nHello, this is a sample transcription of the voicemail. This would contain the actual text transcribed from the audio in a real implementation.`;
+    
+    // Create a blob from the text
+    const blob = new Blob([transcription], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary link to download the file
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `voicemail-transcription-${id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const getInitials = (name: string) => {
     if (name === "Unknown") return "?";
     return name
@@ -103,68 +124,84 @@ const Voicemail = () => {
           <p className="mt-4">No voicemails found</p>
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Status</TableHead>
-              <TableHead>Caller</TableHead>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredVoicemails.map((voicemail) => (
-              <TableRow key={voicemail.id} className={voicemail.listened ? "" : "font-medium bg-blue-50"}>
-                <TableCell>
-                  {!voicemail.listened && (
-                    <div className="h-2 w-2 rounded-full bg-softphone-primary"></div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center">
-                    <Avatar className="h-10 w-10 mr-3">
-                      {voicemail.avatar ? (
-                        <AvatarImage src={voicemail.avatar} alt={voicemail.callerName} />
-                      ) : (
-                        <AvatarFallback className="bg-softphone-accent text-white">
-                          {getInitials(voicemail.callerName)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <div>{voicemail.callerName}</div>
-                      <div className="text-sm text-gray-500">{voicemail.callerNumber}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{format(voicemail.date, "MMM d, yyyy h:mm a")}</TableCell>
-                <TableCell>{voicemail.duration}</TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={playingId === voicemail.id ? "text-softphone-success" : ""}
-                      onClick={() => handlePlay(voicemail.id)}
-                    >
-                      <Play className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-softphone-error" onClick={() => handleDelete(voicemail.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        <TooltipProvider>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Caller</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredVoicemails.map((voicemail) => (
+                <TableRow key={voicemail.id} className={voicemail.listened ? "" : "font-medium bg-blue-50"}>
+                  <TableCell>
+                    {!voicemail.listened && (
+                      <div className="h-2 w-2 rounded-full bg-softphone-primary"></div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Avatar className="h-10 w-10 mr-3">
+                        {voicemail.avatar ? (
+                          <AvatarImage src={voicemail.avatar} alt={voicemail.callerName} />
+                        ) : (
+                          <AvatarFallback className="bg-softphone-accent text-white">
+                            {getInitials(voicemail.callerName)}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div>
+                        <div>{voicemail.callerName}</div>
+                        <div className="text-sm text-gray-500">{voicemail.callerNumber}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{format(voicemail.date, "MMM d, yyyy h:mm a")}</TableCell>
+                  <TableCell>{voicemail.duration}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={playingId === voicemail.id ? "text-softphone-success" : ""}
+                        onClick={() => handlePlay(voicemail.id)}
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDownloadTranscription(voicemail.id, voicemail.callerName)}
+                          >
+                            <FileText className="h-4 w-4 text-gray-600" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Download transcription</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Button variant="ghost" size="icon" className="text-softphone-error" onClick={() => handleDelete(voicemail.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TooltipProvider>
       )}
     </div>
   );

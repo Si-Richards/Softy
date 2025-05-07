@@ -4,15 +4,29 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Home, Phone, Clock, Users, Settings, Laptop, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { Home, Phone, Clock, Users, Settings, Laptop, ChartBar, Voicemail, MessageSquare, ChevronLeft, ChevronRight, UserRound, BellOff } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import CallStatus from "@/components/CallStatus";
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  connectionStatus: "connected" | "disconnected" | "connecting";
+  doNotDisturb: boolean;
+  setDoNotDisturb: (state: boolean) => void;
+  userPresence: "available" | "away" | "busy" | "offline";
 }
 
-const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
+const Sidebar = ({ 
+  activeTab, 
+  setActiveTab, 
+  connectionStatus, 
+  doNotDisturb, 
+  setDoNotDisturb,
+  userPresence 
+}: SidebarProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -63,6 +77,48 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     setTimeout(() => setIsTransitioning(false), 300);
   };
 
+  const getPresenceColor = () => {
+    if (doNotDisturb) return "bg-softphone-error";
+    
+    switch (userPresence) {
+      case "available":
+        return "bg-softphone-success";
+      case "busy":
+        return "bg-softphone-error";
+      case "away":
+        return "bg-yellow-500";
+      case "offline":
+        return "bg-gray-400";
+    }
+  };
+
+  const getPresenceText = () => {
+    if (doNotDisturb) return "Do Not Disturb";
+    return userPresence.charAt(0).toUpperCase() + userPresence.slice(1);
+  };
+
+  const getStatusColor = () => {
+    switch (connectionStatus) {
+      case "connected":
+        return "bg-softphone-success";
+      case "connecting":
+        return "bg-yellow-500";
+      case "disconnected":
+        return "bg-red-500";
+    }
+  };
+
+  const getStatusText = () => {
+    switch (connectionStatus) {
+      case "connected":
+        return "Connected";
+      case "connecting":
+        return "Connecting...";
+      case "disconnected":
+        return "Disconnected";
+    }
+  };
+
   return (
     <div className={cn(
       "h-full bg-softphone-dark flex flex-col border-r border-gray-700 transition-all duration-300",
@@ -85,10 +141,28 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
               isTransitioning ? "opacity-0" : "opacity-100"
             )}>
               <span className="text-sm font-medium text-white">{user.name}</span>
-              <span className="text-xs text-gray-400">Online</span>
+              <div className="flex items-center space-x-2">
+                <div className={cn("h-2 w-2 rounded-full", getPresenceColor())}></div>
+                <span className="text-xs text-gray-400">{getPresenceText()}</span>
+              </div>
             </div>
           )}
         </div>
+        
+        {isExpanded && (
+          <div className="mt-3 flex items-center gap-2">
+            <Switch 
+              id="dnd-mode" 
+              checked={doNotDisturb} 
+              onCheckedChange={setDoNotDisturb}
+              className="scale-75 data-[state=checked]:bg-softphone-error"
+            />
+            <Label htmlFor="dnd-mode" className="flex items-center gap-1 text-xs text-gray-300 cursor-pointer">
+              <BellOff className={cn("h-3 w-3", doNotDisturb ? "text-softphone-error" : "text-gray-400")} />
+              DND
+            </Label>
+          </div>
+        )}
       </div>
 
       <TooltipProvider>
@@ -150,7 +224,14 @@ const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
         </div>
       </TooltipProvider>
 
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-gray-700 flex flex-col gap-3">
+        {isExpanded && (
+          <div className="flex items-center space-x-2 mb-2">
+            <div className={cn("h-2 w-2 rounded-full", getStatusColor())}></div>
+            <span className="text-xs text-gray-300">{getStatusText()}</span>
+          </div>
+        )}
+        
         <div className="flex flex-col items-center gap-3">
           <Button
             variant="ghost"

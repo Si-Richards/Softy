@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Create a logger that captures messages
 class LogManager {
@@ -99,7 +101,9 @@ class LogManager {
 const SystemLogsTab = () => {
   const [logLevel, setLogLevel] = useState('all');
   const [logs, setLogs] = useState<Array<{ timestamp: string, level: string, message: string }>>([]);
+  const [isSending, setIsSending] = useState(false);
   const logManager = LogManager.getInstance();
+  const { toast } = useToast();
 
   useEffect(() => {
     const updateLogs = () => {
@@ -133,6 +137,20 @@ const SystemLogsTab = () => {
     a.click();
     
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendLogs = () => {
+    setIsSending(true);
+    
+    // Mock sending logs to a server
+    setTimeout(() => {
+      setIsSending(false);
+      
+      toast({
+        title: "Logs Sent",
+        description: "System logs have been sent to support for analysis.",
+      });
+    }, 1500);
   };
 
   const handleClearLogs = () => {
@@ -188,9 +206,19 @@ const SystemLogsTab = () => {
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={handleClearLogs}>Clear Logs</Button>
-        <Button onClick={handleDownloadLogs}>Download Logs</Button>
+        <Button onClick={handleDownloadLogs}>
+          <Download className="mr-2 h-4 w-4" />
+          Download Logs
+        </Button>
+        <Button 
+          onClick={handleSendLogs} 
+          disabled={isSending || logs.length === 0} 
+          variant="secondary"
+        >
+          {isSending ? 'Sending...' : 'Send Logs to Support'}
+        </Button>
       </CardFooter>
     </Card>
   );

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AudioEnhancementTab from "./sip-config/AudioEnhancementTab";
 import AudioVolumeSettings from "./sip-config/AudioVolumeSettings";
@@ -8,14 +8,27 @@ import SystemLogsTab from "./sip-config/SystemLogsTab";
 import AboutTab from "./sip-config/AboutTab";
 import SipCredentialsTab from "./sip-config/SipCredentialsTab";
 import { useSettings } from "@/hooks/useSettings";
+import AudioSettings from "@/components/AudioSettings";
 
-const SIPConfig = () => {
+interface SIPConfigProps {
+  activeTab?: string;
+}
+
+const SIPConfig: React.FC<SIPConfigProps> = ({ activeTab = "settings" }) => {
+  const [currentTab, setCurrentTab] = useState("sip");
   const { 
     audioSettings, 
     setAudioSettings,
     videoSettings,
     setVideoSettings 
   } = useSettings();
+
+  useEffect(() => {
+    // If devices tab was selected in the sidebar, switch to the devices tab
+    if (activeTab === "devices") {
+      setCurrentTab("devices");
+    }
+  }, [activeTab]);
 
   const handleMasterVolumeChange = (value: number) => {
     setAudioSettings(prev => ({ ...prev, masterVolume: value }));
@@ -28,10 +41,11 @@ const SIPConfig = () => {
   return (
     <div className="w-full max-w-lg mx-auto p-6">
       <h2 className="text-xl font-semibold mb-6">Settings</h2>
-      <Tabs defaultValue="sip">
-        <TabsList className="grid grid-cols-5 mb-6">
+      <Tabs value={currentTab} onValueChange={setCurrentTab}>
+        <TabsList className="grid grid-cols-6 mb-6">
           <TabsTrigger value="sip">SIP</TabsTrigger>
           <TabsTrigger value="audio">Audio</TabsTrigger>
+          <TabsTrigger value="devices">Devices</TabsTrigger>
           <TabsTrigger value="video">Video</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
@@ -62,6 +76,9 @@ const SIPConfig = () => {
                 setAudioSettings(prev => ({ ...prev, highPassFilter: value }))}
             />
           </div>
+        </TabsContent>
+        <TabsContent value="devices">
+          <AudioSettings />
         </TabsContent>
         <TabsContent value="video">
           <VideoSettingsTab
