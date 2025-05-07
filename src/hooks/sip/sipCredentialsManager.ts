@@ -14,7 +14,7 @@ export const loadStoredCredentials = (): {
   const defaultValues = {
     username: "",
     password: "",
-    sipHost: "hpbx.sipconvergence.co.uk"
+    sipHost: "hpbx.sipconvergence.co.uk:5060" // Updated to include port
   };
   
   try {
@@ -54,7 +54,7 @@ export const forgetCredentials = (
   // Reset form state
   setUsername("");
   setPassword("");
-  setSipHost("hpbx.sipconvergence.co.uk");
+  setSipHost("hpbx.sipconvergence.co.uk:5060"); // Updated to include port
   setRegistrationStatus("idle");
   setErrorMessage(null);
   
