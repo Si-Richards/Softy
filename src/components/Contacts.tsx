@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, ChevronDown } from "lucide-react";
@@ -39,6 +40,7 @@ const Contacts = () => {
   const getSortedContacts = () => {
     return contacts.filter(contact => 
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (contact.company && contact.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
       contact.number.includes(searchTerm)
     ).sort((a, b) => {
       switch (sortBy) {

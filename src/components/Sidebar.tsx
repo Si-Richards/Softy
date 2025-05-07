@@ -28,7 +28,7 @@ const Sidebar = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const user = {
     name: "John Doe",
-    avatar: "/placeholder.svg"
+    avatar: null // Set to null to use the fallback icon
   };
   const version = "v1.0.0";
 
@@ -120,10 +120,13 @@ const Sidebar = ({
       <div className="p-4 border-b border-gray-700">
         <div className={cn("flex items-center gap-3", !isExpanded && "justify-center")}>
           <Avatar>
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>
-              <UserRound className="w-6 h-6 text-gray-400" />
-            </AvatarFallback>
+            {user.avatar ? (
+              <AvatarImage src={user.avatar} alt={user.name} />
+            ) : (
+              <AvatarFallback>
+                <UserRound className="w-6 h-6 text-gray-400" />
+              </AvatarFallback>
+            )}
           </Avatar>
           {isExpanded && <div className={cn("flex flex-col transition-opacity duration-200", isTransitioning ? "opacity-0" : "opacity-100")}>
               <span className="text-sm font-medium text-white">{user.name}</span>
