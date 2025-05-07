@@ -14,10 +14,9 @@ export const initializeJanusConnection = async (
   try {
     console.log("Initializing Janus connection...");
     
-    // Initialize Janus with proper WebSocket URL and detailed debug logging
+    // Initialize Janus first with detailed debug logging
     await janusService.initialize({
-      // Use port 8989 instead of 443 for WebSocket connections
-      server: 'wss://devrtc.voicehost.io:8989/ws',
+      server: 'wss://devrtc.voicehost.io:443/janus',
       apiSecret: 'overlord',
       success: () => {
         console.log("Janus initialized successfully");

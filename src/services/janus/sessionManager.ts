@@ -1,4 +1,3 @@
-
 import type { JanusOptions } from './types';
 import { ConnectionRetry } from './utils/connectionRetry';
 
@@ -36,17 +35,7 @@ export class JanusSessionManager {
     
     // Check if Janus library is loaded
     if (typeof window.Janus === 'undefined') {
-      console.error('Janus library not found - trying to load it dynamically');
-      try {
-        // Give browser time to load and parse the script
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (typeof window.Janus === 'undefined') {
-          throw new Error('Janus library not loaded after waiting');
-        }
-      } catch (error) {
-        console.error('Error loading Janus library:', error);
-        throw new Error('Janus library not available');
-      }
+      throw new Error('Janus library not loaded');
     }
   }
 
@@ -78,7 +67,7 @@ export class JanusSessionManager {
     }
 
     this.connectionState = 'connecting';
-    console.log('Creating Janus session...', options);
+    console.log('Creating Janus session...');
 
     try {
       await this.checkDependencies();
@@ -90,12 +79,8 @@ export class JanusSessionManager {
       return new Promise<void>((resolve, reject) => {
         const connect = async () => {
           return new Promise<void>((innerResolve, innerReject) => {
-            // Make sure we're using the correct server URL
-            const serverUrl = options.server || 'wss://devrtc.voicehost.io:8989/ws';
-            console.log(`Connecting to Janus server at ${serverUrl}`);
-            
             this.janus = new window.Janus({
-              server: serverUrl,
+              server: options.server,
               apisecret: options.apiSecret,
               keepAlivePeriod: 30000,
               iceServers: options.iceServers || [

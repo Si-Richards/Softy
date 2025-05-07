@@ -2,8 +2,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
 
 interface SipCredentialsFormProps {
   username: string;
@@ -26,30 +24,8 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
   isReadOnly = false,
   buttonText
 }) => {
-  const [sipHost, setSipHost] = useState("hpbx.voicehost.co.uk:5060");
-  
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSave();
-  };
-
-  const handleDebugInfo = () => {
-    if (typeof window !== "undefined") {
-      console.log("WebRTC Browser Info:", {
-        userAgent: navigator.userAgent,
-        webrtcSupport: 'RTCPeerConnection' in window,
-        webSocketSupport: 'WebSocket' in window
-      });
-      
-      toast({
-        title: "Debug Info",
-        description: "WebRTC support info logged to console",
-      });
-    }
-  };
-  
   return (
-    <form onSubmit={handleFormSubmit} className="space-y-4">
+    <>
       <div className="space-y-2">
         <Label htmlFor="username">Username</Label>
         <Input
@@ -78,37 +54,16 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
           readOnly={isReadOnly}
         />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="host">SIP Host</Label>
-        <Input
-          id="host"
-          value={sipHost}
-          onChange={(e) => setSipHost(e.target.value)}
-          placeholder="SIP Server Address"
-          disabled={isDisabled || isReadOnly}
-          className={isReadOnly ? "bg-gray-100" : ""}
-          readOnly={isReadOnly}
-        />
-      </div>
-      <div className="pt-4 flex gap-2 flex-wrap">
+      <div className="pt-4">
         <Button 
-          type="submit"
+          onClick={handleSave} 
           disabled={isDisabled || !username || !password}
           className="w-full sm:w-auto"
         >
           {buttonText}
         </Button>
-        
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={handleDebugInfo}
-          className="w-full sm:w-auto"
-        >
-          Check WebRTC Support
-        </Button>
       </div>
-    </form>
+    </>
   );
 };
 
