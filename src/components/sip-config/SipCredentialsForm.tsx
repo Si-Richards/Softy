@@ -96,9 +96,8 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
         webSocketSupport: wsSupport,
         udpSupport: udpSupport,
         platform: navigator.platform,
-        // Add detailed WebRTC capabilities if available
-        rtcCapabilities: RTCPeerConnection && RTCPeerConnection.prototype.getCapabilities ? 
-          'Advanced' : 'Basic'
+        // Check for WebRTC capabilities without using getCapabilities
+        rtcCapabilities: RTCPeerConnection ? 'Supported' : 'Not supported'
       };
       
       console.log("WebRTC Browser Info:", browserInfo);
