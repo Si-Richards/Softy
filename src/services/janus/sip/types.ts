@@ -1,4 +1,5 @@
 
+
 export interface SipCredentials {
   username: string;
   password: string;
@@ -26,5 +27,7 @@ export interface RTCIceServer {
   urls: string | string[];
   username?: string;
   credential?: string;
-  credentialType?: RTCIceCredentialType;
+  // Use string type instead of RTCIceCredentialType which isn't recognized
+  credentialType?: string; 
 }
+
