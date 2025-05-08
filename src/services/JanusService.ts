@@ -1,32 +1,17 @@
 
 import { JanusEventHandlers } from './janus/eventHandlers';
-import { JanusSessionManager } from './janus/sessionManager';
-import { JanusMediaHandler } from './janus/mediaHandler';
-import { JanusSipHandler } from './janus/sipHandler';
 import type { JanusOptions, SipCredentials } from './janus/types';
 
 class JanusService {
-  private sessionManager: JanusSessionManager;
+  private janus: any = null;
+  private sipPlugin: any = null;
   private eventHandlers: JanusEventHandlers;
-  private mediaHandler: JanusMediaHandler;
-  private sipHandler: JanusSipHandler;
-  private connectionCheckTimer: number | null = null;
-  private registrationTimeout: number | null = null;
+  private opaqueId: string;
+  private registered: boolean = false;
 
   constructor() {
-    this.sessionManager = new JanusSessionManager();
     this.eventHandlers = new JanusEventHandlers();
-    this.mediaHandler = new JanusMediaHandler();
-    this.sipHandler = new JanusSipHandler();
-    
-    // Add registration success handler
-    this.eventHandlers.setOnRegistrationSuccess(() => {
-      console.log("🎉 SIP Registration success received from Janus");
-      if (this.registrationTimeout) {
-        clearTimeout(this.registrationTimeout);
-        this.registrationTimeout = null;
-      }
-    });
+    this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
@@ -38,17 +23,11 @@ class JanusService {
     }
 
     // Cleanup any existing session
-    if (this.sessionManager.getJanus()) {
-      this.disconnect();
-    }
+    this.disconnect();
 
     try {
-      // Pass all options including debug setting to session manager
-      await this.sessionManager.createSession(options);
+      await this.initializeJanus(options);
       await this.attachSipPlugin();
-      
-      // Start a connection health check
-      this.startConnectionCheck();
       
       if (options.success) options.success();
       return true;
@@ -56,41 +35,59 @@ class JanusService {
       const errorMsg = `Failed to initialize Janus: ${error.message || error}`;
       if (options.error) options.error(errorMsg);
       if (this.eventHandlers.onError) this.eventHandlers.onError(errorMsg);
-      this.disconnect(); // Cleanup on failure
+      this.disconnect();
       throw new Error(errorMsg);
     }
   }
 
-  private startConnectionCheck() {
-    // Clear any existing timer
-    if (this.connectionCheckTimer) {
-      window.clearInterval(this.connectionCheckTimer);
-    }
-    
-    // Check connection state periodically (every 30 seconds)
-    this.connectionCheckTimer = window.setInterval(() => {
-      const janus = this.sessionManager.getJanus();
-      if (!janus) {
-        console.log("Connection check: Janus instance not found, reconnecting...");
-        // Could attempt a reconnection here if needed
-      } else {
-        console.log("Connection check: Janus instance exists");
+  private async initializeJanus(options: JanusOptions): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (typeof window.Janus === 'undefined') {
+        reject(new Error('Janus library not loaded'));
+        return;
       }
-    }, 30000);
+
+      // Initialize Janus
+      window.Janus.init({
+        debug: options.debug || "all",
+        callback: () => {
+          console.log("Janus library initialized");
+          
+          // Create Janus session
+          this.janus = new window.Janus({
+            server: options.server,
+            apisecret: options.apiSecret,
+            iceServers: options.iceServers,
+            success: () => {
+              console.log("Janus session created successfully");
+              resolve();
+            },
+            error: (error: any) => {
+              console.error("Error creating Janus session:", error);
+              reject(error);
+            },
+            destroyed: options.destroyed
+          });
+        },
+        error: (error: any) => {
+          console.error("Error initializing Janus library:", error);
+          reject(error);
+        }
+      });
+    });
   }
 
   private async attachSipPlugin(): Promise<void> {
-    const janus = this.sessionManager.getJanus();
-    if (!janus) {
+    if (!this.janus) {
       throw new Error("Janus not initialized");
     }
 
     return new Promise<void>((resolve, reject) => {
-      janus.attach({
+      this.janus.attach({
         plugin: "janus.plugin.sip",
-        opaqueId: this.sessionManager.getOpaqueId(),
+        opaqueId: this.opaqueId,
         success: (pluginHandle: any) => {
-          this.sipHandler.setSipPlugin(pluginHandle);
+          this.sipPlugin = pluginHandle;
           console.log("SIP plugin attached:", pluginHandle);
           resolve();
         },
@@ -101,36 +98,52 @@ class JanusService {
           reject(new Error(errorMsg));
         },
         onmessage: (msg: any, jsep: any) => {
-          console.log("Received SIP message:", msg, "with jsep:", jsep);
-          this.sipHandler.handleSipMessage(msg, jsep, this.eventHandlers);
-        },
-        onlocalstream: (stream: MediaStream) => {
-          console.log("Got local stream", stream);
-          this.mediaHandler.setLocalStream(stream);
-        },
-        onremotestream: (stream: MediaStream) => {
-          console.log("Got remote stream", stream);
-          this.mediaHandler.setRemoteStream(stream);
-          if (this.eventHandlers.onCallConnected) this.eventHandlers.onCallConnected();
+          console.log("Received SIP message:", msg);
+          this.handleSipMessage(msg);
         },
         oncleanup: () => {
           console.log("SIP plugin cleaned up");
-          this.mediaHandler.clearStreams();
         }
       });
     });
   }
 
-  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
-    this.eventHandlers.setOnIncomingCall(callback);
-  }
+  private handleSipMessage(msg: any): void {
+    if (msg.error) {
+      console.error("SIP Error:", msg.error);
+      if (this.eventHandlers.onError) {
+        this.eventHandlers.onError(`SIP Error: ${msg.error}`);
+      }
+      return;
+    }
 
-  setOnCallConnected(callback: () => void): void {
-    this.eventHandlers.setOnCallConnected(callback);
-  }
+    if (!msg.result) return;
 
-  setOnCallEnded(callback: () => void): void {
-    this.eventHandlers.setOnCallEnded(callback);
+    const result = msg.result;
+    const event = result.event;
+
+    switch (event) {
+      case "registered":
+        console.log("SIP Registration successful");
+        this.registered = true;
+        if (this.eventHandlers.onRegistrationSuccess) {
+          this.eventHandlers.onRegistrationSuccess();
+        }
+        break;
+
+      case "registration_failed":
+        console.error("SIP Registration failed:", result.code, result.reason);
+        this.registered = false;
+        if (this.eventHandlers.onRegistrationFailed) {
+          this.eventHandlers.onRegistrationFailed(
+            `Registration failed: ${result.code} - ${result.reason}`
+          );
+        }
+        break;
+
+      default:
+        console.log("Unhandled SIP event:", event);
+    }
   }
 
   setOnError(callback: (error: string) => void): void {
@@ -138,86 +151,99 @@ class JanusService {
   }
   
   setOnRegistrationSuccess(callback: () => void): void {
-    console.log("Setting registration success callback");
     this.eventHandlers.setOnRegistrationSuccess(callback);
   }
 
-  getLocalStream(): MediaStream | null {
-    return this.mediaHandler.getLocalStream();
-  }
-
-  getRemoteStream(): MediaStream | null {
-    return this.mediaHandler.getRemoteStream();
+  setOnRegistrationFailed(callback: (error: string) => void): void {
+    this.eventHandlers.setOnRegistrationFailed(callback);
   }
 
   async register(username: string, password: string, sipHost: string): Promise<void> {
+    if (!this.sipPlugin) {
+      throw new Error("SIP plugin not attached");
+    }
+
     try {
-      // Log registration attempt
-      console.log(`🔄 Attempting SIP registration for ${username} at ${sipHost}`);
+      // Parse the username and host for proper formatting
+      let user = username;
+      let domain = sipHost;
       
-      // Clear any previous timeout
-      if (this.registrationTimeout) {
-        clearTimeout(this.registrationTimeout);
+      // Strip any 'sip:' prefix from the username if it exists
+      if (user.startsWith("sip:")) {
+        user = user.substring(4);
       }
+
+      // Check if username contains @ which means it already has domain
+      if (user.includes("@")) {
+        const parts = user.split("@");
+        user = parts[0];
+        domain = parts[1].split(":")[0]; // Use domain from username, ignoring port
+      }
+
+      // Extract port from sipHost if present
+      const hostParts = domain.split(":");
+      const host = hostParts[0];
+      const port = hostParts.length > 1 ? hostParts[1] : "5060";
       
-      // Set a timeout to detect registration failure
-      this.registrationTimeout = window.setTimeout(() => {
-        if (!this.isRegistered()) {
-          console.warn("⚠️ Registration timed out after 30 seconds");
+      // Create SIP URI
+      const identity = `sip:${user}@${host}`;
+      const proxy = `sip:${host}:${port}`;
+      
+      console.log(`Registering as: ${identity}, proxy: ${proxy}`);
+
+      // Registration request
+      const request = {
+        request: "register",
+        username: identity,
+        display_name: user,
+        secret: password,
+        proxy: proxy,
+        // Additional options
+        authuser: null,
+        ha1_secret: false,
+      };
+
+      this.sipPlugin.send({
+        message: request,
+        success: () => {
+          console.log("Registration request sent successfully");
+        },
+        error: (error: any) => {
+          console.error("Error sending registration request:", error);
           if (this.eventHandlers.onError) {
-            this.eventHandlers.onError("Registration request timed out. The SIP server did not respond in time.");
+            this.eventHandlers.onError(`Failed to send registration request: ${error}`);
           }
         }
-      }, 30000); // Extend timeout to 30 seconds
-      
-      await this.sipHandler.register(username, password, sipHost);
-      console.log(`📤 Successfully sent registration request to SIP server as ${username}@${sipHost}`);
-      return Promise.resolve();
-    } catch (error) {
-      console.error("❌ SIP registration error:", error);
+      });
+    } catch (error: any) {
+      console.error("Registration error:", error);
       if (this.eventHandlers.onError) {
-        this.eventHandlers.onError(`Registration failed: ${error}`);
+        this.eventHandlers.onError(`Registration error: ${error.message || error}`);
       }
-      return Promise.reject(error);
+      throw error;
     }
-  }
-
-  call(uri: string, isVideoCall: boolean = false): Promise<void> {
-    return this.sipHandler.call(uri, isVideoCall);
-  }
-
-  acceptCall(jsep: any): Promise<void> {
-    return this.sipHandler.acceptCall(jsep);
-  }
-
-  hangup(): Promise<void> {
-    return this.sipHandler.hangup();
   }
 
   isRegistered(): boolean {
-    return this.sipHandler.isRegistered();
+    return this.registered;
   }
 
-  // Method to check if Janus is connected
   isJanusConnected(): boolean {
-    return this.sessionManager.getConnectionState() === 'connected';
+    return !!this.janus;
   }
 
   disconnect(): void {
-    // Clear the connection check timer
-    if (this.connectionCheckTimer) {
-      window.clearInterval(this.connectionCheckTimer);
-      this.connectionCheckTimer = null;
+    this.registered = false;
+    
+    if (this.sipPlugin) {
+      this.sipPlugin.detach();
+      this.sipPlugin = null;
     }
     
-    // Clear any registration timeout
-    if (this.registrationTimeout) {
-      window.clearTimeout(this.registrationTimeout);
-      this.registrationTimeout = null;
+    if (this.janus) {
+      this.janus.destroy();
+      this.janus = null;
     }
-    
-    this.sipHandler.setRegistered(false);
-    this.sessionManager.disconnect();
   }
 }
 

@@ -16,22 +16,9 @@ export interface SipCredentials {
 }
 
 export interface EventHandlers {
-  onIncomingCall: ((from: string, jsep: any) => void) | null;
-  onCallConnected: (() => void) | null;
-  onCallEnded: (() => void) | null;
   onError: ((error: string) => void) | null;
   onRegistrationSuccess: (() => void) | null;
-  onRegistrationFailed: ((error: string, code?: string) => void) | null;
-}
-
-// Update the SipEventHandlers interface to match JanusEventHandlers expected in JanusService.ts
-export interface SipEventHandlers {
-  onIncomingCall?: (from: string, jsep?: any) => void;
-  onCallConnected?: () => void;
-  onCallEnded?: () => void;
-  onError?: (error: string) => void;
-  onRegistrationSuccess?: () => void;
-  onRegistrationFailed?: (error: string, code?: string) => void;
+  onRegistrationFailed: ((error: string) => void) | null;
 }
 
 declare global {

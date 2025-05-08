@@ -1,100 +1,35 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
-import { SipConnectionStatus, UseSipConnectionResult } from "./sip/sipConnectionTypes";
-import { 
-  initializeJanusConnection, 
-  performRegistration, 
-  handleRegistrationError 
-} from "./sip/sipConnectionInit";
-import { 
-  loadStoredCredentials, 
-  forgetCredentials 
-} from "./sip/sipCredentialsManager";
 
-export type { SipConnectionStatus } from "./sip/sipConnectionTypes";
+export type SipConnectionStatus = "idle" | "connecting" | "connected" | "failed";
+
+export interface UseSipConnectionResult {
+  username: string;
+  setUsername: (value: string) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  sipHost: string;
+  setSipHost: (value: string) => void;
+  isLoading: boolean;
+  registrationStatus: SipConnectionStatus;
+  errorMessage: string | null;
+  handleSave: () => Promise<void>;
+  handleForgetCredentials: () => void;
+}
 
 export function useSipConnection(): UseSipConnectionResult {
-  // Load initial credentials from localStorage
-  const storedCreds = loadStoredCredentials();
-  
-  // State management
-  const [username, setUsername] = useState(storedCreds.username);
-  const [password, setPassword] = useState(storedCreds.password);
-  const [sipHost, setSipHost] = useState(storedCreds.sipHost);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [sipHost, setSipHost] = useState("hpbx.voicehost.co.uk:5060");
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<SipConnectionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [progressValue, setProgressValue] = useState(0);
-  const [serverChecked, setServerChecked] = useState(false);
-
+  
   const { toast } = useToast();
 
-  // Check registration status on mount and periodically
-  useEffect(() => {
-    // Set up error handler
-    const errorHandler = (error: string) => {
-      console.error("SIP Error in handler:", error);
-      setErrorMessage(error);
-      setRegistrationStatus("failed");
-      setIsLoading(false);
-      toast({
-        title: "Registration Error",
-        description: error,
-        variant: "destructive",
-      });
-    };
-    
-    janusService.setOnError(errorHandler);
-
-    // Check if already registered on mount
-    if (janusService.isRegistered()) {
-      console.log("SIP Registration detected on component mount");
-      setRegistrationStatus("connected");
-      setProgressValue(100);
-    }
-
-    // Progress animation for a better UX
-    let interval: ReturnType<typeof setInterval> | null = null;
-    
-    if (registrationStatus === "connecting") {
-      let progress = 0;
-      interval = setInterval(() => {
-        progress += 5;
-        if (progress > 95) {
-          progress = 95; // Cap at 95% until we get confirmation
-        }
-        setProgressValue(progress);
-      }, 200);
-    } else {
-      setProgressValue(registrationStatus === "connected" ? 100 : 0);
-    }
-
-    // Setup periodic check for registration status
-    const statusCheckInterval = setInterval(() => {
-      if (janusService.isRegistered()) {
-        setRegistrationStatus("connected");
-      } else if (janusService.isJanusConnected() && registrationStatus === "connected") {
-        // We were connected but now we're not
-        setRegistrationStatus("failed");
-        setErrorMessage("SIP registration lost. Please reconnect.");
-        toast({
-          title: "Registration Lost",
-          description: "SIP registration has been lost. Please reconnect.",
-          variant: "destructive",
-        });
-      }
-    }, 10000); // Check every 10 seconds
-
-    // Cleanup when component unmounts
-    return () => {
-      if (interval) clearInterval(interval);
-      clearInterval(statusCheckInterval);
-    };
-  }, [registrationStatus, toast]);
-
-  // Main function to save credentials and connect
+  // Function to save credentials and connect
   const handleSave = async () => {
     // Form validation
     if (!username || !password) {
@@ -108,51 +43,114 @@ export function useSipConnection(): UseSipConnectionResult {
 
     setIsLoading(true);
     setRegistrationStatus("connecting");
-    setProgressValue(10);
     setErrorMessage(null);
 
     try {
-      // Check if Janus is already connected or connect to it
+      // Initialize Janus if not already connected
       if (!janusService.isJanusConnected()) {
-        console.log("Janus not connected, initializing...");
-        await initializeJanusConnection(setProgressValue, setServerChecked);
-      } else {
-        console.log("Janus already connected, skipping initialization");
-        setProgressValue(30);
-        setServerChecked(true);
+        console.log("Initializing Janus connection...");
+        await janusService.initialize({
+          server: 'wss://devrtc.voicehost.io:443/janus',
+          apiSecret: 'overlord',
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' }
+          ],
+          success: () => {
+            console.log("Janus initialized successfully");
+          },
+          error: (error) => {
+            console.error("Janus initialization error:", error);
+            throw new Error(`Connection error: ${error}`);
+          }
+        });
       }
 
-      // If server check was successful, proceed with registration
-      if (serverChecked) {
-        await performRegistration(
-          username, 
-          password, 
-          sipHost, 
-          setProgressValue, 
-          setRegistrationStatus, 
-          setIsLoading, 
-          setErrorMessage
-        );
-      }
+      // Set up event handlers
+      janusService.setOnRegistrationSuccess(() => {
+        console.log("SIP Registration successful");
+        setRegistrationStatus("connected");
+        setIsLoading(false);
+        
+        // Save credentials to localStorage
+        try {
+          localStorage.setItem('sipCredentials', JSON.stringify({ 
+            username, 
+            password, 
+            sipHost
+          }));
+        } catch (error) {
+          console.error("Error saving credentials:", error);
+        }
+        
+        toast({
+          title: "Registration Successful",
+          description: "SIP credentials saved and connected",
+        });
+      });
+      
+      janusService.setOnRegistrationFailed((error) => {
+        console.error("SIP registration failed:", error);
+        setRegistrationStatus("failed");
+        setIsLoading(false);
+        setErrorMessage(error);
+        toast({
+          title: "Registration Failed",
+          description: error,
+          variant: "destructive",
+        });
+      });
+      
+      janusService.setOnError((error) => {
+        console.error("SIP error:", error);
+        setRegistrationStatus("failed");
+        setIsLoading(false);
+        setErrorMessage(error);
+        toast({
+          title: "SIP Error",
+          description: error,
+          variant: "destructive",
+        });
+      });
+      
+      // Register with SIP server
+      await janusService.register(username, password, sipHost);
+      
     } catch (error: any) {
-      handleRegistrationError(
-        error, 
-        setRegistrationStatus, 
-        setIsLoading, 
-        setErrorMessage
-      );
+      console.error("Registration error:", error);
+      setRegistrationStatus("failed");
+      setIsLoading(false);
+      setErrorMessage(error.message || String(error));
+      toast({
+        title: "Registration Error",
+        description: error.message || String(error),
+        variant: "destructive",
+      });
     }
   };
 
-  // Function to forget credentials and reset
+  // Function to forget credentials
   const handleForgetCredentials = () => {
-    forgetCredentials(
-      setUsername, 
-      setPassword, 
-      setSipHost, 
-      setRegistrationStatus, 
-      setErrorMessage
-    );
+    try {
+      localStorage.removeItem('sipCredentials');
+    } catch (error) {
+      console.error("Error removing stored credentials:", error);
+    }
+
+    setUsername("");
+    setPassword("");
+    setSipHost("hpbx.voicehost.co.uk:5060");
+    setRegistrationStatus("idle");
+    setErrorMessage(null);
+    
+    // Disconnect from Janus
+    if (janusService.isJanusConnected()) {
+      janusService.disconnect();
+    }
+    
+    toast({
+      title: "Credentials Removed",
+      description: "Your SIP credentials have been forgotten",
+    });
   };
 
   return {
@@ -165,8 +163,6 @@ export function useSipConnection(): UseSipConnectionResult {
     isLoading,
     registrationStatus,
     errorMessage,
-    progressValue,
-    serverChecked,
     handleSave,
     handleForgetCredentials
   };
