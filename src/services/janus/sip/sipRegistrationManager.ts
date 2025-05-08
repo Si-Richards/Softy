@@ -27,8 +27,7 @@ export class SipRegistrationManager {
     // Parse the username - check if it already has the full format (sip:user@domain)
     let user = username;
     let domain = sipHost;
-    let fullIdentity = "";
-
+    
     // Strip any 'sip:' prefix from the username if it exists
     if (user.startsWith("sip:")) {
       user = user.substring(4);
@@ -45,34 +44,35 @@ export class SipRegistrationManager {
     const hostParts = sipHost.split(":");
     const host = hostParts[0];
     const port = hostParts.length > 1 ? hostParts[1] : "5060";
-
-    // Create full SIP identity in the format sip:user@domain
-    fullIdentity = `sip:${user}@${host}`;
     
-    console.log(`Creating registration with identity: ${fullIdentity}, proxy: sip:${host}:${port}`);
+    // Create SIP URI exactly as in the Janus SIP demo
+    const identity = `sip:${user}@${host}`;
+    const proxy = `sip:${host}:${port}`;
+    
+    console.log(`Creating registration with identity: ${identity}, proxy: ${proxy}`);
 
-    // Follow the exact format from Janus SIP demo
+    // Match exactly the Janus SIP demo format
     return {
       request: "register",
-      username: fullIdentity, // Full SIP URI as used in Janus demo
-      display_name: user,
+      username: identity,  // The full SIP URI
+      display_name: user,  // Just the username part for display
       secret: password,
-      proxy: `sip:${host}:${port}`,
+      proxy: proxy,
       ha1_secret: false,
       authuser: undefined,
       refresh: true,
-      register: true, 
+      register: true,
       contact_params: undefined,
       headers: {
         "User-Agent": "Janus SIP Plugin",
         "X-Janus-SIP-Client": "Lovable WebRTC"
       },
-      force_udp: true,
+      force_udp: true,      // Ensure UDP is forced as specified
       force_tcp: false,
       sips: false,
       rfc2543_cancel: true,
       register_ttl: 60,
-      transport: "udp"
+      transport: "udp"      // Explicitly set transport to UDP
     };
   }
 
