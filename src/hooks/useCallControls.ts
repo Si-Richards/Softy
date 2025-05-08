@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 import { useCallHistory } from "./useCallHistory";
+import { AudioCallOptions } from "@/services/janus/sip/types";
 
 export const useCallControls = () => {
   const [isCallActive, setIsCallActive] = useState(false);
@@ -20,6 +21,31 @@ export const useCallControls = () => {
       }
     };
   }, [audioTestInterval]);
+
+  const getAudioOptions = (): AudioCallOptions => {
+    // Get stored audio settings
+    let audioSettings: any = {};
+    try {
+      const storedSettings = localStorage.getItem('audioSettings');
+      if (storedSettings) {
+        audioSettings = JSON.parse(storedSettings);
+      }
+    } catch (error) {
+      console.error("Error parsing audio settings:", error);
+    }
+    
+    // Get selected devices
+    const audioInput = localStorage.getItem('selectedAudioInput');
+    const audioOutput = localStorage.getItem('selectedAudioOutput');
+    
+    return {
+      audioInput,
+      audioOutput,
+      echoCancellation: audioSettings.echoSuppression,
+      noiseSuppression: audioSettings.noiseCancellation,
+      autoGainControl: audioSettings.autoGainControl
+    };
+  };
 
   const handleCall = async (number: string, isJanusConnected: boolean) => {
     if (isCallActive) {
@@ -60,7 +86,11 @@ export const useCallControls = () => {
     } else if (number) {
       if (isJanusConnected) {
         try {
-          await janusService.call(number, false);
+          // Get audio options with selected audio devices
+          const audioOptions = getAudioOptions();
+          console.log("Using audio options:", audioOptions);
+          
+          await janusService.call(number, false, audioOptions);
           setIsCallActive(true);
           setCallStartTime(new Date());
           
@@ -83,6 +113,16 @@ export const useCallControls = () => {
                   track.enabled = true;
                 }
               });
+              
+              // Apply audio output device if supported
+              const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+              if (savedAudioOutput) {
+                let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+                if (audioElement && 'setSinkId' in HTMLAudioElement.prototype) {
+                  (audioElement as any).setSinkId(savedAudioOutput)
+                    .catch((e: any) => console.warn("Couldn't set audio output:", e));
+                }
+              }
             }
           }, 3000);
           
@@ -141,7 +181,11 @@ export const useCallControls = () => {
   const startVideoCall = async (number: string) => {
     if (number) {
       try {
-        await janusService.call(number, true);
+        // Get audio options with selected audio devices
+        const audioOptions = getAudioOptions();
+        console.log("Using audio options for video call:", audioOptions);
+        
+        await janusService.call(number, true, audioOptions);
         setIsCallActive(true);
         setIsVideoEnabled(true);
       } catch (error) {

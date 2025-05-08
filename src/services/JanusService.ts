@@ -1,5 +1,6 @@
+
 import { JanusEventHandlers } from './janus/eventHandlers';
-import type { JanusOptions, SipCredentials } from './janus/types';
+import type { JanusOptions, SipCredentials, AudioCallOptions } from './janus/types';
 
 class JanusService {
   private janus: any = null;
@@ -276,10 +277,31 @@ class JanusService {
     }
   }
   
-  // Call methods
-  async call(destination: string, isVideoCall: boolean = false): Promise<void> {
+  // Updated call method to use audio devices
+  async call(destination: string, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
     if (!this.sipPlugin) {
       throw new Error("SIP plugin not attached");
+    }
+    
+    // Get the saved audio input device if not provided
+    if (!audioOptions) {
+      const savedAudioInput = localStorage.getItem('selectedAudioInput');
+      audioOptions = {
+        audioInput: savedAudioInput || undefined
+      };
+    }
+    
+    // Apply audio settings from localStorage
+    try {
+      const storedSettings = localStorage.getItem('audioSettings');
+      if (storedSettings && !audioOptions.echoCancellation) {
+        const audioSettings = JSON.parse(storedSettings);
+        audioOptions.echoCancellation = audioSettings.echoSuppression;
+        audioOptions.noiseSuppression = audioSettings.noiseCancellation;
+        audioOptions.autoGainControl = audioSettings.autoGainControl;
+      }
+    } catch (error) {
+      console.error("Error parsing audio settings:", error);
     }
     
     const callRequest = {
@@ -289,70 +311,151 @@ class JanusService {
     };
     
     return new Promise<void>((resolve, reject) => {
-      this.sipPlugin.createOffer({
-        media: {
-          audioSend: true,
-          audioRecv: true,
-          videoSend: isVideoCall,
-          videoRecv: isVideoCall
-        },
-        success: (jsep: any) => {
-          console.log("Got SDP offer", jsep);
-          this.sipPlugin.send({
-            message: callRequest,
-            jsep: jsep,
-            success: () => {
-              console.log("Call request sent");
-              resolve();
+      // Get media constraints for the call
+      const constraints = {
+        audio: audioOptions?.audioInput ? 
+          { deviceId: { exact: audioOptions.audioInput } } : true,
+        video: isVideoCall ? (localStorage.getItem('selectedVideoInput') ? 
+          { deviceId: { exact: localStorage.getItem('selectedVideoInput') } } : true) : false
+      };
+      
+      console.log("Getting user media with constraints:", constraints);
+      
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+          console.log("Got local media stream for call:", stream);
+          
+          // Ensure audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            console.log("Audio track settings:", track.getSettings());
+            track.enabled = true;
+          });
+          
+          this.sipPlugin.createOffer({
+            media: {
+              audioSend: true,
+              audioRecv: true,
+              videoSend: isVideoCall,
+              videoRecv: isVideoCall
+            },
+            success: (jsep: any) => {
+              console.log("Got SDP offer", jsep);
+              this.sipPlugin.send({
+                message: callRequest,
+                jsep: jsep,
+                success: () => {
+                  console.log("Call request sent");
+                  resolve();
+                },
+                error: (error: any) => {
+                  console.error("Error sending call request:", error);
+                  reject(new Error(`Call failed: ${error}`));
+                }
+              });
             },
             error: (error: any) => {
-              console.error("Error sending call request:", error);
-              reject(new Error(`Call failed: ${error}`));
+              console.error("Error creating SDP offer:", error);
+              reject(new Error(`Failed to create offer: ${error}`));
             }
           });
-        },
-        error: (error: any) => {
-          console.error("Error creating SDP offer:", error);
-          reject(new Error(`Failed to create offer: ${error}`));
-        }
-      });
+        })
+        .catch(error => {
+          console.error("Error getting user media:", error);
+          reject(new Error(`Failed to get user media: ${error}`));
+        });
     });
   }
   
-  async acceptCall(jsep: any): Promise<void> {
+  async acceptCall(jsep: any, audioOptions?: AudioCallOptions): Promise<void> {
     if (!this.sipPlugin) {
       throw new Error("SIP plugin not attached");
     }
     
+    // Get the saved audio input device if not provided
+    if (!audioOptions) {
+      const savedAudioInput = localStorage.getItem('selectedAudioInput');
+      audioOptions = {
+        audioInput: savedAudioInput || undefined
+      };
+    }
+    
     return new Promise<void>((resolve, reject) => {
-      this.sipPlugin.createAnswer({
-        jsep: jsep,
-        media: { 
-          audioSend: true, 
-          audioRecv: true,
-          videoSend: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
-          videoRecv: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
-        },
-        success: (ourjsep: any) => {
-          const body = { request: "accept" };
-          this.sipPlugin.send({
-            message: body,
-            jsep: ourjsep,
-            success: () => {
-              console.log("Call accepted");
-              resolve();
+      // Get media access with specified audio device
+      const constraints = {
+        audio: audioOptions?.audioInput ? 
+          { deviceId: { exact: audioOptions.audioInput } } : true,
+        video: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
+      };
+      
+      console.log("Getting user media for accepting call:", constraints);
+      
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+          console.log("Got local stream for accepting call", stream);
+          
+          // Ensure audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            console.log("Audio track settings:", track.getSettings());
+            track.enabled = true;
+          });
+          
+          this.sipPlugin.createAnswer({
+            jsep: jsep,
+            media: { 
+              audioSend: true, 
+              audioRecv: true,
+              videoSend: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
+              videoRecv: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
+            },
+            success: (ourjsep: any) => {
+              const body = { request: "accept" };
+              this.sipPlugin.send({
+                message: body,
+                jsep: ourjsep,
+                success: () => {
+                  console.log("Call accepted");
+                  
+                  // Apply audio output device if specified and supported
+                  const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+                  if (savedAudioOutput && this.remoteStream) {
+                    // Find or create audio element to play the remote stream
+                    let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+                    if (!audioElement) {
+                      audioElement = document.createElement('audio');
+                      audioElement.id = 'remoteAudio';
+                      audioElement.autoplay = true;
+                      document.body.appendChild(audioElement);
+                    }
+                    
+                    // Set the audio output device if the browser supports it
+                    if ('setSinkId' in HTMLAudioElement.prototype) {
+                      (audioElement as any).setSinkId(savedAudioOutput)
+                        .then(() => console.log("Audio output set to:", savedAudioOutput))
+                        .catch(e => console.error("Error setting audio output:", e));
+                    }
+                    
+                    // Set the remote stream to the audio element
+                    audioElement.srcObject = this.remoteStream;
+                  }
+                  
+                  resolve();
+                },
+                error: (error: any) => {
+                  console.error("Error accepting call:", error);
+                  reject(new Error(`Failed to accept call: ${error}`));
+                }
+              });
             },
             error: (error: any) => {
-              console.error("Error accepting call:", error);
-              reject(new Error(`Failed to accept call: ${error}`));
+              console.error("Error creating answer:", error);
+              reject(new Error(`Failed to create answer: ${error}`));
             }
           });
-        },
-        error: (error: any) => {
-          console.error("Error creating answer:", error);
-          reject(new Error(`Failed to create answer: ${error}`));
-        }
-      });
+        })
+        .catch(error => {
+          console.error("Error getting user media for call:", error);
+          reject(new Error(`Failed to get user media: ${error}`));
+        });
     });
   }
   

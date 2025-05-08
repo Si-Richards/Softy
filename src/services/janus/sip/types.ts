@@ -50,3 +50,17 @@ export interface SipRegistrationRequest {
   register_ttl?: number;
   transport?: string;
 }
+
+export interface AudioDeviceInfo {
+  deviceId: string;
+  label: string;
+  kind: string;
+}
+
+export interface AudioCallOptions {
+  audioInput?: string;
+  audioOutput?: string;
+  echoCancellation?: boolean;
+  noiseSuppression?: boolean;
+  autoGainControl?: boolean;
+}

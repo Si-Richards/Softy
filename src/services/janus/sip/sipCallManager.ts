@@ -2,6 +2,7 @@
 import { SipState } from './sipState';
 import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';
+import { AudioCallOptions } from './types';
 
 export class SipCallManager {
   private mediaConfig: MediaConfigHandler;
@@ -10,7 +11,7 @@ export class SipCallManager {
     this.mediaConfig = new MediaConfigHandler();
   }
 
-  async call(uri: string, isVideoCall: boolean = false): Promise<void> {
+  async call(uri: string, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.sipState.getSipPlugin()) {
         reject(new Error("SIP plugin not attached"));
@@ -25,7 +26,9 @@ export class SipCallManager {
       // Format the number properly in E.164 format with SIP URI
       const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
 
-      const constraints = this.mediaConfig.getCallMediaConstraints();
+      // Get the configured audio devices from localStorage or options param
+      const constraints = this.mediaConfig.getCallMediaConstraints(audioOptions);
+      
       if (isVideoCall) {
         const videoInput = localStorage.getItem('selectedVideoInput');
         constraints.video = videoInput ? { deviceId: { exact: videoInput } } : true;
@@ -38,6 +41,11 @@ export class SipCallManager {
           console.log("Got local media stream:", stream);
           console.log("Audio tracks:", stream.getAudioTracks().length);
           console.log("Video tracks:", stream.getVideoTracks().length);
+          
+          // Log audio track settings
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Audio track ${idx} settings:`, track.getSettings());
+          });
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
@@ -99,7 +107,7 @@ export class SipCallManager {
     });
   }
 
-  async acceptCall(jsep: any): Promise<void> {
+  async acceptCall(jsep: any, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.sipState.getSipPlugin()) {
         reject(new Error("SIP plugin not attached"));
@@ -108,14 +116,25 @@ export class SipCallManager {
 
       console.log("SipCallManager: Accepting call with JSEP:", jsep);
       
-      // Get media constraints for answering calls
-      const constraints = this.mediaConfig.getCallMediaConstraints();
+      // Get media constraints for answering calls with selected audio device
+      const constraints = this.mediaConfig.getCallMediaConstraints(audioOptions);
+      
+      // Add video constraints if needed
+      if (isVideoCall) {
+        const videoInput = localStorage.getItem('selectedVideoInput');
+        constraints.video = videoInput ? { deviceId: { exact: videoInput } } : true;
+      }
       
       console.log("Accepting call with constraints:", JSON.stringify(constraints));
       
       navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
           console.log("Got local media stream for accepting call:", stream);
+          
+          // Log audio track settings
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Audio track ${idx} settings:`, track.getSettings());
+          });
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
@@ -127,7 +146,7 @@ export class SipCallManager {
             jsep: jsep,
             media: { 
               audioSend: true, audioRecv: true,
-              videoSend: false, videoRecv: false,
+              videoSend: isVideoCall, videoRecv: isVideoCall,
               data: false
             },
             success: (ourjsep: any) => {

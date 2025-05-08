@@ -1,5 +1,5 @@
 
-import type { SipCredentials, SipEventHandlers } from './sip/types';
+import type { SipCredentials, SipEventHandlers, AudioCallOptions } from './sip/types';
 import { SipState } from './sip/sipState';
 import { SipEventHandler } from './sip/sipEventHandler';
 import { SipCallManager } from './sip/sipCallManager';
@@ -42,12 +42,12 @@ export class JanusSipHandler {
     return this.registrationManager.register(username, password, sipHost);
   }
 
-  async call(uri: string, isVideoCall: boolean = false): Promise<void> {
-    return this.callManager.call(uri, isVideoCall);
+  async call(uri: string, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
+    return this.callManager.call(uri, isVideoCall, audioOptions);
   }
 
-  async acceptCall(jsep: any): Promise<void> {
-    return this.callManager.acceptCall(jsep);
+  async acceptCall(jsep: any, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
+    return this.callManager.acceptCall(jsep, isVideoCall, audioOptions);
   }
 
   async hangup(): Promise<void> {

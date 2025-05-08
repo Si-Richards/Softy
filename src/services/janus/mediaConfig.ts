@@ -1,4 +1,6 @@
 
+import { AudioCallOptions } from './sip/types';
+
 interface MediaConfig {
   audioRecv: boolean;
   videoRecv: boolean;
@@ -9,8 +11,9 @@ interface MediaConfig {
 }
 
 export class MediaConfigHandler {
-  getCallMediaConstraints(): MediaStreamConstraints {
-    const audioInput = localStorage.getItem('selectedAudioInput');
+  getCallMediaConstraints(options?: AudioCallOptions): MediaStreamConstraints {
+    // Get stored device IDs or use options if provided
+    const audioInput = options?.audioInput || localStorage.getItem('selectedAudioInput');
     const videoInput = localStorage.getItem('selectedVideoInput');
     
     // Get audio settings from localStorage
@@ -25,20 +28,20 @@ export class MediaConfigHandler {
     }
     
     // Apply saved audio input device if available
-    console.log("Using saved audio input device:", audioInput || "default");
+    console.log("Using audio input device:", audioInput || "default");
     
     // Enhanced audio constraints with saved preferences
     const audioConstraints = audioInput 
       ? { 
           deviceId: { exact: audioInput }, 
-          echoCancellation: audioSettings?.echoSuppression !== false,
-          noiseSuppression: audioSettings?.noiseCancellation !== false,
-          autoGainControl: audioSettings?.autoGainControl !== false
+          echoCancellation: options?.echoCancellation !== undefined ? options.echoCancellation : audioSettings?.echoSuppression !== false,
+          noiseSuppression: options?.noiseSuppression !== undefined ? options.noiseSuppression : audioSettings?.noiseCancellation !== false,
+          autoGainControl: options?.autoGainControl !== undefined ? options.autoGainControl : audioSettings?.autoGainControl !== false
         }
       : { 
-          echoCancellation: audioSettings?.echoSuppression !== false, 
-          noiseSuppression: audioSettings?.noiseCancellation !== false,
-          autoGainControl: audioSettings?.autoGainControl !== false
+          echoCancellation: options?.echoCancellation !== undefined ? options.echoCancellation : audioSettings?.echoSuppression !== false, 
+          noiseSuppression: options?.noiseSuppression !== undefined ? options.noiseSuppression : audioSettings?.noiseCancellation !== false,
+          autoGainControl: options?.autoGainControl !== undefined ? options.autoGainControl : audioSettings?.autoGainControl !== false
         };
     
     console.log("Using audio constraints:", audioConstraints);
@@ -46,7 +49,7 @@ export class MediaConfigHandler {
     // Only include video constraints if explicitly requested with a device
     return {
       audio: audioConstraints,
-      video: false // Default to no video
+      video: false // Default to no video for audio calls
     };
   }
 
@@ -61,14 +64,14 @@ export class MediaConfigHandler {
     };
   }
 
-  getAnswerMediaConfig(): MediaConfig {
+  getAnswerMediaConfig(isVideoCall: boolean = false): MediaConfig {
     return {
       audioRecv: true,
-      videoRecv: true,
+      videoRecv: isVideoCall,
       audioSend: true,
-      videoSend: true,
+      videoSend: isVideoCall,
       removeAudio: false, // Never remove audio
-      removeVideo: false
+      removeVideo: !isVideoCall
     };
   }
 }

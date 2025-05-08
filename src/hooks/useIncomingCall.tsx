@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCallHistory } from "@/hooks/useCallHistory";
 import janusService from "@/services/JanusService";
 import { PhoneIncoming, BellRing } from "lucide-react";
+import { AudioCallOptions } from '@/services/janus/sip/types';
 
 export const useIncomingCall = () => {
   const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
@@ -84,15 +85,76 @@ export const useIncomingCall = () => {
     showNativeNotification("Incoming Call", `Call from ${from}`);
   }, [setIncomingCall, setCallStartTime, toast, showNativeNotification]);
 
+  const getAudioOptions = (): AudioCallOptions => {
+    // Get stored audio settings
+    let audioSettings: any = {};
+    try {
+      const storedSettings = localStorage.getItem('audioSettings');
+      if (storedSettings) {
+        audioSettings = JSON.parse(storedSettings);
+      }
+    } catch (error) {
+      console.error("Error parsing audio settings:", error);
+    }
+    
+    // Get selected devices
+    const audioInput = localStorage.getItem('selectedAudioInput');
+    const audioOutput = localStorage.getItem('selectedAudioOutput');
+    
+    return {
+      audioInput,
+      audioOutput,
+      echoCancellation: audioSettings.echoSuppression,
+      noiseSuppression: audioSettings.noiseCancellation,
+      autoGainControl: audioSettings.autoGainControl
+    };
+  };
+
   const handleAcceptCall = useCallback(async () => {
     if (incomingCall?.jsep) {
       try {
         console.log("Accepting incoming call with JSEP:", incomingCall.jsep);
-        await janusService.acceptCall(incomingCall.jsep);
+        
+        // Get audio options with selected audio devices
+        const audioOptions = getAudioOptions();
+        console.log("Using audio options for incoming call:", audioOptions);
+        
+        // Determine if this is a video call based on the SDP
+        const isVideoCall = incomingCall.jsep.sdp.includes("m=video");
+        
+        await janusService.acceptCall(incomingCall.jsep, isVideoCall, audioOptions);
         toast({
           title: "Call Accepted",
           description: "You have accepted the call",
         });
+        
+        // Apply audio output device if supported
+        const savedAudioOutput = audioOptions.audioOutput;
+        if (savedAudioOutput) {
+          setTimeout(() => {
+            const remoteStream = janusService.getRemoteStream();
+            if (remoteStream) {
+              let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+              if (!audioElement) {
+                audioElement = document.createElement('audio');
+                audioElement.id = 'remoteAudio';
+                audioElement.autoplay = true;
+                document.body.appendChild(audioElement);
+              }
+              
+              // Set the stream to the audio element
+              audioElement.srcObject = remoteStream;
+              
+              // Set the audio output device if the browser supports it
+              if ('setSinkId' in HTMLAudioElement.prototype) {
+                (audioElement as any).setSinkId(savedAudioOutput)
+                  .then(() => console.log("Audio output set to:", savedAudioOutput))
+                  .catch((e: any) => console.error("Error setting audio output:", e));
+              }
+            }
+          }, 500); // Small delay to ensure stream is available
+        }
+        
         // We keep the incomingCall data until the call is ended
       } catch (error) {
         console.error("Error accepting call:", error);
