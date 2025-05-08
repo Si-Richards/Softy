@@ -10,6 +10,7 @@ export interface SipEventHandlers {
   onCallConnected?: () => void;
   onCallEnded?: () => void;
   onError?: (error: string) => void;
+  onRegistrationSuccess?: () => void;
 }
 
 export interface SipPluginMessage {
@@ -34,13 +35,13 @@ export interface SipRegistrationRequest {
   display_name?: string;
   secret?: string;
   ha1_secret?: boolean;
-  authuser?: string;
+  authuser?: string | null;
   proxy?: string;
   outbound_proxy?: string;
   headers?: Record<string, string>;
   refresh?: boolean;
   register?: boolean; 
-  contact_params?: string;
+  contact_params?: string | null;
   master_id?: string;
   force_udp?: boolean;
   force_tcp?: boolean;

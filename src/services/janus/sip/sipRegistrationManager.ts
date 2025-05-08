@@ -51,28 +51,28 @@ export class SipRegistrationManager {
     
     console.log(`Creating registration with identity: ${identity}, proxy: ${proxy}`);
 
-    // Match exactly the Janus SIP demo format
+    // Match exactly the Janus SIP demo format for maximum compatibility
     return {
       request: "register",
-      username: identity,  // The full SIP URI
-      display_name: user,  // Just the username part for display
+      username: identity,
+      display_name: user,
       secret: password,
       proxy: proxy,
       ha1_secret: false,
-      authuser: undefined,
+      authuser: null,              // Changed from undefined to null to match demo exactly
       refresh: true,
       register: true,
-      contact_params: undefined,
+      contact_params: null,        // Changed from undefined to null 
       headers: {
         "User-Agent": "Janus SIP Plugin",
         "X-Janus-SIP-Client": "Lovable WebRTC"
       },
-      force_udp: true,      // Ensure UDP is forced as specified
+      force_udp: true,
       force_tcp: false,
       sips: false,
       rfc2543_cancel: true,
       register_ttl: 60,
-      transport: "udp"      // Explicitly set transport to UDP
+      transport: "udp"
     };
   }
 

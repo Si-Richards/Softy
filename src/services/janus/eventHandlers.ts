@@ -1,11 +1,12 @@
 
-import type { EventHandlers } from './types';
+import type { EventHandlers, SipEventHandlers } from "./types";
 
-export class JanusEventHandlers implements EventHandlers {
+export class JanusEventHandlers implements EventHandlers, SipEventHandlers {
   onIncomingCall: ((from: string, jsep: any) => void) | null = null;
   onCallConnected: (() => void) | null = null;
   onCallEnded: (() => void) | null = null;
   onError: ((error: string) => void) | null = null;
+  onRegistrationSuccess: (() => void) | null = null;
 
   setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
     this.onIncomingCall = callback;
@@ -21,5 +22,9 @@ export class JanusEventHandlers implements EventHandlers {
 
   setOnError(callback: (error: string) => void): void {
     this.onError = callback;
+  }
+  
+  setOnRegistrationSuccess(callback: () => void): void {
+    this.onRegistrationSuccess = callback;
   }
 }

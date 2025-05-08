@@ -20,6 +20,7 @@ export interface EventHandlers {
   onCallConnected: (() => void) | null;
   onCallEnded: (() => void) | null;
   onError: ((error: string) => void) | null;
+  onRegistrationSuccess: (() => void) | null;
 }
 
 // Update the SipEventHandlers interface to match JanusEventHandlers expected in JanusService.ts
@@ -28,6 +29,7 @@ export interface SipEventHandlers {
   onCallConnected?: () => void;
   onCallEnded?: () => void;
   onError?: (error: string) => void;
+  onRegistrationSuccess?: () => void;
 }
 
 declare global {

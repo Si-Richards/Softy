@@ -11,12 +11,22 @@ class JanusService {
   private mediaHandler: JanusMediaHandler;
   private sipHandler: JanusSipHandler;
   private connectionCheckTimer: number | null = null;
+  private registrationTimeout: number | null = null;
 
   constructor() {
     this.sessionManager = new JanusSessionManager();
     this.eventHandlers = new JanusEventHandlers();
     this.mediaHandler = new JanusMediaHandler();
     this.sipHandler = new JanusSipHandler();
+    
+    // Add registration success handler
+    this.eventHandlers.setOnRegistrationSuccess(() => {
+      console.log("SIP Registration success received from Janus");
+      if (this.registrationTimeout) {
+        clearTimeout(this.registrationTimeout);
+        this.registrationTimeout = null;
+      }
+    });
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
@@ -126,6 +136,10 @@ class JanusService {
   setOnError(callback: (error: string) => void): void {
     this.eventHandlers.setOnError(callback);
   }
+  
+  setOnRegistrationSuccess(callback: () => void): void {
+    this.eventHandlers.setOnRegistrationSuccess(callback);
+  }
 
   getLocalStream(): MediaStream | null {
     return this.mediaHandler.getLocalStream();
@@ -140,8 +154,23 @@ class JanusService {
       // Log registration attempt
       console.log(`Attempting SIP registration for ${username} at ${sipHost}`);
       
+      // Clear any previous timeout
+      if (this.registrationTimeout) {
+        clearTimeout(this.registrationTimeout);
+      }
+      
+      // Set a timeout to detect registration failure
+      this.registrationTimeout = window.setTimeout(() => {
+        if (!this.isRegistered()) {
+          console.warn("Registration timed out after 10 seconds");
+          if (this.eventHandlers.onError) {
+            this.eventHandlers.onError("Registration request timed out. The SIP server did not respond in time.");
+          }
+        }
+      }, 10000);
+      
       await this.sipHandler.register(username, password, sipHost);
-      console.log(`Successfully registered with SIP server as ${username}@${sipHost}`);
+      console.log(`Successfully sent registration request to SIP server as ${username}@${sipHost}`);
       return Promise.resolve();
     } catch (error) {
       console.error("SIP registration error:", error);
@@ -178,6 +207,12 @@ class JanusService {
     if (this.connectionCheckTimer) {
       window.clearInterval(this.connectionCheckTimer);
       this.connectionCheckTimer = null;
+    }
+    
+    // Clear any registration timeout
+    if (this.registrationTimeout) {
+      window.clearTimeout(this.registrationTimeout);
+      this.registrationTimeout = null;
     }
     
     this.sipHandler.setRegistered(false);

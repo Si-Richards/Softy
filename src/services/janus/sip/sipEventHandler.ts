@@ -37,10 +37,15 @@ export class SipEventHandler {
       case "registered": {
         console.log("SIP registration successful");
         this.sipState.setRegistered(true);
+        
+        // Notify anyone listening for registration success
+        if (eventHandlers.onRegistrationSuccess) {
+          eventHandlers.onRegistrationSuccess();
+        }
         break;
       }
 
-      case "registration_progress": {
+      case "registering": {
         console.log("SIP registration process starting");
         break;
       }

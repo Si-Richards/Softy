@@ -61,58 +61,42 @@ export const performRegistration = async (
     console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
     console.log(`Using Janus SIP demo approach with full SIP identity`);
     
-    // Pass credentials to the SIP registration service
-    await janusService.register(username, password, sipHost);
-    
-    setProgressValue(80);
-    
-    // Extended check for registration success with increased timeout
-    return new Promise((resolve) => {
-      // Start checking registration status repeatedly
-      let checkCount = 0;
-      const maxChecks = 15;
-      const checkInterval = 2000;
-      
-      const checkRegistration = () => {
-        checkCount++;
-        console.log(`Checking registration status (attempt ${checkCount}/${maxChecks})...`);
+    // Register for the registration success event
+    const registrationPromise = new Promise<boolean>((resolve) => {
+      // Set up success handler
+      janusService.setOnRegistrationSuccess(() => {
+        console.log("SIP Registration confirmed successful");
+        setRegistrationStatus("connected");
+        setProgressValue(100);
+        setIsLoading(false);
         
-        if (janusService.isRegistered()) {
-          console.log("SIP Registration confirmed successful");
-          setRegistrationStatus("connected");
-          setProgressValue(100);
-          setIsLoading(false);
-          
-          // Save credentials to localStorage
-          try {
-            localStorage.setItem('sipCredentials', JSON.stringify({ 
-              username, 
-              password, 
-              sipHost
-            }));
-            console.log("Credentials saved to localStorage");
-          } catch (error) {
-            console.error("Error saving credentials:", error);
-          }
-          
-          toast({
-            title: "Registration Successful",
-            description: "SIP credentials saved and connected",
-          });
-          
-          resolve(true);
-          return;
+        // Save credentials to localStorage
+        try {
+          localStorage.setItem('sipCredentials', JSON.stringify({ 
+            username, 
+            password, 
+            sipHost
+          }));
+          console.log("Credentials saved to localStorage");
+        } catch (error) {
+          console.error("Error saving credentials:", error);
         }
         
-        // Continue checking if we haven't exceeded max attempts
-        if (checkCount < maxChecks) {
-          setTimeout(checkRegistration, checkInterval);
-        } else {
-          // Registration failed after all attempts
-          console.warn(`SIP Registration check failed after ${maxChecks} attempts`);
+        toast({
+          title: "Registration Successful",
+          description: "SIP credentials saved and connected",
+        });
+        
+        resolve(true);
+      });
+      
+      // Set up a timeout for registration
+      setTimeout(() => {
+        if (!janusService.isRegistered()) {
+          console.warn("SIP Registration check failed after timeout");
           setRegistrationStatus("failed");
           setIsLoading(false);
-          setErrorMessage(`Registration timed out after ${maxChecks * checkInterval/1000} seconds. Please check your credentials and try again.`);
+          setErrorMessage("Registration timed out. Please check your credentials and try again.");
           toast({
             title: "Registration Failed",
             description: "Registration timed out. Please check your credentials and try again.",
@@ -120,11 +104,15 @@ export const performRegistration = async (
           });
           resolve(false);
         }
-      };
-      
-      // Start the registration check loop
-      setTimeout(checkRegistration, 2000);
+      }, 15000); // Give it 15 seconds to register
     });
+    
+    // Pass credentials to the SIP registration service
+    await janusService.register(username, password, sipHost);
+    setProgressValue(80);
+    
+    // Wait for registration result
+    return registrationPromise;
   } catch (error) {
     throw error;
   }
