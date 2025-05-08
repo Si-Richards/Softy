@@ -7,6 +7,7 @@ export class JanusEventHandlers implements EventHandlers, SipEventHandlers {
   onCallEnded: (() => void) | null = null;
   onError: ((error: string) => void) | null = null;
   onRegistrationSuccess: (() => void) | null = null;
+  onRegistrationFailed: ((error: string, code?: string) => void) | null = null;
 
   setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
     console.log("Setting onIncomingCall handler");
@@ -31,5 +32,10 @@ export class JanusEventHandlers implements EventHandlers, SipEventHandlers {
   setOnRegistrationSuccess(callback: () => void): void {
     console.log("Setting onRegistrationSuccess handler");
     this.onRegistrationSuccess = callback;
+  }
+  
+  setOnRegistrationFailed(callback: (error: string, code?: string) => void): void {
+    console.log("Setting onRegistrationFailed handler");
+    this.onRegistrationFailed = callback;
   }
 }

@@ -148,7 +148,9 @@ const SipCredentialsForm: React.FC<SipCredentialsFormProps> = ({
             readOnly={isReadOnly} 
           />
           <div className="absolute right-3 top-2 text-gray-400">
-            <Info size={16} className="hover:text-blue-500 cursor-help" title="Your SIP username or extension" />
+            <span title="Your SIP username or extension">
+              <Info size={16} className="hover:text-blue-500 cursor-help" />
+            </span>
           </div>
         </div>
         <p className="text-xs text-gray-500">

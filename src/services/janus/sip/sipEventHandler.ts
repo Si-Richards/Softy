@@ -155,7 +155,11 @@ export class SipEventHandler {
     
     console.error(`❌ ${errorMessage}`);
     
-    if (eventHandlers.onError) {
+    // Use the dedicated registration failed handler if available
+    if (eventHandlers.onRegistrationFailed) {
+      eventHandlers.onRegistrationFailed(errorMessage, code);
+    } else if (eventHandlers.onError) {
+      // Fall back to general error handler
       eventHandlers.onError(errorMessage);
     }
   }
