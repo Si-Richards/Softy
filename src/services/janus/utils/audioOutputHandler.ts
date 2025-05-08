@@ -49,19 +49,19 @@ export class AudioOutputHandler {
 
   /**
    * Check if the remote audio is playing and attempt to resume it if paused
+   * @returns Promise that resolves to a boolean indicating if audio is playing
    */
-  static checkAndPlayRemoteAudio(): boolean {
-    return audioService.forcePlayAudio()
-      .then(success => {
-        if (success) {
-          console.log("Successfully resumed audio playback");
-        }
-        return success;
-      })
-      .catch(error => {
-        console.error("Failed to resume audio playback:", error);
-        return false;
-      });
+  static async checkAndPlayRemoteAudio(): Promise<boolean> {
+    try {
+      const success = await audioService.forcePlayAudio();
+      if (success) {
+        console.log("Successfully resumed audio playback");
+      }
+      return success;
+    } catch (error) {
+      console.error("Failed to resume audio playback:", error);
+      return false;
+    }
   }
   
   /**
