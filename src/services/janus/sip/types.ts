@@ -11,6 +11,7 @@ export interface SipEventHandlers {
   onCallEnded?: () => void;
   onError?: (error: string) => void;
   onRegistrationSuccess?: () => void;
+  onRegistrationFailed?: (error: string, code?: string) => void;
 }
 
 export interface SipPluginMessage {
