@@ -6,6 +6,7 @@ import NumberInput from "./dialpad/NumberInput";
 import CallControls from "./dialpad/CallControls";
 import { useJanusSetup } from "./dialpad/useJanusSetup";
 import { useDTMFTone } from "@/hooks/useDTMFTone";
+import { useSendDTMF } from "@/hooks/useSendDTMF";
 import { useKeypadInput } from "@/hooks/useKeypadInput";
 import { useVideoStreams } from "@/hooks/useVideoStreams";
 import { useCallControls } from "@/hooks/useCallControls";
@@ -17,6 +18,7 @@ const Dialpad = () => {
   const { toast } = useToast();
   const { isJanusConnected, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
+  const { sendDTMFTone } = useSendDTMF();
   const voicemailNumber = "1571"; // Updated voicemail number
   
   const {
@@ -30,11 +32,27 @@ const Dialpad = () => {
   } = useCallControls();
 
   const addDigitToNumber = (key: string) => {
-    setNumber((prev) => prev + key);
+    if (isCallActive) {
+      // If in a call, send DTMF tones
+      sendDTMFTone(key);
+      
+      // Show a toast notification when sending DTMF during call
+      toast({
+        title: `Sending tone: ${key}`,
+        description: "DTMF tone sent to remote party",
+        duration: 1000,
+      });
+    } else {
+      // Otherwise just add to the dialed number
+      setNumber((prev) => prev + key);
+      playDTMFTone(key);
+    }
   };
 
   const handleBackspace = () => {
-    setNumber((prev) => prev.slice(0, -1));
+    if (!isCallActive) {
+      setNumber((prev) => prev.slice(0, -1));
+    }
   };
 
   useKeypadInput(addDigitToNumber);
@@ -42,11 +60,12 @@ const Dialpad = () => {
 
   const handleKeyPress = (key: string) => {
     addDigitToNumber(key);
-    playDTMFTone(key);
   };
 
   const clearNumber = () => {
-    setNumber("");
+    if (!isCallActive) {
+      setNumber("");
+    }
   };
 
   const callVoicemail = () => {
@@ -78,9 +97,10 @@ const Dialpad = () => {
         onChange={setNumber}
         onClear={clearNumber}
         onBackspace={handleBackspace}
+        disabled={isCallActive} // Disable editing number input during calls
       />
 
-      <DialpadGrid onKeyPress={handleKeyPress} />
+      <DialpadGrid onKeyPress={handleKeyPress} isCallActive={isCallActive} />
 
       <CallControls
         isCallActive={isCallActive}

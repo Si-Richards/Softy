@@ -459,6 +459,43 @@ class JanusService {
     });
   }
   
+  /**
+   * Send DTMF tones during an active call
+   * @param dtmf The DTMF tone to send (0-9, *, #)
+   * @returns Promise that resolves when the DTMF has been sent
+   */
+  async sendDTMF(dtmf: string): Promise<void> {
+    if (!this.sipPlugin) {
+      throw new Error("SIP plugin not attached");
+    }
+    
+    if (!dtmf.match(/^[0-9*#]$/)) {
+      throw new Error("Invalid DTMF character. Must be 0-9, *, or #");
+    }
+    
+    console.log(`Sending DTMF tone: ${dtmf}`);
+    
+    return new Promise<void>((resolve, reject) => {
+      // Create the DTMF request message
+      const message = {
+        request: "dtmf_info",
+        digit: dtmf
+      };
+      
+      this.sipPlugin.send({
+        message: message,
+        success: () => {
+          console.log(`DTMF tone ${dtmf} sent successfully`);
+          resolve();
+        },
+        error: (error: any) => {
+          console.error(`Error sending DTMF tone ${dtmf}:`, error);
+          reject(new Error(`Failed to send DTMF: ${error}`));
+        }
+      });
+    });
+  }
+  
   async hangup(): Promise<void> {
     if (!this.sipPlugin) {
       return;

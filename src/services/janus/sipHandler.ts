@@ -53,6 +53,33 @@ export class JanusSipHandler {
   async hangup(): Promise<void> {
     return this.callManager.hangup();
   }
+  
+  async sendDTMF(digit: string): Promise<void> {
+    if (!this.getSipPlugin()) {
+      throw new Error("SIP plugin not attached");
+    }
+    
+    if (!digit.match(/^[0-9*#]$/)) {
+      throw new Error("Invalid DTMF character. Must be 0-9, *, or #");
+    }
+    
+    return new Promise<void>((resolve, reject) => {
+      const message = {
+        request: "dtmf_info",
+        digit: digit
+      };
+      
+      this.getSipPlugin().send({
+        message: message,
+        success: () => {
+          resolve();
+        },
+        error: (error: any) => {
+          reject(new Error(`Failed to send DTMF: ${error}`));
+        }
+      });
+    });
+  }
 
   handleSipMessage(msg: any, jsep: any, eventHandlers: SipEventHandlers): void {
     this.eventHandler.handleSipMessage(msg, jsep, eventHandlers);

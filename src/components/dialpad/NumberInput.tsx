@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X, Delete } from "lucide-react";
 
@@ -9,47 +8,46 @@ interface NumberInputProps {
   onChange: (value: string) => void;
   onClear: () => void;
   onBackspace: () => void;
+  disabled?: boolean;
 }
 
-const NumberInput = ({ number, onChange, onClear, onBackspace }: NumberInputProps) => {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Only allow numbers, *, and #
-    if (/^[0-9*#]*$/.test(value)) {
-      onChange(value);
-    }
+const NumberInput = ({ number, onChange, onClear, onBackspace, disabled = false }: NumberInputProps) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Filter out non-numeric/non-special characters
+    const value = e.target.value.replace(/[^0-9*#+]/g, '');
+    onChange(value);
   };
 
   return (
-    <div className="mb-4 relative">
-      <Input
+    <div className="relative mb-4">
+      <input
+        type="text"
         value={number}
-        onChange={handleInputChange}
-        className="text-2xl py-6 px-4 text-center font-medium pr-20"
+        onChange={handleChange}
+        className="w-full py-4 px-6 text-2xl text-center rounded-md border border-gray-300 focus:ring-2 focus:ring-softphone-accent focus:border-transparent"
         placeholder="Enter number"
-        type="tel"
-        pattern="[0-9*#]*"
+        disabled={disabled}
       />
-      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBackspace}
-          className="hover:bg-gray-100"
-        >
-          <Delete className="h-5 w-5" />
-        </Button>
-        {number && (
+      {number && (
+        <div className="absolute right-0 top-0 h-full flex">
           <Button
             variant="ghost"
-            size="icon"
-            className="hover:bg-gray-100"
+            className="h-full px-3 text-gray-500 hover:text-gray-700"
             onClick={onClear}
+            disabled={disabled}
           >
             <X className="h-5 w-5" />
           </Button>
-        )}
-      </div>
+          <Button
+            variant="ghost"
+            className="h-full px-3 mr-1 text-gray-500 hover:text-gray-700"
+            onClick={onBackspace}
+            disabled={disabled}
+          >
+            <Delete className="h-5 w-5" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
