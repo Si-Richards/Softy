@@ -72,13 +72,16 @@ export class AudioOutputHandler {
    */
   static async checkAndPlayRemoteAudio(): Promise<boolean> {
     try {
+      console.log("AudioOutputHandler: Attempting to force play audio");
       const success = await audioService.forcePlayAudio();
       if (success) {
-        console.log("Successfully resumed audio playback");
+        console.log("AudioOutputHandler: Successfully resumed audio playback");
+      } else {
+        console.log("AudioOutputHandler: Audio service couldn't resume playback");
       }
       return success;
     } catch (error) {
-      console.error("Failed to resume audio playback:", error);
+      console.error("AudioOutputHandler: Failed to resume audio playback:", error);
       return false;
     }
   }

@@ -92,24 +92,39 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     };
   }, [isCallActive, remoteVideoRef]);
 
-  // Play button handler
-  const handlePlayAudio = () => {
-    audioService.forcePlayAudio()
-      .then(success => {
-        if (success) {
+  // Play button handler - improved to ensure it always works
+  const handlePlayAudio = async () => {
+    console.log("Enable Audio button clicked");
+    
+    try {
+      // First, ensure the button click event is completed and browser knows user interacted
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      // Try using the audio service first
+      const success = await audioService.forcePlayAudio();
+      
+      if (success) {
+        console.log("Audio playback started successfully via audioService");
+        setIsAudioPaused(false);
+      } else {
+        // If the audio service method failed, try the AudioOutputHandler
+        console.log("Audio service method failed, trying AudioOutputHandler");
+        const handlerSuccess = await AudioOutputHandler.checkAndPlayRemoteAudio();
+        
+        if (handlerSuccess) {
+          console.log("Audio playback started successfully via AudioOutputHandler");
           setIsAudioPaused(false);
-          console.log("Audio playback started successfully");
         } else {
-          // If force play was not successful via audio service
-          console.log("Direct play failed, trying AudioOutputHandler");
-          AudioOutputHandler.checkAndPlayRemoteAudio();
+          // Last resort - show audio controls
+          console.log("All automatic methods failed, showing audio controls");
+          audioService.showAudioControls();
         }
-      })
-      .catch(error => {
-        console.error("Error starting audio playback:", error);
-        // Show audio controls as a fallback
-        audioService.showAudioControls();
-      });
+      }
+    } catch (error) {
+      console.error("Error starting audio playback:", error);
+      // Show audio controls as a fallback
+      audioService.showAudioControls();
+    }
   };
 
   // Only show video container if video is enabled
