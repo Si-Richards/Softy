@@ -59,60 +59,69 @@ export const performRegistration = async (
   try {
     // Format credentials following Janus SIP demo approach
     console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
-    console.log(`Using Janus SIP demo approach with full SIP identity`);
     
     // Register for the registration success event
-    const registrationPromise = new Promise<boolean>((resolve) => {
-      // Set up success handler
-      janusService.setOnRegistrationSuccess(() => {
-        console.log("SIP Registration confirmed successful");
-        setRegistrationStatus("connected");
-        setProgressValue(100);
-        setIsLoading(false);
-        
-        // Save credentials to localStorage
-        try {
-          localStorage.setItem('sipCredentials', JSON.stringify({ 
-            username, 
-            password, 
-            sipHost
-          }));
-          console.log("Credentials saved to localStorage");
-        } catch (error) {
-          console.error("Error saving credentials:", error);
-        }
-        
-        toast({
-          title: "Registration Successful",
-          description: "SIP credentials saved and connected",
-        });
-        
-        resolve(true);
-      });
+    console.log("Setting up registration success handler");
+    janusService.setOnRegistrationSuccess(() => {
+      console.log("✅ SIP Registration confirmed successful via callback");
+      setRegistrationStatus("connected");
+      setProgressValue(100);
+      setIsLoading(false);
       
-      // Set up a timeout for registration
-      setTimeout(() => {
-        if (!janusService.isRegistered()) {
-          console.warn("SIP Registration check failed after timeout");
-          setRegistrationStatus("failed");
-          setIsLoading(false);
-          setErrorMessage("Registration timed out. Please check your credentials and try again.");
-          toast({
-            title: "Registration Failed",
-            description: "Registration timed out. Please check your credentials and try again.",
-            variant: "destructive",
-          });
-          resolve(false);
-        }
-      }, 15000); // Give it 15 seconds to register
+      // Save credentials to localStorage
+      try {
+        localStorage.setItem('sipCredentials', JSON.stringify({ 
+          username, 
+          password, 
+          sipHost
+        }));
+        console.log("Credentials saved to localStorage");
+      } catch (error) {
+        console.error("Error saving credentials:", error);
+      }
+      
+      toast({
+        title: "Registration Successful",
+        description: "SIP credentials saved and connected",
+      });
+    });
+    
+    // Set up error handler for registration
+    console.log("Setting up error handler");
+    janusService.setOnError((error) => {
+      console.error("⚠️ SIP registration error:", error);
+      setRegistrationStatus("failed");
+      setIsLoading(false);
+      setErrorMessage(error);
+      toast({
+        title: "Registration Failed",
+        description: error,
+        variant: "destructive",
+      });
     });
     
     // Pass credentials to the SIP registration service
+    console.log("Sending registration request to Janus");
     await janusService.register(username, password, sipHost);
     setProgressValue(80);
     
-    // Wait for registration result
-    return registrationPromise;
+    // Set a timeout for registration (we'll let the success handler change the status if it succeeds)
+    setTimeout(() => {
+      if (!janusService.isRegistered()) {
+        console.warn("⚠️ SIP Registration check failed after timeout");
+        setRegistrationStatus("failed");
+        setIsLoading(false);
+        setErrorMessage("Registration timed out. Please check your credentials and try again.");
+        toast({
+          title: "Registration Failed",
+          description: "Registration timed out. Please check your credentials and try again.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }, 30000); // Give it 30 seconds to register
+    
+    return true;
   } catch (error) {
     throw error;
   }
@@ -154,7 +163,7 @@ export const handleRegistrationError = (
     }
   }
   
-  console.error(errorMsg);
+  console.error("❌", errorMsg);
   setErrorMessage(errorMsg);
   toast({
     title: "Registration Failed",

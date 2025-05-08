@@ -7,6 +7,7 @@ export class SipRegistrationManager {
   private maxRetries = 3;
   private retryDelay = 2000;
   private registrationRequest: SipRegistrationRequest | null = null;
+  private registrationTimer: number | null = null;
 
   constructor(private sipState: SipState) {}
 
@@ -15,10 +16,16 @@ export class SipRegistrationManager {
       // Reset retry attempts for new registration requests
       this.retryAttempts = 0;
       
+      // Clear any existing timer
+      if (this.registrationTimer) {
+        clearTimeout(this.registrationTimer);
+        this.registrationTimer = null;
+      }
+      
       // Create registration request following Janus SIP demo format
       this.registrationRequest = this.createRegistrationRequest(username, password, sipHost);
       
-      console.log("Registration request:", JSON.stringify(this.registrationRequest, null, 2));
+      console.log("SIP Registration request created:", JSON.stringify(this.registrationRequest, null, 2));
       this.performRegistration(resolve, reject);
     });
   }
@@ -49,30 +56,25 @@ export class SipRegistrationManager {
     const identity = `sip:${user}@${host}`;
     const proxy = `sip:${host}:${port}`;
     
-    console.log(`Creating registration with identity: ${identity}, proxy: ${proxy}`);
+    console.log(`Creating registration with identity: ${identity}, proxy: ${proxy}, user: ${user}`);
 
-    // Match exactly the Janus SIP demo format for maximum compatibility
     return {
       request: "register",
       username: identity,
       display_name: user,
       secret: password,
       proxy: proxy,
+      // Following settings match exactly the Janus SIP demo
       ha1_secret: false,
-      authuser: null,              // Changed from undefined to null to match demo exactly
+      authuser: null,
       refresh: true,
       register: true,
-      contact_params: null,        // Changed from undefined to null 
+      contact_params: null,
       headers: {
         "User-Agent": "Janus SIP Plugin",
         "X-Janus-SIP-Client": "Lovable WebRTC"
       },
-      force_udp: true,
-      force_tcp: false,
-      sips: false,
-      rfc2543_cancel: true,
-      register_ttl: 60,
-      transport: "udp"
+      master_id: undefined
     };
   }
 
@@ -94,30 +96,65 @@ export class SipRegistrationManager {
     
     console.log(`SIP Registration: Attempting registration with ${this.registrationRequest.username} (attempt ${this.retryAttempts + 1})`);
 
-    this.sipState.getSipPlugin().send({
-      message: this.registrationRequest,
-      success: () => {
-        console.log(`SIP Registration: Request sent successfully for ${this.registrationRequest?.username}`);
-        
-        // Store current credentials for future reference
-        if (this.registrationRequest) {
-          const host = this.registrationRequest.proxy?.replace('sip:', '');
-          this.sipState.setCurrentCredentials({ 
-            username: this.registrationRequest.username, 
-            password: this.registrationRequest.secret || '', 
-            sipHost: host || ''
-          });
-        }
-        
-        resolve();
-      },
-      error: (error: any) => {
-        const errorMsg = `SIP Registration Error: ${error}`;
-        console.error(errorMsg);
-        this.sipState.setRegistered(false);
-        this.handleRegistrationFailure(errorMsg, resolve, reject);
+    // Debug: Log the plugin handle ID to compare with server logs
+    const pluginHandleId = this.sipState.getSipPlugin().id;
+    console.log(`SIP plugin handle ID: ${pluginHandleId}`);
+    
+    // Set a timeout to detect if server responds
+    this.registrationTimer = window.setTimeout(() => {
+      console.warn('SIP Registration request timed out after 30 seconds');
+      // Only retry if we haven't exceeded max retries
+      if (this.retryAttempts < this.maxRetries) {
+        console.log(`Retrying registration (attempt ${this.retryAttempts + 1} of ${this.maxRetries})...`);
+        this.retryAttempts++;
+        this.performRegistration(resolve, reject);
+      } else {
+        reject(new Error("Registration request timed out. The SIP server is not responding."));
       }
-    });
+    }, 30000);  // 30 seconds timeout
+
+    // Send the registration request to Janus
+    try {
+      this.sipState.getSipPlugin().send({
+        message: this.registrationRequest,
+        success: () => {
+          console.log(`SIP Registration: Request sent successfully for ${this.registrationRequest?.username}`);
+          
+          // Store current credentials for future reference
+          if (this.registrationRequest) {
+            const host = this.registrationRequest.proxy?.replace('sip:', '');
+            this.sipState.setCurrentCredentials({ 
+              username: this.registrationRequest.username, 
+              password: this.registrationRequest.secret || '', 
+              sipHost: host || ''
+            });
+          }
+          
+          resolve();
+        },
+        error: (error: any) => {
+          // Clear the timer if we get an immediate error
+          if (this.registrationTimer) {
+            clearTimeout(this.registrationTimer);
+            this.registrationTimer = null;
+          }
+          
+          const errorMsg = `SIP Registration Error: ${error}`;
+          console.error(errorMsg);
+          this.sipState.setRegistered(false);
+          this.handleRegistrationFailure(errorMsg, resolve, reject);
+        }
+      });
+    } catch (error) {
+      // Clear the timer if we get an exception
+      if (this.registrationTimer) {
+        clearTimeout(this.registrationTimer);
+        this.registrationTimer = null;
+      }
+      
+      console.error("Exception sending registration request:", error);
+      reject(new Error(`Exception sending registration request: ${error}`));
+    }
   }
 
   private handleRegistrationFailure(

@@ -10,15 +10,16 @@ export class SipEventHandler {
   ) {}
 
   handleSipMessage(msg: SipPluginMessage, jsep: any, eventHandlers: SipEventHandlers): void {
-    console.log("SIP Message received:", JSON.stringify(msg, null, 2));
+    console.log("⭐ SIP Message received:", JSON.stringify(msg, null, 2));
     
     if (msg.error) {
-      console.error(`SIP Error: ${msg.error}`);
-      this.handleSipError(msg.error, eventHandlers);
+      console.error(`❌ SIP Error: ${msg.error} (code: ${msg.error_code})`);
+      this.handleSipError(msg.error, msg.error_code, eventHandlers);
       return;
     }
 
     if (!msg.result) {
+      console.warn("⚠️ Received SIP message without result");
       return;
     }
 
@@ -26,16 +27,14 @@ export class SipEventHandler {
     const event = result.event;
 
     switch (event) {
-      case "registration_failed": {
-        console.error(`SIP Registration failed: ${result.code || "Unknown error"} - ${result.reason || "No reason provided"}`);
-        
-        this.handleRegistrationFailure(result.code, result.reason, eventHandlers);
-        this.sipState.setRegistered(false);
+      case "registering": {
+        console.log("🔄 SIP: Registration process starting");
+        // Don't set registered true here yet, wait for "registered" event
         break;
       }
 
       case "registered": {
-        console.log("SIP registration successful");
+        console.log("✅ SIP: Registration successful");
         this.sipState.setRegistered(true);
         
         // Notify anyone listening for registration success
@@ -45,14 +44,17 @@ export class SipEventHandler {
         break;
       }
 
-      case "registering": {
-        console.log("SIP registration process starting");
+      case "registration_failed": {
+        console.error(`❌ SIP: Registration failed: ${result.code || "Unknown error"} - ${result.reason || "No reason provided"}`);
+        
+        this.handleRegistrationFailure(result.code, result.reason, eventHandlers);
+        this.sipState.setRegistered(false);
         break;
       }
 
       case "incomingcall": {
         // Handle incoming call
-        console.log("Incoming SIP call");
+        console.log("📞 SIP: Incoming call detected");
         if (eventHandlers.onIncomingCall && result.username) {
           eventHandlers.onIncomingCall(result.username, jsep);
         }
@@ -61,7 +63,7 @@ export class SipEventHandler {
 
       case "accepted": {
         // Call accepted
-        console.log("SIP call accepted");
+        console.log("✅ SIP: Call accepted");
         if (eventHandlers.onCallConnected) {
           eventHandlers.onCallConnected();
         }
@@ -70,7 +72,7 @@ export class SipEventHandler {
 
       case "hangup": {
         // Call ended
-        console.log("SIP call ended");
+        console.log("🔚 SIP: Call ended");
         if (eventHandlers.onCallEnded) {
           eventHandlers.onCallEnded();
         }
@@ -78,18 +80,23 @@ export class SipEventHandler {
       }
 
       default:
-        console.log(`Unhandled SIP event: ${event}`);
+        console.log(`ℹ️ SIP: Unhandled event: ${event}`, result);
     }
 
     // Handle JSep if provided
     if (jsep) {
+      console.log("🔧 SIP: Received JSEP", jsep);
       this.callManager.handleRemoteJsep(jsep);
     }
   }
 
-  private handleSipError(error: string, eventHandlers: SipEventHandlers): void {
+  private handleSipError(error: string, errorCode: number | undefined, eventHandlers: SipEventHandlers): void {
     // Enhanced error handling with descriptive messages
-    let enhancedError = error;
+    let enhancedError = `SIP Error: ${error}`;
+
+    if (errorCode) {
+      enhancedError += ` (Code: ${errorCode})`;
+    }
 
     if (error.includes("Missing session") || error.includes("Sofia stack")) {
       enhancedError = "Server SIP stack not initialized. Please try again in a few moments.";
@@ -100,6 +107,8 @@ export class SipEventHandler {
     } else if (error.includes("Not Found")) {
       enhancedError = "SIP account not found. Please verify your username.";
     }
+
+    console.error(`❌ ${enhancedError}`);
 
     if (eventHandlers.onError) {
       eventHandlers.onError(enhancedError);
@@ -125,6 +134,15 @@ export class SipEventHandler {
         case "408":
           errorMessage = "Registration request timed out. Server may be unreachable.";
           break;
+        case "423":
+          errorMessage = "Registration interval too brief. Try again later.";
+          break;
+        case "446":
+          errorMessage = "Username contains invalid characters or format.";
+          break;
+        case "480":
+          errorMessage = "SIP user temporarily unavailable.";
+          break;
         case "499":
           errorMessage = "Server SIP stack not initialized. Please try again in a few moments.";
           break;
@@ -134,6 +152,8 @@ export class SipEventHandler {
     } else if (reason) {
       errorMessage = `Registration failed: ${reason}`;
     }
+    
+    console.error(`❌ ${errorMessage}`);
     
     if (eventHandlers.onError) {
       eventHandlers.onError(errorMessage);

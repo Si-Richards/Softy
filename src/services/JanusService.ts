@@ -21,7 +21,7 @@ class JanusService {
     
     // Add registration success handler
     this.eventHandlers.setOnRegistrationSuccess(() => {
-      console.log("SIP Registration success received from Janus");
+      console.log("🎉 SIP Registration success received from Janus");
       if (this.registrationTimeout) {
         clearTimeout(this.registrationTimeout);
         this.registrationTimeout = null;
@@ -138,6 +138,7 @@ class JanusService {
   }
   
   setOnRegistrationSuccess(callback: () => void): void {
+    console.log("Setting registration success callback");
     this.eventHandlers.setOnRegistrationSuccess(callback);
   }
 
@@ -152,7 +153,7 @@ class JanusService {
   async register(username: string, password: string, sipHost: string): Promise<void> {
     try {
       // Log registration attempt
-      console.log(`Attempting SIP registration for ${username} at ${sipHost}`);
+      console.log(`🔄 Attempting SIP registration for ${username} at ${sipHost}`);
       
       // Clear any previous timeout
       if (this.registrationTimeout) {
@@ -162,18 +163,18 @@ class JanusService {
       // Set a timeout to detect registration failure
       this.registrationTimeout = window.setTimeout(() => {
         if (!this.isRegistered()) {
-          console.warn("Registration timed out after 10 seconds");
+          console.warn("⚠️ Registration timed out after 30 seconds");
           if (this.eventHandlers.onError) {
             this.eventHandlers.onError("Registration request timed out. The SIP server did not respond in time.");
           }
         }
-      }, 10000);
+      }, 30000); // Extend timeout to 30 seconds
       
       await this.sipHandler.register(username, password, sipHost);
-      console.log(`Successfully sent registration request to SIP server as ${username}@${sipHost}`);
+      console.log(`📤 Successfully sent registration request to SIP server as ${username}@${sipHost}`);
       return Promise.resolve();
     } catch (error) {
-      console.error("SIP registration error:", error);
+      console.error("❌ SIP registration error:", error);
       if (this.eventHandlers.onError) {
         this.eventHandlers.onError(`Registration failed: ${error}`);
       }
