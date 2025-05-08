@@ -122,7 +122,7 @@ export const useIncomingCall = () => {
         // Determine if this is a video call based on the SDP
         const isVideoCall = incomingCall.jsep.sdp.includes("m=video");
         
-        await janusService.acceptCall(incomingCall.jsep, isVideoCall, audioOptions);
+        await janusService.acceptCall(incomingCall.jsep, audioOptions);
         toast({
           title: "Call Accepted",
           description: "You have accepted the call",
@@ -154,8 +154,6 @@ export const useIncomingCall = () => {
             }
           }, 500); // Small delay to ensure stream is available
         }
-        
-        // We keep the incomingCall data until the call is ended
       } catch (error) {
         console.error("Error accepting call:", error);
         toast({

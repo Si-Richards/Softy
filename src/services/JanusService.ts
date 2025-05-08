@@ -1,6 +1,6 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
-import type { JanusOptions, SipCredentials, AudioCallOptions } from './janus/types';
+import type { JanusOptions, SipCredentials } from './janus/types';
+import type { AudioCallOptions } from './janus/sip/types';
 
 class JanusService {
   private janus: any = null;
