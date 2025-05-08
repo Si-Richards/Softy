@@ -66,7 +66,27 @@ export const useVideoStreams = (
         if (savedAudioOutput) {
           console.log("Setting saved audio output device:", savedAudioOutput);
           AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
+        } else {
+          // Even without a specific output device, set up the audio
+          AudioOutputHandler.setupRemoteAudio(remoteStream);
         }
+        
+        // Force audio playback without requiring user interaction
+        setTimeout(() => {
+          console.log("Attempting to force play audio after short delay");
+          audioService.forcePlayAudio()
+            .then(success => {
+              if (!success) {
+                // Try the backup method
+                return AudioOutputHandler.checkAndPlayRemoteAudio();
+              }
+              return success;
+            })
+            .then(finalSuccess => {
+              console.log("Auto-play attempt result:", finalSuccess ? "succeeded" : "failed");
+            })
+            .catch(e => console.warn("Auto-play attempt error:", e));
+        }, 300);
       } else if (remoteStream) {
         // Audio-only call - just use the audio service
         console.log("Audio-only call, using AudioService for playback");
@@ -78,6 +98,19 @@ export const useVideoStreams = (
           audioService.setAudioOutput(savedAudioOutput)
             .catch(error => console.warn("Couldn't set audio output:", error));
         }
+        
+        // Try to auto-play the audio immediately
+        setTimeout(() => {
+          console.log("Attempting to auto-play audio for audio-only call");
+          audioService.forcePlayAudio()
+            .then(success => {
+              if (!success) {
+                return AudioOutputHandler.checkAndPlayRemoteAudio();
+              }
+              return success;
+            })
+            .catch(e => console.warn("Auto-play error:", e));
+        }, 300);
       }
       
       // Setup a periodic check for audio playback

@@ -5,6 +5,7 @@ export class JanusMediaHandler {
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private trackListeners: Map<string, () => void> = new Map();
+  private autoPlayAttempted: boolean = false;
 
   setLocalStream(stream: MediaStream | null) {
     console.log("Setting local stream:", stream);
@@ -69,6 +70,9 @@ export class JanusMediaHandler {
       stream.addEventListener('inactive', () => {
         console.warn("Remote stream became inactive");
       });
+      
+      // Auto-play audio as soon as we get the stream
+      this.tryAutoPlayAudio();
     }
     
     this.remoteStream = stream;
@@ -76,7 +80,38 @@ export class JanusMediaHandler {
     // Directly attach the stream to our audio service
     if (stream) {
       audioService.attachStream(stream);
+      
+      // If this is a new stream, try auto-play again
+      if (!this.autoPlayAttempted) {
+        this.tryAutoPlayAudio();
+      }
     }
+  }
+
+  /**
+   * Attempt to auto-play audio without user interaction
+   */
+  private tryAutoPlayAudio(): void {
+    // Only try once per media session
+    if (this.autoPlayAttempted) return;
+    
+    this.autoPlayAttempted = true;
+    console.log("JanusMediaHandler: Attempting to auto-play audio");
+    
+    // Small delay to ensure browser has processed the stream
+    setTimeout(() => {
+      audioService.forcePlayAudio()
+        .then(success => {
+          if (success) {
+            console.log("JanusMediaHandler: Auto-play succeeded");
+          } else {
+            console.warn("JanusMediaHandler: Auto-play failed, will need user interaction");
+          }
+        })
+        .catch(error => {
+          console.error("JanusMediaHandler: Auto-play error:", error);
+        });
+    }, 300);
   }
 
   private clearTrackListeners(): void {
@@ -90,6 +125,9 @@ export class JanusMediaHandler {
       });
     }
     this.trackListeners.clear();
+    
+    // Reset auto-play flag when switching streams
+    this.autoPlayAttempted = false;
   }
 
   getLocalStream(): MediaStream | null {
@@ -104,5 +142,6 @@ export class JanusMediaHandler {
     this.clearTrackListeners();
     this.localStream = null;
     this.remoteStream = null;
+    this.autoPlayAttempted = false;
   }
 }

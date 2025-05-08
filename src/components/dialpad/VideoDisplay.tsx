@@ -20,6 +20,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
 }) => {
   const [isAudioPaused, setIsAudioPaused] = useState(false);
   const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const autoplayAttempted = useRef(false);
 
   // Check for audio output device
   useEffect(() => {
@@ -43,6 +44,47 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     }
   }, [isCallActive, remoteVideoRef]);
 
+  // Auto-play audio when call becomes active
+  useEffect(() => {
+    if (isCallActive && !autoplayAttempted.current) {
+      console.log("Call is active, attempting to auto-play audio");
+      autoplayAttempted.current = true;
+      
+      // Small delay to ensure everything is initialized
+      setTimeout(async () => {
+        try {
+          // First try direct audio service method
+          const success = await audioService.forcePlayAudio();
+          
+          if (success) {
+            console.log("Auto-play: Audio started successfully via audioService");
+            setIsAudioPaused(false);
+          } else {
+            // If the audio service method failed, try the AudioOutputHandler
+            console.log("Auto-play: Audio service method failed, trying AudioOutputHandler");
+            const handlerSuccess = await AudioOutputHandler.checkAndPlayRemoteAudio();
+            
+            if (handlerSuccess) {
+              console.log("Auto-play: Audio started successfully via AudioOutputHandler");
+              setIsAudioPaused(false);
+            } else {
+              // Last resort - we'll show the button UI
+              console.log("Auto-play: All automatic methods failed, showing button UI");
+              setIsAudioPaused(true);
+            }
+          }
+        } catch (error) {
+          console.error("Auto-play: Error starting audio playback:", error);
+          setIsAudioPaused(true);
+        }
+      }, 500);
+    } else if (!isCallActive) {
+      // Reset the autoplay flag when call ends
+      autoplayAttempted.current = false;
+      setIsAudioPaused(false);
+    }
+  }, [isCallActive]);
+
   // Setup periodic audio status check
   useEffect(() => {
     if (!isCallActive) {
@@ -54,27 +96,35 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       return;
     }
 
-    // Start checking the audio status immediately
+    // Start checking the audio status periodically
     const checkAudioStatus = () => {
       const isPlaying = audioService.isAudioPlaying();
-      setIsAudioPaused(!isPlaying);
       
       // If we have a stream but audio is paused, try to automatically resume
       if (!isPlaying) {
         console.log("Audio check: Audio is paused or not flowing");
         
-        // Only show UI controls if we've been paused for a few seconds
-        // This prevents flickering on brief interruptions
-        setTimeout(() => {
-          if (!audioService.isAudioPlaying()) {
-            console.log("Audio still not playing after delay, will show UI");
-            setIsAudioPaused(true);
-            
-            audioService.forcePlayAudio().catch(err => {
-              console.warn("Auto-resume failed, user interaction needed:", err);
-            });
-          }
-        }, 2000);
+        // If auto-play already attempted but failed, show UI
+        if (autoplayAttempted.current) {
+          console.log("Audio still not playing after auto-play attempt, will show UI");
+          setIsAudioPaused(true);
+        } else {
+          // Try to auto-play if not attempted yet
+          autoplayAttempted.current = true;
+          audioService.forcePlayAudio()
+            .then(success => {
+              if (success) {
+                console.log("Periodic check: Successfully resumed audio");
+                setIsAudioPaused(false);
+              } else {
+                setIsAudioPaused(true);
+              }
+            })
+            .catch(() => setIsAudioPaused(true));
+        }
+      } else {
+        // Audio is playing, hide the UI
+        setIsAudioPaused(false);
       }
     };
 
@@ -90,36 +140,55 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         statusCheckRef.current = null;
       }
     };
-  }, [isCallActive, remoteVideoRef]);
+  }, [isCallActive]);
 
-  // Play button handler - improved to ensure it always works
+  // Play button handler with multiple fallbacks
   const handlePlayAudio = async () => {
     console.log("Enable Audio button clicked");
     
     try {
       // First, ensure the button click event is completed and browser knows user interacted
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Try using the audio service first
+      // Try three different methods to start audio playback
+      
+      // Method 1: Audio Service
+      console.log("Trying method 1: Audio Service");
       const success = await audioService.forcePlayAudio();
       
       if (success) {
         console.log("Audio playback started successfully via audioService");
         setIsAudioPaused(false);
-      } else {
-        // If the audio service method failed, try the AudioOutputHandler
-        console.log("Audio service method failed, trying AudioOutputHandler");
-        const handlerSuccess = await AudioOutputHandler.checkAndPlayRemoteAudio();
-        
-        if (handlerSuccess) {
-          console.log("Audio playback started successfully via AudioOutputHandler");
+        return;
+      }
+      
+      // Method 2: AudioOutputHandler
+      console.log("Method 1 failed, trying method 2: AudioOutputHandler");
+      const handlerSuccess = await AudioOutputHandler.checkAndPlayRemoteAudio();
+      
+      if (handlerSuccess) {
+        console.log("Audio playback started successfully via AudioOutputHandler");
+        setIsAudioPaused(false);
+        return;
+      }
+      
+      // Method 3: Direct video element manipulation if we have a video call
+      if (isVideoEnabled && remoteVideoRef.current) {
+        console.log("Method 2 failed, trying method 3: Direct video element play");
+        try {
+          await remoteVideoRef.current.play();
+          console.log("Audio playback started via video element");
           setIsAudioPaused(false);
-        } else {
-          // Last resort - show audio controls
-          console.log("All automatic methods failed, showing audio controls");
-          audioService.showAudioControls();
+          return;
+        } catch (e) {
+          console.warn("Video element play failed:", e);
         }
       }
+      
+      // Last resort - show audio controls
+      console.log("All methods failed, showing audio controls");
+      audioService.showAudioControls();
+      
     } catch (error) {
       console.error("Error starting audio playback:", error);
       // Show audio controls as a fallback

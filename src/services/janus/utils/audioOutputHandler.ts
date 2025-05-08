@@ -63,6 +63,19 @@ export class AudioOutputHandler {
         .catch(error => console.warn("Couldn't set audio output:", error));
     }
     
+    // Auto-play immediately to avoid needing user interaction
+    this.checkAndPlayRemoteAudio()
+      .then(success => {
+        if (success) {
+          console.log("Auto-play succeeded during setupRemoteAudio");
+        } else {
+          console.warn("Auto-play failed during setupRemoteAudio");
+        }
+      })
+      .catch(error => {
+        console.error("Error during auto-play:", error);
+      });
+    
     return audioService.getAudioElement();
   }
 
@@ -73,13 +86,48 @@ export class AudioOutputHandler {
   static async checkAndPlayRemoteAudio(): Promise<boolean> {
     try {
       console.log("AudioOutputHandler: Attempting to force play audio");
+      
+      // Try different playback methods
+      // 1. First, try through the audio service
       const success = await audioService.forcePlayAudio();
+      
       if (success) {
         console.log("AudioOutputHandler: Successfully resumed audio playback");
-      } else {
-        console.log("AudioOutputHandler: Audio service couldn't resume playback");
+        return true;
       }
-      return success;
+      
+      console.log("AudioOutputHandler: Audio service couldn't resume playback");
+      
+      // 2. If audio service fails, try manually handling the audio element
+      const audioElement = audioService.getAudioElement();
+      if (audioElement && audioElement.paused) {
+        try {
+          // Apply some browser-specific fixes
+          if (/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+            // Safari needs special handling
+            audioElement.muted = false;
+            audioElement.volume = 1.0;
+          }
+          
+          // Ensure we're not in a muted state
+          audioElement.muted = false;
+          audioElement.volume = 1.0;
+          
+          // Try to play with user gesture simulation
+          // This works in some browsers when regular play() fails
+          const playPromise = audioElement.play();
+          
+          if (playPromise) {
+            await playPromise;
+            console.log("AudioOutputHandler: Manual play succeeded");
+            return true;
+          }
+        } catch (innerError) {
+          console.warn("AudioOutputHandler: Manual play attempt failed:", innerError);
+        }
+      }
+      
+      return false;
     } catch (error) {
       console.error("AudioOutputHandler: Failed to resume audio playback:", error);
       return false;
