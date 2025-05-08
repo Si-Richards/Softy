@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 
@@ -15,6 +15,7 @@ export interface UseSipConnectionResult {
   isLoading: boolean;
   registrationStatus: SipConnectionStatus;
   errorMessage: string | null;
+  progressValue: number;
   handleSave: () => Promise<void>;
   handleForgetCredentials: () => void;
 }
@@ -26,8 +27,34 @@ export function useSipConnection(): UseSipConnectionResult {
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<SipConnectionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progressValue, setProgressValue] = useState<number>(0);
   
   const { toast } = useToast();
+  
+  // Function to simulate connection progress
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isLoading && registrationStatus === "connecting") {
+      interval = setInterval(() => {
+        setProgressValue(prev => {
+          const newValue = prev + 5;
+          if (newValue >= 95) {
+            clearInterval(interval);
+            return 95; // Cap at 95% until actual success/failure
+          }
+          return newValue;
+        });
+      }, 300);
+    } else {
+      // Reset progress when not loading
+      setProgressValue(0);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isLoading, registrationStatus]);
 
   // Function to save credentials and connect
   const handleSave = async () => {
@@ -44,6 +71,7 @@ export function useSipConnection(): UseSipConnectionResult {
     setIsLoading(true);
     setRegistrationStatus("connecting");
     setErrorMessage(null);
+    setProgressValue(0);
 
     try {
       // Initialize Janus if not already connected
@@ -57,6 +85,7 @@ export function useSipConnection(): UseSipConnectionResult {
           ],
           success: () => {
             console.log("Janus initialized successfully");
+            setProgressValue(40);
           },
           error: (error) => {
             console.error("Janus initialization error:", error);
@@ -70,6 +99,7 @@ export function useSipConnection(): UseSipConnectionResult {
         console.log("SIP Registration successful");
         setRegistrationStatus("connected");
         setIsLoading(false);
+        setProgressValue(100);
         
         // Save credentials to localStorage
         try {
@@ -93,6 +123,7 @@ export function useSipConnection(): UseSipConnectionResult {
         setRegistrationStatus("failed");
         setIsLoading(false);
         setErrorMessage(error);
+        setProgressValue(0);
         toast({
           title: "Registration Failed",
           description: error,
@@ -105,12 +136,16 @@ export function useSipConnection(): UseSipConnectionResult {
         setRegistrationStatus("failed");
         setIsLoading(false);
         setErrorMessage(error);
+        setProgressValue(0);
         toast({
           title: "SIP Error",
           description: error,
           variant: "destructive",
         });
       });
+      
+      // Set progress to indicate we're about to register
+      setProgressValue(60);
       
       // Register with SIP server
       await janusService.register(username, password, sipHost);
@@ -120,6 +155,7 @@ export function useSipConnection(): UseSipConnectionResult {
       setRegistrationStatus("failed");
       setIsLoading(false);
       setErrorMessage(error.message || String(error));
+      setProgressValue(0);
       toast({
         title: "Registration Error",
         description: error.message || String(error),
@@ -141,6 +177,7 @@ export function useSipConnection(): UseSipConnectionResult {
     setSipHost("hpbx.voicehost.co.uk:5060");
     setRegistrationStatus("idle");
     setErrorMessage(null);
+    setProgressValue(0);
     
     // Disconnect from Janus
     if (janusService.isJanusConnected()) {
@@ -163,6 +200,7 @@ export function useSipConnection(): UseSipConnectionResult {
     isLoading,
     registrationStatus,
     errorMessage,
+    progressValue,
     handleSave,
     handleForgetCredentials
   };

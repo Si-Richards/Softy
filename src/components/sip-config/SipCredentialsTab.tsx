@@ -17,6 +17,7 @@ const SipCredentialsTab: React.FC = () => {
     isLoading,
     registrationStatus,
     errorMessage,
+    progressValue,
     handleSave,
     handleForgetCredentials
   } = useSipConnection();
@@ -48,6 +49,7 @@ const SipCredentialsTab: React.FC = () => {
           status={registrationStatus}
           errorMessage={errorMessage}
           isLoading={isLoading}
+          progressValue={progressValue}
         />
         
         <SipCredentialsForm

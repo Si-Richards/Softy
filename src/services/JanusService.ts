@@ -8,6 +8,8 @@ class JanusService {
   private eventHandlers: JanusEventHandlers;
   private opaqueId: string;
   private registered: boolean = false;
+  private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
 
   constructor() {
     this.eventHandlers = new JanusEventHandlers();
@@ -99,16 +101,26 @@ class JanusService {
         },
         onmessage: (msg: any, jsep: any) => {
           console.log("Received SIP message:", msg);
-          this.handleSipMessage(msg);
+          this.handleSipMessage(msg, jsep);
+        },
+        onlocalstream: (stream: MediaStream) => {
+          console.log("Got local stream", stream);
+          this.localStream = stream;
+        },
+        onremotestream: (stream: MediaStream) => {
+          console.log("Got remote stream", stream);
+          this.remoteStream = stream;
         },
         oncleanup: () => {
           console.log("SIP plugin cleaned up");
+          this.localStream = null;
+          this.remoteStream = null;
         }
       });
     });
   }
 
-  private handleSipMessage(msg: any): void {
+  private handleSipMessage(msg: any, jsep?: any): void {
     if (msg.error) {
       console.error("SIP Error:", msg.error);
       if (this.eventHandlers.onError) {
@@ -140,10 +152,53 @@ class JanusService {
           );
         }
         break;
+        
+      case "incomingcall":
+        console.log("Incoming call from:", result.username);
+        if (this.onIncomingCallCallback) {
+          this.onIncomingCallCallback(result.username, jsep);
+        }
+        break;
+        
+      case "accepted":
+        console.log("Call accepted");
+        if (this.onCallConnectedCallback) {
+          this.onCallConnectedCallback();
+        }
+        break;
+        
+      case "hangup":
+        console.log("Call ended");
+        if (this.onCallEndedCallback) {
+          this.onCallEndedCallback();
+        }
+        break;
 
       default:
         console.log("Unhandled SIP event:", event);
     }
+    
+    if (jsep) {
+      console.log("Handling incoming JSEP:", jsep);
+      this.sipPlugin?.handleRemoteJsep({ jsep: jsep });
+    }
+  }
+  
+  // Callback handlers for SIP events
+  private onIncomingCallCallback: ((from: string, jsep: any) => void) | null = null;
+  private onCallConnectedCallback: (() => void) | null = null;
+  private onCallEndedCallback: (() => void) | null = null;
+  
+  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
+    this.onIncomingCallCallback = callback;
+  }
+  
+  setOnCallConnected(callback: () => void): void {
+    this.onCallConnectedCallback = callback;
+  }
+  
+  setOnCallEnded(callback: () => void): void {
+    this.onCallEndedCallback = callback;
   }
 
   setOnError(callback: (error: string) => void): void {
@@ -222,6 +277,118 @@ class JanusService {
       }
       throw error;
     }
+  }
+  
+  // Call methods
+  async call(destination: string, isVideoCall: boolean = false): Promise<void> {
+    if (!this.sipPlugin) {
+      throw new Error("SIP plugin not attached");
+    }
+    
+    const callRequest = {
+      request: "call",
+      uri: destination.indexOf("sip:") === 0 ? destination : `sip:${destination}`,
+      video: isVideoCall
+    };
+    
+    return new Promise<void>((resolve, reject) => {
+      this.sipPlugin.createOffer({
+        media: {
+          audioSend: true,
+          audioRecv: true,
+          videoSend: isVideoCall,
+          videoRecv: isVideoCall
+        },
+        success: (jsep: any) => {
+          console.log("Got SDP offer", jsep);
+          this.sipPlugin.send({
+            message: callRequest,
+            jsep: jsep,
+            success: () => {
+              console.log("Call request sent");
+              resolve();
+            },
+            error: (error: any) => {
+              console.error("Error sending call request:", error);
+              reject(new Error(`Call failed: ${error}`));
+            }
+          });
+        },
+        error: (error: any) => {
+          console.error("Error creating SDP offer:", error);
+          reject(new Error(`Failed to create offer: ${error}`));
+        }
+      });
+    });
+  }
+  
+  async acceptCall(jsep: any): Promise<void> {
+    if (!this.sipPlugin) {
+      throw new Error("SIP plugin not attached");
+    }
+    
+    return new Promise<void>((resolve, reject) => {
+      this.sipPlugin.createAnswer({
+        jsep: jsep,
+        media: { 
+          audioSend: true, 
+          audioRecv: true,
+          videoSend: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
+          videoRecv: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
+        },
+        success: (ourjsep: any) => {
+          const body = { request: "accept" };
+          this.sipPlugin.send({
+            message: body,
+            jsep: ourjsep,
+            success: () => {
+              console.log("Call accepted");
+              resolve();
+            },
+            error: (error: any) => {
+              console.error("Error accepting call:", error);
+              reject(new Error(`Failed to accept call: ${error}`));
+            }
+          });
+        },
+        error: (error: any) => {
+          console.error("Error creating answer:", error);
+          reject(new Error(`Failed to create answer: ${error}`));
+        }
+      });
+    });
+  }
+  
+  async hangup(): Promise<void> {
+    if (!this.sipPlugin) {
+      return;
+    }
+    
+    const hangupMsg = { request: "hangup" };
+    
+    return new Promise<void>((resolve) => {
+      this.sipPlugin.send({
+        message: hangupMsg,
+        success: () => {
+          console.log("Hangup sent");
+          resolve();
+        },
+        error: (error: any) => {
+          console.error("Error hanging up:", error);
+          // Still resolve as we want to clean up the UI
+          resolve();
+        }
+      });
+    });
+  }
+  
+  // Stream handling methods
+  getLocalStream(): MediaStream | null {
+    return this.localStream;
+  }
+  
+  getRemoteStream(): MediaStream | null {
+    return this.remoteStream;
   }
 
   isRegistered(): boolean {
