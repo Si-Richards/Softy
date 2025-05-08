@@ -1,4 +1,3 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 
@@ -246,16 +245,16 @@ class JanusService {
       
       console.log(`Registering as: ${identity}, proxy: ${proxy}`);
 
-      // Registration request - FIXED: Set ha1_secret explicitly to "false" as string
+      // Registration request - FIXED: Set ha1_secret and authuser explicitly as strings
       const request = {
         request: "register",
         username: identity,
         display_name: user,
         secret: password,
         proxy: proxy,
-        // Additional options - IMPORTANT: ha1_secret must be "false" as string
+        // Additional options - IMPORTANT: both ha1_secret and authuser must be strings
         ha1_secret: "false",
-        authuser: null,
+        authuser: user, // FIXED: Use username string instead of null
       };
 
       this.sipPlugin.send({

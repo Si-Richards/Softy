@@ -35,8 +35,8 @@ export interface SipRegistrationRequest {
   username: string;
   display_name?: string;
   secret?: string;
-  ha1_secret?: string; // Changed to string type
-  authuser?: string | null;
+  ha1_secret?: string; // String type for ha1_secret
+  authuser?: string; // Changed from string|null to just string
   proxy?: string;
   outbound_proxy?: string;
   headers?: Record<string, string>;
