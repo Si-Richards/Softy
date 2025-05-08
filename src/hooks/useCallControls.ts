@@ -86,11 +86,41 @@ export const useCallControls = () => {
     } else if (number) {
       if (isJanusConnected) {
         try {
+          // Fix: Make sure number is properly formatted for SIP URI
+          let formattedNumber = number;
+          
+          // If number doesn't include sip: prefix or domain, format it
+          if (!formattedNumber.includes('@') && !formattedNumber.startsWith('sip:')) {
+            // Get the current SIP domain from the credentials
+            let sipDomain = '';
+            try {
+              const credentials = JSON.parse(localStorage.getItem('sipCredentials') || '{}');
+              if (credentials.sipHost) {
+                sipDomain = credentials.sipHost.split(':')[0]; // Remove port if present
+              }
+            } catch (e) {
+              console.error("Error parsing stored credentials:", e);
+            }
+            
+            // If we have a domain, use it, otherwise use a default
+            if (sipDomain) {
+              formattedNumber = `${formattedNumber}@${sipDomain}`;
+            }
+          }
+          
+          console.log("Calling formatted number:", formattedNumber);
+          
           // Get audio options with selected audio devices
           const audioOptions = getAudioOptions();
           console.log("Using audio options:", audioOptions);
           
-          await janusService.call(number, false, audioOptions);
+          toast({
+            title: "Calling...",
+            description: `Dialing ${number}`,
+            duration: 3000,
+          });
+          
+          await janusService.call(formattedNumber, false, audioOptions);
           setIsCallActive(true);
           setCallStartTime(new Date());
           

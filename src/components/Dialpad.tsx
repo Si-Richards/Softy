@@ -10,13 +10,15 @@ import { useSendDTMF } from "@/hooks/useSendDTMF";
 import { useKeypadInput } from "@/hooks/useKeypadInput";
 import { useVideoStreams } from "@/hooks/useVideoStreams";
 import { useCallControls } from "@/hooks/useCallControls";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
-  const { isJanusConnected, errorMessage } = useJanusSetup();
+  const { isJanusConnected, isRegistered, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
   const { sendDTMFTone } = useSendDTMF();
   const voicemailNumber = "1571"; // Updated voicemail number
@@ -35,13 +37,6 @@ const Dialpad = () => {
     if (isCallActive) {
       // If in a call, send DTMF tones
       sendDTMFTone(key);
-      
-      // Show a toast notification when sending DTMF during call
-      toast({
-        title: `Sending tone: ${key}`,
-        description: "DTMF tone sent to remote party",
-        duration: 1000,
-      });
     } else {
       // Otherwise just add to the dialed number
       setNumber((prev) => prev + key);
@@ -86,10 +81,37 @@ const Dialpad = () => {
         isCallActive={isCallActive}
       />
 
+      {!isJanusConnected && (
+        <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+          <AlertTitle className="flex items-center"><Info className="h-4 w-4 mr-2" /> Not Connected</AlertTitle>
+          <AlertDescription>
+            WebRTC connection is not established. Please go to Settings and connect your SIP account.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isJanusConnected && !isRegistered && (
+        <Alert className="mb-4 bg-orange-50 border-orange-200">
+          <AlertTitle className="flex items-center"><Info className="h-4 w-4 mr-2" /> Not Registered</AlertTitle>
+          <AlertDescription>
+            Connected to WebRTC server but not registered with SIP. Please check your credentials.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {errorMessage && (
         <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
           {errorMessage}
         </div>
+      )}
+
+      {isCallActive && (
+        <Alert className="mb-4 bg-green-50 border-green-200">
+          <AlertTitle>Call Active</AlertTitle>
+          <AlertDescription>
+            Use the dialpad to send DTMF tones to the remote party.
+          </AlertDescription>
+        </Alert>
       )}
 
       <NumberInput
