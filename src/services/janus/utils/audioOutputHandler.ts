@@ -79,4 +79,32 @@ export class AudioOutputHandler {
     
     return audioElement;
   }
+
+  /**
+   * Check if the remote audio is playing and attempt to resume it if paused
+   */
+  static checkAndPlayRemoteAudio(): boolean {
+    const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+    
+    if (!audioElement) {
+      console.log("No remote audio element found to check");
+      return false;
+    }
+    
+    if (audioElement.paused) {
+      console.log("Remote audio is paused, attempting to play");
+      audioElement.play()
+        .then(() => {
+          console.log("Successfully resumed audio playback");
+          return true;
+        })
+        .catch(error => {
+          console.error("Failed to resume audio playback:", error);
+          return false;
+        });
+      return false;
+    }
+    
+    return true;
+  }
 }

@@ -45,29 +45,34 @@ export const useVideoStreams = (
         
         // Set up a dedicated audio element for the remote stream
         const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-        AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
+        const audioElement = AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
         
-        // Try to play the stream (may be needed for autoplay policies)
-        const playPromise = remoteVideoRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => console.log("Remote audio playback started successfully"))
-            .catch(error => {
-              console.error("Error playing remote stream:", error);
-              // Try again with user interaction on next click anywhere
-              const handleClick = () => {
-                if (remoteVideoRef.current) {
-                  remoteVideoRef.current.play()
-                    .then(() => {
-                      console.log("Remote audio playback started on user interaction");
-                      document.removeEventListener('click', handleClick);
-                    })
-                    .catch(e => console.error("Still failed to play:", e));
-                }
-              };
-              document.addEventListener('click', handleClick, { once: true });
-            });
+        // Try to play the video element (for video calls)
+        if (remoteVideoRef.current) {
+          const playPromise = remoteVideoRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => console.log("Remote video playback started successfully"))
+              .catch(error => {
+                console.error("Error playing remote video:", error);
+              });
+          }
         }
+        
+        // Set up a periodic check for audio playback status
+        const audioCheckInterval = setInterval(() => {
+          const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+          if (audioElement) {
+            const isPaused = audioElement.paused;
+            if (isPaused) {
+              console.log("Audio element is paused, user may need to interact");
+            }
+          }
+        }, 5000);
+        
+        return () => {
+          clearInterval(audioCheckInterval);
+        };
       }
     }
   }, [isCallActive, localVideoRef, remoteVideoRef]);
