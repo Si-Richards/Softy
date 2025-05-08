@@ -24,30 +24,44 @@ export class SipRegistrationManager {
   }
 
   private createRegistrationRequest(username: string, password: string, sipHost: string): SipRegistrationRequest {
-    // Format host name correctly
-    let host = sipHost;
-    let port = '5060'; // Default SIP port
-    
-    if (sipHost.includes(':')) {
-      const hostParts = sipHost.split(':');
-      host = hostParts[0];
-      port = hostParts[1];
+    // Parse the username - check if it already has the full format (sip:user@domain)
+    let user = username;
+    let domain = sipHost;
+    let fullIdentity = "";
+
+    // Strip any 'sip:' prefix from the username if it exists
+    if (user.startsWith("sip:")) {
+      user = user.substring(4);
     }
 
-    // Clean username (remove any existing sip: prefix or domain)
-    const cleanUsername = username.replace(/^sip:/, '').split('@')[0];
+    // Check if username contains @ which means it already has domain
+    if (user.includes("@")) {
+      const parts = user.split("@");
+      user = parts[0];
+      domain = parts[1].split(":")[0]; // Use domain from username, ignoring port
+    }
+
+    // Extract port from sipHost if present
+    const hostParts = sipHost.split(":");
+    const host = hostParts[0];
+    const port = hostParts.length > 1 ? hostParts[1] : "5060";
+
+    // Create full SIP identity in the format sip:user@domain
+    fullIdentity = `sip:${user}@${host}`;
     
+    console.log(`Creating registration with identity: ${fullIdentity}, proxy: sip:${host}:${port}`);
+
     // Follow the exact format from Janus SIP demo
     return {
       request: "register",
-      username: cleanUsername, 
-      display_name: cleanUsername,
+      username: fullIdentity, // Full SIP URI as used in Janus demo
+      display_name: user,
       secret: password,
       proxy: `sip:${host}:${port}`,
       ha1_secret: false,
       authuser: undefined,
       refresh: true,
-      register: true, // Explicitly set register flag
+      register: true, 
       contact_params: undefined,
       headers: {
         "User-Agent": "Janus SIP Plugin",
@@ -120,24 +134,6 @@ export class SipRegistrationManager {
       
       setTimeout(() => {
         console.log(`SIP Registration: Retrying registration, attempt ${this.retryAttempts}...`);
-        
-        // Try with a different username format on each retry
-        if (this.registrationRequest) {
-          // First retry: Try with domain
-          if (this.retryAttempts === 1 && this.registrationRequest.proxy) {
-            const domain = this.registrationRequest.proxy.replace('sip:', '');
-            this.registrationRequest.username = `${this.registrationRequest.username}@${domain.split(':')[0]}`;
-            console.log(`Retry with username format: ${this.registrationRequest.username}`);
-          }
-          
-          // Second retry: Try with sip: prefix
-          else if (this.retryAttempts === 2 && this.registrationRequest.proxy) {
-            const domain = this.registrationRequest.proxy.replace('sip:', '').split(':')[0];
-            this.registrationRequest.username = `sip:${this.registrationRequest.username.split('@')[0]}@${domain}`;
-            console.log(`Retry with username format: ${this.registrationRequest.username}`);
-          }
-        }
-        
         this.performRegistration(resolve, reject);
       }, delay);
     } else {

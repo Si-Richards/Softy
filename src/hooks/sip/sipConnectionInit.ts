@@ -57,25 +57,12 @@ export const performRegistration = async (
   setErrorMessage: (error: string | null) => void
 ): Promise<boolean> => {
   try {
-    // Ensure SIP host format is correct (with port)
-    const hostParts = sipHost.split(':');
-    const host = hostParts[0];
-    const port = hostParts.length > 1 ? hostParts[1] : '5060';
-    const completeHost = `${host}:${port}`;
-    
-    console.log(`Attempting to register with username: ${username}, host: ${completeHost} (UDP)`);
-    console.log(`SIP transport: UDP, port: ${port}`);
-    
-    // Test SIP server connectivity before registration attempt
-    try {
-      await testSipServerConnectivity(host, port);
-    } catch (error) {
-      console.warn(`SIP server connectivity test warning: ${error}`);
-      // Continue with registration despite warning
-    }
+    // Format credentials following Janus SIP demo approach
+    console.log(`Attempting to register with username: ${username}, host: ${sipHost}`);
+    console.log(`Using Janus SIP demo approach with full SIP identity`);
     
     // Pass credentials to the SIP registration service
-    await janusService.register(username, password, completeHost);
+    await janusService.register(username, password, sipHost);
     
     setProgressValue(80);
     
@@ -83,8 +70,8 @@ export const performRegistration = async (
     return new Promise((resolve) => {
       // Start checking registration status repeatedly
       let checkCount = 0;
-      const maxChecks = 15; // Increased from 10 to 15
-      const checkInterval = 2000; // Increased from 1000 to 2000ms
+      const maxChecks = 15;
+      const checkInterval = 2000;
       
       const checkRegistration = () => {
         checkCount++;
@@ -101,7 +88,7 @@ export const performRegistration = async (
             localStorage.setItem('sipCredentials', JSON.stringify({ 
               username, 
               password, 
-              sipHost: completeHost 
+              sipHost
             }));
             console.log("Credentials saved to localStorage");
           } catch (error) {
@@ -136,34 +123,11 @@ export const performRegistration = async (
       };
       
       // Start the registration check loop
-      setTimeout(checkRegistration, 2000); // Increased from 1000 to 2000ms
+      setTimeout(checkRegistration, 2000);
     });
   } catch (error) {
     throw error;
   }
-};
-
-/**
- * Test SIP server connectivity before attempting registration
- * This helps diagnose network-related issues early
- */
-const testSipServerConnectivity = async (host: string, port: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    console.log(`Testing connectivity to SIP server ${host}:${port}...`);
-    
-    // In a browser environment, we can't directly ping the server
-    // Instead, we'll use the WebRTC connection status as a proxy
-    if (!janusService.isJanusConnected()) {
-      reject(new Error("WebRTC server not connected, cannot test SIP server"));
-      return;
-    }
-    
-    // We're relying on the WebRTC server being connected as an indication
-    // that the network is generally working
-    console.log("WebRTC connection is active, network appears to be working");
-    console.log(`SIP server will be contacted via the WebRTC gateway at ${host}:${port}`);
-    resolve();
-  });
 };
 
 /**

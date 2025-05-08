@@ -32,6 +32,13 @@ const SipCredentialsTab: React.FC = () => {
       ? "Reconnect" 
       : "Save & Connect";
 
+  // Pre-fill with VoiceHost example credentials
+  const fillExampleCredentials = () => {
+    setUsername("16331*201");
+    setPassword("am4tsQwM53YYT!cw");
+    setSipHost("hpbx.voicehost.co.uk:5060");
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -66,8 +73,19 @@ const SipCredentialsTab: React.FC = () => {
           buttonText={buttonText}
         />
         
-        {isRegistered && (
-          <div className="pt-2">
+        <div className="flex flex-wrap gap-2">
+          {!isRegistered && (
+            <Button
+              onClick={fillExampleCredentials}
+              variant="secondary"
+              type="button"
+              className="w-full sm:w-auto"
+            >
+              Use Example Credentials
+            </Button>
+          )}
+          
+          {isRegistered && (
             <Button 
               onClick={handleForgetCredentials}
               variant="outline"
@@ -75,11 +93,13 @@ const SipCredentialsTab: React.FC = () => {
             >
               Forget Me
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
       <CardFooter className="pt-0">
-        {/* CardFooter is kept for potential future additions */}
+        <p className="text-xs text-gray-500">
+          For VoiceHost SIP, use identity format: [user]@hpbx.voicehost.co.uk
+        </p>
       </CardFooter>
     </Card>
   );
