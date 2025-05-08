@@ -12,6 +12,7 @@ const IncomingCallHandler = () => {
     incomingCall, 
     handleAcceptCall, 
     handleRejectCall,
+    handleIncomingCall,  // Make sure we destructure this function
     notificationsEnabled
   } = useIncomingCall();
   
@@ -31,7 +32,7 @@ const IncomingCallHandler = () => {
       // Clean up by setting null handler
       janusService.setOnIncomingCall(null);
     };
-  }, []);
+  }, [handleIncomingCall]); // Add handleIncomingCall to the dependency array
   
   // Show notification permission reminder if not enabled
   useEffect(() => {
