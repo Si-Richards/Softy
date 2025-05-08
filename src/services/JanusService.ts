@@ -245,16 +245,14 @@ class JanusService {
       
       console.log(`Registering as: ${identity}, proxy: ${proxy}`);
 
-      // Registration request - FIXED: Set ha1_secret and authuser explicitly as strings
+      // Registration request - Updated: Removed ha1_secret parameter
       const request = {
         request: "register",
         username: identity,
         display_name: user,
         secret: password,
         proxy: proxy,
-        // Additional options - IMPORTANT: both ha1_secret and authuser must be strings
-        ha1_secret: "false",
-        authuser: user, // FIXED: Use username string instead of null
+        authuser: user
       };
 
       this.sipPlugin.send({
