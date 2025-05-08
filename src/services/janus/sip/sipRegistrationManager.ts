@@ -64,9 +64,7 @@ export class SipRegistrationManager {
       display_name: user,
       secret: password,
       proxy: proxy,
-      // FIXED: Use ha1_secret as string "false" for plain text authentication
-      ha1_secret: "false",
-      authuser: user, // FIXED: Use username string instead of null
+      authuser: user,
       refresh: true,
       register: true,
       contact_params: null,
