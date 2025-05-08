@@ -1,5 +1,6 @@
 
 import audioService from '@/services/AudioService';
+import userInteractionService from '@/services/UserInteractionService';
 
 export class JanusMediaHandler {
   private localStream: MediaStream | null = null;
@@ -31,10 +32,11 @@ export class JanusMediaHandler {
         id: stream.id,
         active: stream.active,
         audioTracks: stream.getAudioTracks().length,
-        videoTracks: stream.getVideoTracks().length
+        videoTracks: stream.getVideoTracks().length,
+        userHasInteracted: userInteractionService.userHasInteracted()
       });
       
-      // Ensure audio tracks are enabled by default and attach to audio service
+      // Ensure audio tracks are enabled by default
       stream.getAudioTracks().forEach(track => {
         console.log("Remote audio track:", track.label, "enabled:", track.enabled);
         
@@ -80,11 +82,6 @@ export class JanusMediaHandler {
     // Directly attach the stream to our audio service
     if (stream) {
       audioService.attachStream(stream);
-      
-      // If this is a new stream, try auto-play again
-      if (!this.autoPlayAttempted) {
-        this.tryAutoPlayAudio();
-      }
     }
   }
 
@@ -98,6 +95,25 @@ export class JanusMediaHandler {
     this.autoPlayAttempted = true;
     console.log("JanusMediaHandler: Attempting to auto-play audio");
     
+    if (!userInteractionService.userHasInteracted()) {
+      console.log("JanusMediaHandler: No user interaction yet, showing prompt");
+      
+      // Show prompt for user interaction if needed
+      audioService.promptForUserInteraction()
+        .then(interacted => {
+          if (interacted) {
+            console.log("JanusMediaHandler: User interacted with prompt");
+            setTimeout(() => {
+              audioService.forcePlayAudio()
+                .then(success => console.log("Auto-play after prompt result:", success))
+                .catch(error => console.error("Auto-play error after prompt:", error));
+            }, 300);
+          }
+        });
+        
+      return;
+    }
+    
     // Small delay to ensure browser has processed the stream
     setTimeout(() => {
       audioService.forcePlayAudio()
@@ -106,6 +122,8 @@ export class JanusMediaHandler {
             console.log("JanusMediaHandler: Auto-play succeeded");
           } else {
             console.warn("JanusMediaHandler: Auto-play failed, will need user interaction");
+            // Try to prompt for interaction as fallback
+            audioService.promptForUserInteraction();
           }
         })
         .catch(error => {

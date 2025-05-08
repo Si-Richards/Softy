@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
 import audioService from "@/services/AudioService";
+import userInteractionService from "@/services/UserInteractionService";
 
 interface VideoDisplayProps {
   localVideoRef: React.RefObject<HTMLVideoElement>;
@@ -21,6 +22,33 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
   const [isAudioPaused, setIsAudioPaused] = useState(false);
   const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
   const autoplayAttempted = useRef(false);
+
+  // Initialize user interaction service when component mounts
+  useEffect(() => {
+    // Initialize the user interaction service
+    userInteractionService.initialize();
+    
+    // Log if we already have user interaction
+    console.log("VideoDisplay: User has interacted:", userInteractionService.userHasInteracted());
+    
+    // If no interaction yet, register for notification when it happens
+    if (!userInteractionService.userHasInteracted()) {
+      userInteractionService.onUserInteraction(() => {
+        console.log("VideoDisplay: User has now interacted with the page");
+        
+        // If we're in a call, try to play audio now that we have interaction
+        if (isCallActive) {
+          console.log("VideoDisplay: In call with user interaction - attempting to play audio");
+          audioService.forcePlayAudio()
+            .then(success => {
+              console.log("Audio playback after interaction:", success ? "succeeded" : "failed");
+              setIsAudioPaused(!success);
+            })
+            .catch(e => console.warn("Play after interaction error:", e));
+        }
+      });
+    }
+  }, []);
 
   // Check for audio output device
   useEffect(() => {
@@ -48,7 +76,25 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
   useEffect(() => {
     if (isCallActive && !autoplayAttempted.current) {
       console.log("Call is active, attempting to auto-play audio");
+      console.log("User has interacted with page:", userInteractionService.userHasInteracted());
       autoplayAttempted.current = true;
+      
+      // If we don't have user interaction yet, we'll need to prompt
+      if (!userInteractionService.userHasInteracted()) {
+        console.log("No user interaction yet, showing audio prompt");
+        setIsAudioPaused(true);
+        
+        // Try to prompt for interaction
+        AudioOutputHandler.promptForUserInteraction()
+          .then(interacted => {
+            if (interacted) {
+              console.log("User interacted with prompt, trying playback");
+              setIsAudioPaused(false);
+            }
+          });
+        
+        return;
+      }
       
       // Small delay to ensure everything is initialized
       setTimeout(async () => {
@@ -104,13 +150,10 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       if (!isPlaying) {
         console.log("Audio check: Audio is paused or not flowing");
         
-        // If auto-play already attempted but failed, show UI
-        if (autoplayAttempted.current) {
-          console.log("Audio still not playing after auto-play attempt, will show UI");
-          setIsAudioPaused(true);
-        } else {
-          // Try to auto-play if not attempted yet
-          autoplayAttempted.current = true;
+        // Only try to auto-play if user has interacted
+        if (userInteractionService.userHasInteracted()) {
+          console.log("User has interacted, attempting to auto-play");
+          
           audioService.forcePlayAudio()
             .then(success => {
               if (success) {
@@ -121,6 +164,10 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
               }
             })
             .catch(() => setIsAudioPaused(true));
+        } else {
+          // If no user interaction yet, show UI for interaction
+          console.log("No user interaction yet, showing audio button");
+          setIsAudioPaused(true);
         }
       } else {
         // Audio is playing, hide the UI
@@ -142,9 +189,12 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     };
   }, [isCallActive]);
 
-  // Play button handler with multiple fallbacks
+  // Play button handler with multiple fallbacks - important for user interaction
   const handlePlayAudio = async () => {
     console.log("Enable Audio button clicked");
+    
+    // This click is our user interaction
+    userInteractionService.forceInteractionState(true);
     
     try {
       // First, ensure the button click event is completed and browser knows user interacted

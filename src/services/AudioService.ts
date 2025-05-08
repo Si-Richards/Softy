@@ -1,5 +1,5 @@
-
 import { AudioOutputHandler } from './janus/utils/audioOutputHandler';
+import userInteractionService from './UserInteractionService';
 
 /**
  * AudioService centralizes the management of audio elements and tracks
@@ -16,10 +16,87 @@ class AudioService {
   private dataArray: Uint8Array | null = null;
   private isAudioFlowing = false;
   private lastAudioFlowCheck = 0;
+  private audioInitialized = false;
+  private streamToAttachOnInitialization: MediaStream | null = null;
+  private autoplayAttempted = false;
+  private enabledByUserInteraction = false;
   
   private constructor() {
     this.getPreferredAudioOutput();
-    this.setupAudioAnalyzer();
+    
+    // Early initialization of audio element on service creation
+    this.initializeAudio();
+    
+    // Register for the first user interaction event
+    userInteractionService.onUserInteraction(() => {
+      console.log("AudioService: Responding to user interaction");
+      this.enabledByUserInteraction = true;
+      
+      // Try to start audio context if it exists
+      this.initializeAudioContext();
+      
+      // If we have a pending stream to attach, do so now
+      if (this.streamToAttachOnInitialization) {
+        console.log("AudioService: Attaching pending stream after user interaction");
+        this.attachStream(this.streamToAttachOnInitialization);
+        this.streamToAttachOnInitialization = null;
+      }
+      
+      // Try to force play audio if there's an active element
+      this.forcePlayAudio().catch(e => console.warn("Auto-play after user interaction failed:", e));
+    });
+  }
+  
+  /**
+   * Initialize the audio context for audio analysis
+   */
+  private initializeAudioContext(): void {
+    // Create audio context if browser supports it and it doesn't exist yet
+    if (!this.audioContext) {
+      try {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContext) {
+          this.audioContext = new AudioContext();
+          
+          // Resume audio context if it's suspended (important for Safari)
+          if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume().catch(e => {
+              console.warn("Failed to resume AudioContext:", e);
+            });
+          }
+          
+          this.audioAnalyser = this.audioContext.createAnalyser();
+          this.audioAnalyser.fftSize = 256;
+          const bufferLength = this.audioAnalyser.frequencyBinCount;
+          this.dataArray = new Uint8Array(bufferLength);
+          
+          console.log("Audio analyzer initialized", {
+            state: this.audioContext.state,
+            sampleRate: this.audioContext.sampleRate
+          });
+        }
+      } catch (e) {
+        console.warn("Could not initialize audio analyzer:", e);
+      }
+    }
+  }
+  
+  /**
+   * Initialize the audio element early before it's needed
+   */
+  private initializeAudio(): void {
+    if (this.audioInitialized) return;
+    
+    // Create the singleton audio element
+    this.getAudioElement();
+    
+    // Set up audio analytics
+    this.setupAudioAnalytics();
+    
+    // Initialize audio context
+    this.initializeAudioContext();
+    
+    this.audioInitialized = true;
   }
   
   public static getInstance(): AudioService {
@@ -111,23 +188,22 @@ class AudioService {
           networkState: this.audioElement.networkState,
           hasAudioTracks: this.audioElement.srcObject ? 
             (this.audioElement.srcObject as MediaStream).getAudioTracks().length : 0,
-          audioFlowing: this.analyzeAudioFlow()
+          audioFlowing: this.analyzeAudioFlow(),
+          userHasInteracted: userInteractionService.userHasInteracted(),
+          enabledByUserInteraction: this.enabledByUserInteraction
         };
         
         console.log("Audio element detailed status:", audioStatus);
         
-        if (audioStatus.paused || audioStatus.hasAudioTracks === 0) {
-          console.warn("Audio playback issue detected:", 
-            audioStatus.paused ? "Audio is paused" : "No audio tracks available");
-            
-          // Try to autofix if we have tracks but are paused
-          if (!audioStatus.paused && audioStatus.hasAudioTracks > 0) {
-            console.log("Auto-fixing: Found tracks but audio is paused");
-            this.forcePlayAudio().catch(e => console.warn("Auto-fix failed:", e));
-          }
+        // If we have user interaction and audio is paused, try to play
+        if (audioStatus.userHasInteracted && audioStatus.paused && 
+            audioStatus.hasAudioTracks > 0 && !this.autoplayAttempted) {
+          console.log("Auto-fixing: User has interacted but audio is paused with tracks");
+          this.autoplayAttempted = true;
+          this.forcePlayAudio().catch(e => console.warn("Auto-fix failed:", e));
         }
       }
-    }, 2000);
+    }, 5000); // Check less frequently to reduce console noise
   }
   
   /**
@@ -152,6 +228,8 @@ class AudioService {
         newAudioElement.volume = 1.0;
         newAudioElement.setAttribute('playsinline', ''); // Important for iOS
         newAudioElement.setAttribute('webkit-playsinline', ''); // For older iOS
+        
+        // Important: Add to document body so it's part of the DOM
         document.body.appendChild(newAudioElement);
         this.audioElement = newAudioElement;
       }
@@ -171,12 +249,27 @@ class AudioService {
     
     this.audioElement.addEventListener('play', () => {
       console.log("Audio element started playing");
+      this.autoplayAttempted = true;
     });
     
     this.audioElement.addEventListener('pause', () => {
       console.warn("Audio element paused - may need user interaction");
-      // Try to auto-resume playback
-      setTimeout(() => this.forcePlayAudio(), 500);
+      
+      // Only try to auto-resume if we have user interaction
+      if (userInteractionService.userHasInteracted()) {
+        // Try to auto-resume playback
+        setTimeout(() => {
+          if (this.audioElement && 
+              this.audioElement.paused && 
+              this.audioElement.srcObject &&
+              (this.audioElement.srcObject as MediaStream).getAudioTracks().length > 0) {
+            console.log("Attempting to resume paused audio with user interaction");
+            this.forcePlayAudio().catch(e => console.warn("Resume failed:", e));
+          }
+        }, 500);
+      } else {
+        console.log("Audio paused but no user interaction yet - waiting for interaction");
+      }
     });
     
     this.audioElement.addEventListener('ended', () => {
@@ -190,11 +283,30 @@ class AudioService {
     // For iOS/Safari - listen for audio interruptions
     this.audioElement.addEventListener('suspend', () => {
       console.warn("Audio playback suspended (iOS audio interruption)");
-      setTimeout(() => this.forcePlayAudio(), 500);
+      
+      if (userInteractionService.userHasInteracted()) {
+        setTimeout(() => this.forcePlayAudio().catch(e => console.warn("Resume after suspend failed:", e)), 500);
+      }
     });
     
-    // Setup analytics to monitor the audio element
-    this.setupAudioAnalytics();
+    // Important for Safari - can reveal autoplay issues
+    this.audioElement.addEventListener('waiting', () => {
+      console.warn("Audio element waiting for data");
+    });
+    
+    // Get early detection of autoplay issues
+    this.audioElement.addEventListener('canplay', () => {
+      console.log("Audio element can play - readyState:", this.audioElement?.readyState);
+      
+      // If we have user interaction and audio is ready but paused, try to play
+      if (this.audioElement && 
+          this.audioElement.paused && 
+          userInteractionService.userHasInteracted() &&
+          !this.autoplayAttempted) {
+        console.log("Audio can play and we have user interaction - attempting playback");
+        this.forcePlayAudio().catch(e => console.warn("Canplay autostart failed:", e));
+      }
+    });
   }
   
   /**
@@ -239,13 +351,29 @@ class AudioService {
       return false;
     }
     
+    // If audio isn't initialized yet or we don't have user interaction,
+    // store stream for later attachment
+    if (!this.audioInitialized || !userInteractionService.userHasInteracted()) {
+      console.log("Storing stream for later attachment after user interaction");
+      this.streamToAttachOnInitialization = stream;
+      
+      // If the audio element already exists, attach the stream now but don't play
+      if (this.audioElement) {
+        console.log("Setting stream to existing audio element (won't play until user interacts)");
+        this.audioElement.srcObject = stream;
+      }
+      
+      return true;
+    }
+    
     const audioElement = this.getAudioElement();
     
     // Log detailed stream information
     console.log("Attaching stream to audio element:", {
       audioTracks: stream.getAudioTracks().length,
       videoTracks: stream.getVideoTracks().length,
-      streamId: stream.id
+      streamId: stream.id,
+      userHasInteracted: userInteractionService.userHasInteracted()
     });
     
     // Log audio track details
@@ -292,8 +420,13 @@ class AudioService {
       this.setAudioOutput(audioOutput);
     }
     
-    // Force play the audio (important for browsers with strict autoplay policies)
-    this.forcePlayAudio();
+    // Force play the audio only if we have user interaction
+    if (userInteractionService.userHasInteracted()) {
+      console.log("User has interacted - trying to auto-play audio");
+      this.forcePlayAudio();
+    } else {
+      console.log("No user interaction yet - audio will play when user interacts");
+    }
     
     return true;
   }
@@ -367,7 +500,12 @@ class AudioService {
       return Promise.resolve(true);
     }
     
-    console.log("Attempting to force play audio");
+    if (!userInteractionService.userHasInteracted()) {
+      console.warn("Cannot force-play audio without user interaction");
+      return Promise.resolve(false);
+    }
+    
+    console.log("Attempting to force play audio with user interaction");
     
     // For iOS Safari specifically
     if (this.audioElement.srcObject && this.audioElement.srcObject instanceof MediaStream) {
@@ -384,6 +522,14 @@ class AudioService {
     this.audioElement.volume = 1.0;
     this.audioElement.muted = false;
     
+    // Try to start audio context if it exists and is suspended
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      console.log("Resuming suspended AudioContext before play");
+      this.audioContext.resume().catch(e => console.warn("Failed to resume audio context:", e));
+    }
+    
+    this.autoplayAttempted = true;
+    
     return this.audioElement.play()
       .then(() => {
         console.log("Audio playback started successfully");
@@ -393,7 +539,11 @@ class AudioService {
         console.warn("Audio playback failed (probably due to autoplay policy):", error);
         
         // Make the audio element visible with controls as a fallback
-        this.showAudioControls();
+        // but only if we actually have a stream to play
+        if (this.audioElement?.srcObject instanceof MediaStream && 
+            (this.audioElement.srcObject as MediaStream).getAudioTracks().length > 0) {
+          this.showAudioControls();
+        }
         
         return false;
       });
@@ -470,6 +620,82 @@ class AudioService {
     }
     
     this.audioTrackPatched = false;
+    this.autoplayAttempted = false;
+  }
+  
+  /**
+   * Prompt user for interaction to enable audio
+   * This creates a visible button the user can click to enable audio
+   * @returns Promise that resolves when user interacts
+   */
+  public promptForUserInteraction(): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Check if we already have interaction
+      if (userInteractionService.userHasInteracted()) {
+        console.log("User has already interacted, no need for prompt");
+        resolve(true);
+        return;
+      }
+      
+      console.log("Creating user interaction prompt");
+      
+      // Create a modal overlay with a button
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      overlay.style.display = 'flex';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.zIndex = '10000';
+      overlay.style.flexDirection = 'column';
+      
+      const message = document.createElement('div');
+      message.textContent = 'Audio permission required';
+      message.style.color = 'white';
+      message.style.marginBottom = '20px';
+      message.style.fontSize = '20px';
+      
+      const button = document.createElement('button');
+      button.textContent = 'Enable Audio';
+      button.style.padding = '12px 24px';
+      button.style.backgroundColor = '#4CAF50';
+      button.style.border = 'none';
+      button.style.color = 'white';
+      button.style.fontSize = '16px';
+      button.style.borderRadius = '4px';
+      button.style.cursor = 'pointer';
+      
+      overlay.appendChild(message);
+      overlay.appendChild(button);
+      document.body.appendChild(overlay);
+      
+      // Ensure button is focused for keyboard users
+      button.focus();
+      
+      button.addEventListener('click', () => {
+        // Remove the overlay
+        document.body.removeChild(overlay);
+        
+        // Force the interaction state
+        userInteractionService.forceInteractionState(true);
+        
+        console.log("User clicked the interaction button");
+        
+        // Resume audio context if it exists
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+          this.audioContext.resume().catch(e => console.warn("Failed to resume audio context:", e));
+        }
+        
+        // Try to play audio if we have a stream
+        this.forcePlayAudio().catch(e => console.warn("Play after interaction prompt failed:", e));
+        
+        resolve(true);
+      });
+    });
   }
 }
 

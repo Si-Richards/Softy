@@ -1,5 +1,6 @@
 
 import audioService from '@/services/AudioService';
+import userInteractionService from '@/services/UserInteractionService';
 
 export class AudioOutputHandler {
   /**
@@ -53,7 +54,7 @@ export class AudioOutputHandler {
       track.enabled = true;
     });
     
-    // First, try to use the centralized audio service - this is the preferred method
+    // Use the centralized audio service - this is the preferred method
     audioService.attachStream(stream);
     
     // Set the output device if provided and supported
@@ -63,18 +64,30 @@ export class AudioOutputHandler {
         .catch(error => console.warn("Couldn't set audio output:", error));
     }
     
-    // Auto-play immediately to avoid needing user interaction
-    this.checkAndPlayRemoteAudio()
-      .then(success => {
-        if (success) {
-          console.log("Auto-play succeeded during setupRemoteAudio");
-        } else {
-          console.warn("Auto-play failed during setupRemoteAudio");
-        }
-      })
-      .catch(error => {
-        console.error("Error during auto-play:", error);
+    // Auto-play immediately if we have user interaction
+    if (userInteractionService.userHasInteracted()) {
+      this.checkAndPlayRemoteAudio()
+        .then(success => {
+          if (success) {
+            console.log("Auto-play succeeded during setupRemoteAudio");
+          } else {
+            console.warn("Auto-play failed during setupRemoteAudio");
+            // Prompt user for interaction if auto-play failed
+            audioService.promptForUserInteraction();
+          }
+        })
+        .catch(error => {
+          console.error("Error during auto-play:", error);
+        });
+    } else {
+      console.log("No user interaction yet - registering callback for when user interacts");
+      userInteractionService.onUserInteraction(() => {
+        console.log("User has now interacted - trying to play audio");
+        this.checkAndPlayRemoteAudio()
+          .then(success => console.log("Playback after interaction:", success ? "succeeded" : "failed"))
+          .catch(e => console.warn("Playback after interaction error:", e));
       });
+    }
     
     return audioService.getAudioElement();
   }
@@ -86,6 +99,12 @@ export class AudioOutputHandler {
   static async checkAndPlayRemoteAudio(): Promise<boolean> {
     try {
       console.log("AudioOutputHandler: Attempting to force play audio");
+      
+      // If we don't have user interaction yet, we need to wait
+      if (!userInteractionService.userHasInteracted()) {
+        console.log("AudioOutputHandler: No user interaction yet, cannot play");
+        return false;
+      }
       
       // Try different playback methods
       // 1. First, try through the audio service
@@ -153,5 +172,12 @@ export class AudioOutputHandler {
    */
   static isAudioPlaying(): boolean {
     return audioService.isAudioPlaying();
+  }
+  
+  /**
+   * Prompt for user interaction to enable audio
+   */
+  static promptForUserInteraction(): Promise<boolean> {
+    return audioService.promptForUserInteraction();
   }
 }
