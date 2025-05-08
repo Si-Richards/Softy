@@ -1,7 +1,3 @@
-## Project info
-
-**URL**: https://lovable.dev/projects/8f6378fb-c7ed-488b-8c28-8730560f05d9
-
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
 Follow these steps:
@@ -37,7 +33,3 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/8f6378fb-c7ed-488b-8c28-8730560f05d9) and click on Share -> Publish.
