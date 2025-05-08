@@ -1,4 +1,6 @@
 
+import audioService from '@/services/AudioService';
+
 export class AudioOutputHandler {
   /**
    * Sets the audio output device for a media element
@@ -30,52 +32,17 @@ export class AudioOutputHandler {
       return null;
     }
     
-    // Find or create the remote audio element
-    let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-    if (!audioElement) {
-      audioElement = document.createElement('audio');
-      audioElement.id = 'remoteAudio';
-      audioElement.autoplay = true;
-      audioElement.controls = false;
-      audioElement.style.display = 'none';
-      document.body.appendChild(audioElement);
-      
-      // Set volume to maximum
-      audioElement.volume = 1.0;
-      
-      console.log("Created dedicated audio element for remote stream");
-    }
+    // Use our centralized AudioService to get/create the audio element
+    const audioElement = audioService.getAudioElement();
     
-    // Set the stream
-    audioElement.srcObject = stream;
+    // Set the stream using the AudioService
+    audioService.attachStream(stream);
     
     // Set the output device if provided and supported
-    if (deviceId && 'setSinkId' in HTMLAudioElement.prototype) {
-      this.setAudioOutput(audioElement, deviceId)
-        .then(() => console.log("Audio output set to:", deviceId))
+    if (deviceId) {
+      audioService.setAudioOutput(deviceId)
         .catch(error => console.warn("Couldn't set audio output:", error));
-    } else {
-      console.log("Using default audio output device");
     }
-    
-    // Try to play the audio (may be needed for autoplay policy)
-    audioElement.play()
-      .then(() => console.log("Remote audio started playing"))
-      .catch(error => {
-        console.warn("Audio autoplay failed:", error);
-        
-        // Add click handler to play on user interaction
-        const playOnInteraction = () => {
-          audioElement.play()
-            .then(() => {
-              console.log("Audio playing on user interaction");
-              document.removeEventListener('click', playOnInteraction);
-            })
-            .catch(e => console.error("Still failed to play audio:", e));
-        };
-        
-        document.addEventListener('click', playOnInteraction, { once: true });
-      });
     
     return audioElement;
   }
@@ -84,27 +51,37 @@ export class AudioOutputHandler {
    * Check if the remote audio is playing and attempt to resume it if paused
    */
   static checkAndPlayRemoteAudio(): boolean {
-    const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-    
-    if (!audioElement) {
-      console.log("No remote audio element found to check");
-      return false;
-    }
-    
-    if (audioElement.paused) {
-      console.log("Remote audio is paused, attempting to play");
-      audioElement.play()
-        .then(() => {
+    return audioService.forcePlayAudio()
+      .then(success => {
+        if (success) {
           console.log("Successfully resumed audio playback");
-          return true;
-        })
-        .catch(error => {
-          console.error("Failed to resume audio playback:", error);
-          return false;
-        });
-      return false;
-    }
-    
-    return true;
+        }
+        return success;
+      })
+      .catch(error => {
+        console.error("Failed to resume audio playback:", error);
+        return false;
+      });
+  }
+  
+  /**
+   * Show audio controls when autoplay is blocked
+   */
+  static showAudioControls(): void {
+    audioService.showAudioControls();
+  }
+  
+  /**
+   * Hide audio controls
+   */
+  static hideAudioControls(): void {
+    audioService.hideAudioControls();
+  }
+  
+  /**
+   * Check if audio is currently playing
+   */
+  static isAudioPlaying(): boolean {
+    return audioService.isAudioPlaying();
   }
 }

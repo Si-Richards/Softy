@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import janusService from '@/services/JanusService';
-import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
+import audioService from '@/services/AudioService';
 
 export const useVideoStreams = (
   isCallActive: boolean,
@@ -13,8 +13,8 @@ export const useVideoStreams = (
       const localStream = janusService.getLocalStream();
       const remoteStream = janusService.getRemoteStream();
       
-      console.log("Local stream in Dialpad:", localStream);
-      console.log("Remote stream in Dialpad:", remoteStream);
+      console.log("Local stream in useVideoStreams:", localStream);
+      console.log("Remote stream in useVideoStreams:", remoteStream);
       
       if (localVideoRef.current && localStream) {
         localVideoRef.current.srcObject = localStream;
@@ -43,9 +43,8 @@ export const useVideoStreams = (
           track.enabled = true;
         });
         
-        // Set up a dedicated audio element for the remote stream
-        const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-        const audioElement = AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
+        // Use the centralized AudioService for audio playback
+        audioService.attachStream(remoteStream);
         
         // Try to play the video element (for video calls)
         if (remoteVideoRef.current) {
@@ -58,22 +57,17 @@ export const useVideoStreams = (
               });
           }
         }
-        
-        // Set up a periodic check for audio playback status
-        const audioCheckInterval = setInterval(() => {
-          const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-          if (audioElement) {
-            const isPaused = audioElement.paused;
-            if (isPaused) {
-              console.log("Audio element is paused, user may need to interact");
-            }
-          }
-        }, 5000);
-        
-        return () => {
-          clearInterval(audioCheckInterval);
-        };
+      } else if (remoteStream) {
+        // Audio-only call - just use the audio service
+        console.log("Audio-only call, using AudioService for playback");
+        audioService.attachStream(remoteStream);
       }
+      
+      // Clean up when the component unmounts or call ends
+      return () => {
+        // Don't remove the audio element, just clean up resources
+        audioService.cleanup();
+      };
     }
   }, [isCallActive, localVideoRef, remoteVideoRef]);
 };

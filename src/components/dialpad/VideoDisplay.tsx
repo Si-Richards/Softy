@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
+import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
+import audioService from "@/services/AudioService";
 
 interface VideoDisplayProps {
   localVideoRef: React.RefObject<HTMLVideoElement>;
@@ -17,6 +19,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
   isCallActive,
 }) => {
   const [isAudioPaused, setIsAudioPaused] = useState(false);
+  const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check for audio output device
   useEffect(() => {
@@ -25,10 +28,10 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
         if (savedAudioOutput && remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
           await (remoteVideoRef.current as any).setSinkId(savedAudioOutput);
-          console.log("Audio output device set to:", savedAudioOutput);
+          console.log("Video element audio output device set to:", savedAudioOutput);
         }
       } catch (error) {
-        console.error("Error setting audio output device:", error);
+        console.error("Error setting video element audio output device:", error);
       }
     };
     
@@ -37,67 +40,61 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     }
   }, [isCallActive, remoteVideoRef]);
 
-  // If video is not enabled but call is active, create a hidden audio element
-  useEffect(() => {
-    if (isCallActive && !isVideoEnabled) {
-      // Ensure we have an audio element for audio-only calls
-      let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-      if (!audioElement) {
-        audioElement = document.createElement('audio');
-        audioElement.id = 'remoteAudio';
-        audioElement.autoplay = true;
-        document.body.appendChild(audioElement);
-        console.log("Created audio element for audio-only call");
-      }
-    }
-  }, [isCallActive, isVideoEnabled]);
-
-  // Monitor audio playback status
+  // Setup periodic audio status check
   useEffect(() => {
     if (!isCallActive) {
       setIsAudioPaused(false);
+      if (statusCheckRef.current) {
+        clearInterval(statusCheckRef.current);
+        statusCheckRef.current = null;
+      }
       return;
     }
 
-    // Find the audio element
+    // Start checking the audio status immediately
     const checkAudioStatus = () => {
-      const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-      if (audioElement) {
-        const isPaused = audioElement.paused;
-        console.log("Audio element status:", {
-          volume: audioElement.volume,
-          muted: audioElement.muted,
-          paused: isPaused
-        });
-        setIsAudioPaused(isPaused);
+      const isPlaying = audioService.isAudioPlaying();
+      setIsAudioPaused(!isPlaying);
+      
+      // If we have a stream but audio is paused, try to automatically resume
+      if (!isPlaying) {
+        const remoteStream = remoteVideoRef.current?.srcObject as MediaStream;
+        if (remoteStream?.getAudioTracks().length > 0) {
+          audioService.forcePlayAudio().catch(err => {
+            console.warn("Auto-resume failed, user interaction needed:", err);
+          });
+        }
       }
     };
 
-    // Check immediately
+    // Initial check
     checkAudioStatus();
-
-    // Then check periodically
-    const interval = setInterval(checkAudioStatus, 2000);
+    
+    // Set up periodic monitoring
+    statusCheckRef.current = setInterval(checkAudioStatus, 2000);
     
     return () => {
-      clearInterval(interval);
+      if (statusCheckRef.current) {
+        clearInterval(statusCheckRef.current);
+        statusCheckRef.current = null;
+      }
     };
-  }, [isCallActive]);
+  }, [isCallActive, remoteVideoRef]);
 
   // Play button handler
   const handlePlayAudio = () => {
-    const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-    if (audioElement) {
-      console.log("Playing audio manually");
-      audioElement.play()
-        .then(() => {
-          console.log("Audio playback started successfully");
+    audioService.forcePlayAudio()
+      .then(success => {
+        if (success) {
           setIsAudioPaused(false);
-        })
-        .catch(error => {
-          console.error("Error starting audio playback:", error);
-        });
-    }
+          console.log("Audio playback started successfully");
+        }
+      })
+      .catch(error => {
+        console.error("Error starting audio playback:", error);
+        // Show audio controls as a fallback
+        audioService.showAudioControls();
+      });
   };
 
   // Only show video container if video is enabled
