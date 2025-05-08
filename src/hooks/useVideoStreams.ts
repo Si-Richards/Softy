@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import janusService from '@/services/JanusService';
 import audioService from '@/services/AudioService';
+import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
 
 export const useVideoStreams = (
   isCallActive: boolean,
@@ -43,9 +44,6 @@ export const useVideoStreams = (
           track.enabled = true;
         });
         
-        // Use the centralized AudioService for audio playback
-        audioService.attachStream(remoteStream);
-        
         // Try to play the video element (for video calls)
         if (remoteVideoRef.current) {
           const playPromise = remoteVideoRef.current.play();
@@ -54,17 +52,46 @@ export const useVideoStreams = (
               .then(() => console.log("Remote video playback started successfully"))
               .catch(error => {
                 console.error("Error playing remote video:", error);
+                // If video fails to play, ensure audio still works via AudioService
+                if (remoteStream.getAudioTracks().length > 0) {
+                  console.log("Video playback failed, ensuring audio works via AudioService");
+                  audioService.attachStream(remoteStream);
+                }
               });
           }
+        }
+        
+        // Get and set audio output device
+        const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+        if (savedAudioOutput) {
+          console.log("Setting saved audio output device:", savedAudioOutput);
+          AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
         }
       } else if (remoteStream) {
         // Audio-only call - just use the audio service
         console.log("Audio-only call, using AudioService for playback");
         audioService.attachStream(remoteStream);
+        
+        // Apply audio output device if supported
+        const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+        if (savedAudioOutput) {
+          audioService.setAudioOutput(savedAudioOutput)
+            .catch(error => console.warn("Couldn't set audio output:", error));
+        }
       }
+      
+      // Setup a periodic check for audio playback
+      const audioCheckInterval = setInterval(() => {
+        console.log("Periodic audio check - Is audio playing:", audioService.isAudioPlaying());
+        if (!audioService.isAudioPlaying() && remoteStream) {
+          console.log("Audio not playing, attempting to force play");
+          audioService.forcePlayAudio().catch(e => console.warn("Force play failed:", e));
+        }
+      }, 5000);
       
       // Clean up when the component unmounts or call ends
       return () => {
+        clearInterval(audioCheckInterval);
         // Don't remove the audio element, just clean up resources
         audioService.cleanup();
       };

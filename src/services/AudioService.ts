@@ -11,9 +11,15 @@ class AudioService {
   private analyticsInterval: number | null = null;
   private currentAudioOutput: string | null = null;
   private audioTrackPatched = false;
+  private audioContext: AudioContext | null = null;
+  private audioAnalyser: AnalyserNode | null = null;
+  private dataArray: Uint8Array | null = null;
+  private isAudioFlowing = false;
+  private lastAudioFlowCheck = 0;
   
   private constructor() {
     this.getPreferredAudioOutput();
+    this.setupAudioAnalyzer();
   }
   
   public static getInstance(): AudioService {
@@ -29,6 +35,61 @@ class AudioService {
   private getPreferredAudioOutput(): string | null {
     this.currentAudioOutput = localStorage.getItem('selectedAudioOutput');
     return this.currentAudioOutput;
+  }
+  
+  /**
+   * Sets up an audio analyzer to verify that audio is flowing
+   */
+  private setupAudioAnalyzer(): void {
+    try {
+      // Create audio context if browser supports it
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        this.audioContext = new AudioContext();
+        this.audioAnalyser = this.audioContext.createAnalyser();
+        this.audioAnalyser.fftSize = 256;
+        const bufferLength = this.audioAnalyser.frequencyBinCount;
+        this.dataArray = new Uint8Array(bufferLength);
+        
+        console.log("Audio analyzer initialized");
+      }
+    } catch (e) {
+      console.warn("Could not initialize audio analyzer:", e);
+    }
+  }
+  
+  /**
+   * Analyzes audio data to detect if audio is actually flowing
+   * @returns true if audio data is detected, false otherwise
+   */
+  private analyzeAudioFlow(): boolean {
+    if (!this.audioAnalyser || !this.dataArray || !this.audioContext) {
+      return false; // Can't analyze without analyzer
+    }
+    
+    // Don't check too often
+    const now = Date.now();
+    if (now - this.lastAudioFlowCheck < 500) {
+      return this.isAudioFlowing;
+    }
+    
+    this.lastAudioFlowCheck = now;
+    
+    // Get frequency data
+    this.audioAnalyser.getByteFrequencyData(this.dataArray);
+    
+    // Check if we have any non-zero values in the frequency data
+    let sum = 0;
+    for (let i = 0; i < this.dataArray.length; i++) {
+      sum += this.dataArray[i];
+    }
+    
+    this.isAudioFlowing = sum > 0;
+    if (this.isAudioFlowing) {
+      console.log("Audio is flowing, signal strength:", sum);
+    }
+    
+    return this.isAudioFlowing;
   }
   
   /**
@@ -49,7 +110,8 @@ class AudioService {
           readyState: this.audioElement.readyState,
           networkState: this.audioElement.networkState,
           hasAudioTracks: this.audioElement.srcObject ? 
-            (this.audioElement.srcObject as MediaStream).getAudioTracks().length : 0
+            (this.audioElement.srcObject as MediaStream).getAudioTracks().length : 0,
+          audioFlowing: this.analyzeAudioFlow()
         };
         
         console.log("Audio element detailed status:", audioStatus);
@@ -57,6 +119,12 @@ class AudioService {
         if (audioStatus.paused || audioStatus.hasAudioTracks === 0) {
           console.warn("Audio playback issue detected:", 
             audioStatus.paused ? "Audio is paused" : "No audio tracks available");
+            
+          // Try to autofix if we have tracks but are paused
+          if (!audioStatus.paused && audioStatus.hasAudioTracks > 0) {
+            console.log("Auto-fixing: Found tracks but audio is paused");
+            this.forcePlayAudio().catch(e => console.warn("Auto-fix failed:", e));
+          }
         }
       }
     }, 2000);
@@ -82,6 +150,8 @@ class AudioService {
         newAudioElement.controls = false; // Hidden controls by default
         newAudioElement.style.display = 'none';
         newAudioElement.volume = 1.0;
+        newAudioElement.setAttribute('playsinline', ''); // Important for iOS
+        newAudioElement.setAttribute('webkit-playsinline', ''); // For older iOS
         document.body.appendChild(newAudioElement);
         this.audioElement = newAudioElement;
       }
@@ -105,6 +175,8 @@ class AudioService {
     
     this.audioElement.addEventListener('pause', () => {
       console.warn("Audio element paused - may need user interaction");
+      // Try to auto-resume playback
+      setTimeout(() => this.forcePlayAudio(), 500);
     });
     
     this.audioElement.addEventListener('ended', () => {
@@ -115,8 +187,45 @@ class AudioService {
       console.error("Audio element error:", e);
     });
     
+    // For iOS/Safari - listen for audio interruptions
+    this.audioElement.addEventListener('suspend', () => {
+      console.warn("Audio playback suspended (iOS audio interruption)");
+      setTimeout(() => this.forcePlayAudio(), 500);
+    });
+    
     // Setup analytics to monitor the audio element
     this.setupAudioAnalytics();
+  }
+  
+  /**
+   * Directly attach WebRTC audio track to the audio element
+   * This is more reliable than using a MediaStream in some browsers
+   * @param track Audio track from WebRTC
+   */
+  public attachAudioTrack(track: MediaStreamTrack): boolean {
+    if (!track || track.kind !== 'audio') {
+      console.warn("Invalid audio track provided");
+      return false;
+    }
+    
+    console.log("Attaching individual audio track:", {
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+      id: track.id,
+      kind: track.kind,
+      label: track.label
+    });
+    
+    // Ensure track is enabled
+    if (!track.enabled) {
+      console.log("Enabling disabled audio track");
+      track.enabled = true;
+    }
+    
+    // Create a new stream with just this track
+    const stream = new MediaStream([track]);
+    return this.attachStream(stream);
   }
   
   /**
@@ -162,6 +271,17 @@ class AudioService {
         this.audioTrackPatched = true;
       }
     });
+    
+    // Connect the audio analyzer if available
+    if (this.audioContext && this.audioAnalyser && stream.getAudioTracks().length > 0) {
+      try {
+        const source = this.audioContext.createMediaStreamSource(stream);
+        source.connect(this.audioAnalyser);
+        console.log("Connected stream to audio analyzer");
+      } catch (e) {
+        console.warn("Could not connect to audio analyzer:", e);
+      }
+    }
     
     // Attach the stream to the audio element
     audioElement.srcObject = stream;
@@ -249,6 +369,21 @@ class AudioService {
     
     console.log("Attempting to force play audio");
     
+    // For iOS Safari specifically
+    if (this.audioElement.srcObject && this.audioElement.srcObject instanceof MediaStream) {
+      const stream = this.audioElement.srcObject as MediaStream;
+      if (stream.getAudioTracks().length > 0) {
+        console.log("Ensuring audio tracks are enabled before play");
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+        });
+      }
+    }
+    
+    // Set volume explicitly to make sure it's not muted
+    this.audioElement.volume = 1.0;
+    this.audioElement.muted = false;
+    
     return this.audioElement.play()
       .then(() => {
         console.log("Audio playback started successfully");
@@ -297,7 +432,16 @@ class AudioService {
    * Check if audio is currently playing
    */
   public isAudioPlaying(): boolean {
-    return this.audioElement ? !this.audioElement.paused : false;
+    // Check if audio element exists and is playing
+    if (!this.audioElement) return false;
+    
+    // If we have the AudioAnalyzer, use it for more accurate detection
+    if (this.analyzeAudioFlow()) {
+      return true;
+    }
+    
+    // Fall back to standard paused check
+    return !this.audioElement.paused;
   }
   
   /**
@@ -314,6 +458,15 @@ class AudioService {
       this.audioElement.srcObject = null;
       this.audioElement.pause();
       this.hideAudioControls();
+    }
+    
+    // Clean up audio context if it exists
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      try {
+        this.audioContext.close();
+      } catch (e) {
+        console.warn("Error closing audio context:", e);
+      }
     }
     
     this.audioTrackPatched = false;

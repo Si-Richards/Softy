@@ -32,19 +32,38 @@ export class AudioOutputHandler {
       return null;
     }
     
-    // Use our centralized AudioService to get/create the audio element
-    const audioElement = audioService.getAudioElement();
+    // Make sure the stream has audio tracks before proceeding
+    if (stream.getAudioTracks().length === 0) {
+      console.warn("Remote stream has no audio tracks");
+      return null;
+    }
     
-    // Set the stream using the AudioService
+    // Log audio tracks information first
+    stream.getAudioTracks().forEach((track, idx) => {
+      console.log(`Audio track ${idx} details:`, {
+        id: track.id,
+        kind: track.kind,
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+      });
+      
+      // Ensure the track is enabled
+      track.enabled = true;
+    });
+    
+    // First, try to use the centralized audio service - this is the preferred method
     audioService.attachStream(stream);
     
     // Set the output device if provided and supported
     if (deviceId) {
+      console.log("Setting audio output device to:", deviceId);
       audioService.setAudioOutput(deviceId)
         .catch(error => console.warn("Couldn't set audio output:", error));
     }
     
-    return audioElement;
+    return audioService.getAudioElement();
   }
 
   /**

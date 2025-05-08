@@ -29,6 +29,9 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         if (savedAudioOutput && remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
           await (remoteVideoRef.current as any).setSinkId(savedAudioOutput);
           console.log("Video element audio output device set to:", savedAudioOutput);
+          
+          // Also set the audio service's output device
+          await audioService.setAudioOutput(savedAudioOutput);
         }
       } catch (error) {
         console.error("Error setting video element audio output device:", error);
@@ -58,12 +61,20 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       
       // If we have a stream but audio is paused, try to automatically resume
       if (!isPlaying) {
-        const remoteStream = remoteVideoRef.current?.srcObject as MediaStream;
-        if (remoteStream?.getAudioTracks().length > 0) {
-          audioService.forcePlayAudio().catch(err => {
-            console.warn("Auto-resume failed, user interaction needed:", err);
-          });
-        }
+        console.log("Audio check: Audio is paused or not flowing");
+        
+        // Only show UI controls if we've been paused for a few seconds
+        // This prevents flickering on brief interruptions
+        setTimeout(() => {
+          if (!audioService.isAudioPlaying()) {
+            console.log("Audio still not playing after delay, will show UI");
+            setIsAudioPaused(true);
+            
+            audioService.forcePlayAudio().catch(err => {
+              console.warn("Auto-resume failed, user interaction needed:", err);
+            });
+          }
+        }, 2000);
       }
     };
 
@@ -71,7 +82,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     checkAudioStatus();
     
     // Set up periodic monitoring
-    statusCheckRef.current = setInterval(checkAudioStatus, 2000);
+    statusCheckRef.current = setInterval(checkAudioStatus, 3000);
     
     return () => {
       if (statusCheckRef.current) {
@@ -88,6 +99,10 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         if (success) {
           setIsAudioPaused(false);
           console.log("Audio playback started successfully");
+        } else {
+          // If force play was not successful via audio service
+          console.log("Direct play failed, trying AudioOutputHandler");
+          AudioOutputHandler.checkAndPlayRemoteAudio();
         }
       })
       .catch(error => {
