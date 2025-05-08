@@ -189,15 +189,15 @@ class JanusService {
   private onCallConnectedCallback: (() => void) | null = null;
   private onCallEndedCallback: (() => void) | null = null;
   
-  setOnIncomingCall(callback: (from: string, jsep: any) => void): void {
+  setOnIncomingCall(callback: ((from: string, jsep: any) => void) | null): void {
     this.onIncomingCallCallback = callback;
   }
   
-  setOnCallConnected(callback: () => void): void {
+  setOnCallConnected(callback: (() => void) | null): void {
     this.onCallConnectedCallback = callback;
   }
   
-  setOnCallEnded(callback: () => void): void {
+  setOnCallEnded(callback: (() => void) | null): void {
     this.onCallEndedCallback = callback;
   }
 

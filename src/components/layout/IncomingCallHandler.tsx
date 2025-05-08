@@ -1,17 +1,37 @@
 
 import React, { useEffect } from "react";
 import IncomingCallDialog from "@/components/dialpad/IncomingCallDialog";
-import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
+import { useIncomingCall } from "@/hooks/useIncomingCall";
 import { Bell } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import janusService from "@/services/JanusService";
 
 const IncomingCallHandler = () => {
+  // Use the hook directly instead of getting it from useJanusSetup
   const { 
     incomingCall, 
     handleAcceptCall, 
     handleRejectCall,
     notificationsEnabled
-  } = useJanusSetup();
+  } = useIncomingCall();
+  
+  const { toast } = useToast();
+  
+  // Register the incoming call handler with the Janus service
+  useEffect(() => {
+    janusService.setOnIncomingCall((from, jsep) => {
+      console.log("IncomingCallHandler: Received incoming call from", from);
+      if (from) {
+        // Pass the incoming call to the hook
+        handleIncomingCall(from, jsep);
+      }
+    });
+    
+    return () => {
+      // Clean up by setting null handler
+      janusService.setOnIncomingCall(null);
+    };
+  }, []);
   
   // Show notification permission reminder if not enabled
   useEffect(() => {
@@ -27,7 +47,7 @@ const IncomingCallHandler = () => {
         duration: 5000,
       });
     }
-  }, [incomingCall, notificationsEnabled]);
+  }, [incomingCall, notificationsEnabled, toast]);
   
   if (!incomingCall) return null;
 
