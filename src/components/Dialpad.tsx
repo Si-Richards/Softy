@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+
+import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import VideoDisplay from "./dialpad/VideoDisplay";
 import DialpadGrid from "./dialpad/DialpadGrid";
@@ -12,6 +13,7 @@ import { useVideoStreams } from "@/hooks/useVideoStreams";
 import { useCallControls } from "@/hooks/useCallControls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -22,6 +24,7 @@ const Dialpad = () => {
   const { playDTMFTone } = useDTMFTone();
   const { sendDTMFTone } = useSendDTMF();
   const voicemailNumber = "1571"; // Updated voicemail number
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   
   const {
     isCallActive,
@@ -32,6 +35,42 @@ const Dialpad = () => {
     toggleVideo,
     startVideoCall,
   } = useCallControls();
+
+  // Effect for setting up audio element
+  useEffect(() => {
+    if (isCallActive) {
+      // Ensure we have an audio element for the call
+      const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+      
+      // Create a dedicated audio element for the call if not exists
+      if (!document.querySelector('audio#remoteAudio')) {
+        const audioElement = document.createElement('audio');
+        audioElement.id = 'remoteAudio';
+        audioElement.autoplay = true;
+        audioElement.volume = 1.0;
+        document.body.appendChild(audioElement);
+        audioElementRef.current = audioElement;
+        
+        console.log("Created dedicated audio element for call");
+      }
+      
+      // Monitor audio tracks during call
+      const audioCheckInterval = setInterval(() => {
+        const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+        if (audioElement) {
+          console.log("Audio element status:", {
+            volume: audioElement.volume,
+            muted: audioElement.muted,
+            paused: audioElement.paused
+          });
+        }
+      }, 5000);
+      
+      return () => {
+        clearInterval(audioCheckInterval);
+      };
+    }
+  }, [isCallActive]);
 
   const addDigitToNumber = (key: string) => {
     if (isCallActive) {

@@ -33,6 +33,21 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     }
   }, [isCallActive, remoteVideoRef]);
 
+  // If video is not enabled but call is active, create a hidden audio element
+  useEffect(() => {
+    if (isCallActive && !isVideoEnabled) {
+      // Ensure we have an audio element for audio-only calls
+      let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+      if (!audioElement) {
+        audioElement = document.createElement('audio');
+        audioElement.id = 'remoteAudio';
+        audioElement.autoplay = true;
+        document.body.appendChild(audioElement);
+        console.log("Created audio element for audio-only call");
+      }
+    }
+  }, [isCallActive, isVideoEnabled]);
+
   // Only show video container if video is enabled
   if (!isVideoEnabled) return null;
 

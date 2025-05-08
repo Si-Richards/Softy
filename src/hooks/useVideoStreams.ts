@@ -1,6 +1,7 @@
 
 import { useEffect } from 'react';
 import janusService from '@/services/JanusService';
+import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
 
 export const useVideoStreams = (
   isCallActive: boolean,
@@ -41,6 +42,10 @@ export const useVideoStreams = (
           // Ensure tracks are enabled
           track.enabled = true;
         });
+        
+        // Set up a dedicated audio element for the remote stream
+        const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+        AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
         
         // Try to play the stream (may be needed for autoplay policies)
         const playPromise = remoteVideoRef.current.play();

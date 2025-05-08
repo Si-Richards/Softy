@@ -39,6 +39,11 @@ export class AudioOutputHandler {
       audioElement.controls = false;
       audioElement.style.display = 'none';
       document.body.appendChild(audioElement);
+      
+      // Set volume to maximum
+      audioElement.volume = 1.0;
+      
+      console.log("Created dedicated audio element for remote stream");
     }
     
     // Set the stream
@@ -49,10 +54,13 @@ export class AudioOutputHandler {
       this.setAudioOutput(audioElement, deviceId)
         .then(() => console.log("Audio output set to:", deviceId))
         .catch(error => console.warn("Couldn't set audio output:", error));
+    } else {
+      console.log("Using default audio output device");
     }
     
     // Try to play the audio (may be needed for autoplay policy)
     audioElement.play()
+      .then(() => console.log("Remote audio started playing"))
       .catch(error => {
         console.warn("Audio autoplay failed:", error);
         

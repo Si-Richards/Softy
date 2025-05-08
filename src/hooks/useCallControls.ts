@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 import { useCallHistory } from "./useCallHistory";
 import { AudioCallOptions } from "@/services/janus/sip/types";
+import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
 
 export const useCallControls = () => {
   const [isCallActive, setIsCallActive] = useState(false);
@@ -21,6 +21,47 @@ export const useCallControls = () => {
       }
     };
   }, [audioTestInterval]);
+
+  useEffect(() => {
+    if (isCallActive) {
+      const interval = setInterval(() => {
+        const remoteStream = janusService.getRemoteStream();
+        if (remoteStream) {
+          console.log("Remote stream audio monitoring:");
+          console.log("- Audio tracks count:", remoteStream.getAudioTracks().length);
+          
+          remoteStream.getAudioTracks().forEach((track, idx) => {
+            console.log(`- Audio track ${idx}:`, {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id
+            });
+            
+            if (!track.enabled) {
+              console.log("Re-enabling disabled audio track");
+              track.enabled = true;
+            }
+          });
+          
+          // Apply audio output device if supported
+          const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+          if (savedAudioOutput) {
+            AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
+          }
+        }
+      }, 3000);
+      
+      setAudioTestInterval(interval);
+    }
+    
+    return () => {
+      if (audioTestInterval) {
+        clearInterval(audioTestInterval);
+        setAudioTestInterval(null);
+      }
+    };
+  }, [isCallActive]);
 
   const getAudioOptions = (): AudioCallOptions => {
     // Get stored audio settings
@@ -114,6 +155,7 @@ export const useCallControls = () => {
           const audioOptions = getAudioOptions();
           console.log("Using audio options:", audioOptions);
           
+          // Show toast notification that call is connecting
           toast({
             title: "Calling...",
             description: `Dialing ${number}`,
@@ -123,6 +165,22 @@ export const useCallControls = () => {
           await janusService.call(formattedNumber, false, audioOptions);
           setIsCallActive(true);
           setCallStartTime(new Date());
+          
+          // Show connected toast
+          toast({
+            title: "Connected",
+            description: `Call connected to ${number}`,
+            duration: 3000,
+          });
+          
+          // Ensure audio output is set correctly
+          const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+          setTimeout(() => {
+            const remoteStream = janusService.getRemoteStream();
+            if (remoteStream && savedAudioOutput) {
+              AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
+            }
+          }, 1000); // Short delay to ensure stream is available
           
           const interval = setInterval(() => {
             const remoteStream = janusService.getRemoteStream();
