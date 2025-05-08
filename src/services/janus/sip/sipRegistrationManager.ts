@@ -64,8 +64,8 @@ export class SipRegistrationManager {
       display_name: user,
       secret: password,
       proxy: proxy,
-      // Following settings match exactly the Janus SIP demo
-      ha1_secret: false,
+      // FIXED: Use ha1_secret as string "false" for plain text authentication
+      ha1_secret: "false",
       authuser: null,
       refresh: true,
       register: true,

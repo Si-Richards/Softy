@@ -246,16 +246,16 @@ class JanusService {
       
       console.log(`Registering as: ${identity}, proxy: ${proxy}`);
 
-      // Registration request
+      // Registration request - FIXED: Set ha1_secret explicitly to "false" as string
       const request = {
         request: "register",
         username: identity,
         display_name: user,
         secret: password,
         proxy: proxy,
-        // Additional options
+        // Additional options - IMPORTANT: ha1_secret must be "false" as string
+        ha1_secret: "false",
         authuser: null,
-        ha1_secret: false,
       };
 
       this.sipPlugin.send({
