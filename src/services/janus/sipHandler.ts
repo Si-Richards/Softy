@@ -84,6 +84,64 @@ export class JanusSipHandler {
   }
 
   handleSipMessage(msg: any, jsep: any, eventHandlers: SipEventHandlers): void {
+    // Add additional logging for SIP messages similar to the demo
+    if (msg && msg.result) {
+      const result = msg.result;
+      if (result.event === "registered") {
+        console.log(`Successfully registered as ${result.username}!`);
+      } else if (result.event === "calling") {
+        console.log("Waiting for the peer to answer...");
+      } else if (result.event === "incomingcall") {
+        console.log(`Incoming call from ${result.username}!`);
+      } else if (result.event === "accepted") {
+        console.log(`Call accepted: ${result.username}`);
+      } else if (result.event === "hangup") {
+        console.log(`Call hung up (${result.code} to ${result.reason})!`);
+      }
+    }
+    
     this.eventHandler.handleSipMessage(msg, jsep, eventHandlers);
+    
+    // Handle remote JSEP if present (important from the demo)
+    if (jsep) {
+      console.log("Received SDP:", jsep);
+      this.callManager.handleRemoteJsep(jsep);
+    }
+  }
+  
+  // New method to monitor media similar to the demo
+  monitorMedia(): void {
+    const sipPlugin = this.getSipPlugin();
+    if (!sipPlugin || !sipPlugin.webrtcStuff || !sipPlugin.webrtcStuff.pc) {
+      return;
+    }
+    
+    const pc = sipPlugin.webrtcStuff.pc;
+    
+    // Log the state of transceivers (as seen in the demo)
+    if (pc.getTransceivers) {
+      pc.getTransceivers().forEach(transceiver => {
+        if (transceiver.receiver && transceiver.receiver.track) {
+          const track = transceiver.receiver.track;
+          console.log(`Receiving ${track.kind} track:`, {
+            id: track.id,
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState
+          });
+        }
+      });
+    }
+    
+    // Check for active streams
+    const audio = document.getElementById("remoteAudio") as HTMLAudioElement;
+    if (audio && audio.srcObject) {
+      const stream = audio.srcObject as MediaStream;
+      console.log("Active remote stream:", {
+        id: stream.id,
+        active: stream.active,
+        audioTracks: stream.getAudioTracks().length
+      });
+    }
   }
 }

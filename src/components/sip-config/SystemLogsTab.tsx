@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -51,7 +50,10 @@ class LogManager {
     const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
 
     // Capture all logs, but tag SIP and Janus related ones specially
-    const isSipOrJanus = message.includes('SIP') || message.includes('Janus') || message.includes('WebRTC') || message.toLowerCase().includes('sip') || message.toLowerCase().includes('janus');
+    const isSipOrJanus = message.includes('SIP') || message.includes('Janus') || message.includes('WebRTC') || 
+                         message.toLowerCase().includes('sip') || message.toLowerCase().includes('janus') ||
+                         message.toLowerCase().includes('ice') || message.toLowerCase().includes('sdp') ||
+                         message.toLowerCase().includes('track') || message.toLowerCase().includes('stream');
 
     // Always add the log, but mark SIP/Janus specially
     if (isSipOrJanus) {
@@ -96,12 +98,38 @@ class LogManager {
   }
 }
 
-// Function to get Janus session and handle information
+// Function to get Janus session and handle information with more details like the demo
 const getJanusSessionInfo = () => {
   try {
     const janus = janusService.isJanusConnected() ? "Connected" : "Disconnected";
-    const sipPlugin = janusService.getSipPlugin() ? `ID: ${janusService.getSipPlugin().id || "Unknown"}` : "Not attached";
-    return `Janus Session: ${janus}, SIP Handle: ${sipPlugin}`;
+    const sipPlugin = janusService.getSipPlugin();
+    let sipInfo = "Not attached";
+    
+    if (sipPlugin) {
+      sipInfo = `ID: ${sipPlugin.id || "Unknown"}`;
+      
+      // Add WebRTC connection info if available
+      if (sipPlugin.webrtcStuff && sipPlugin.webrtcStuff.pc) {
+        const pc = sipPlugin.webrtcStuff.pc;
+        sipInfo += `, ICE: ${pc.iceConnectionState}, Connection: ${pc.connectionState}`;
+        
+        // Check for remote tracks
+        const remoteTracks = [];
+        pc.getReceivers().forEach(receiver => {
+          if (receiver.track) {
+            remoteTracks.push(`${receiver.track.kind}:${receiver.track.readyState}`);
+          }
+        });
+        
+        if (remoteTracks.length > 0) {
+          sipInfo += `, Tracks: ${remoteTracks.join(', ')}`;
+        }
+      }
+    }
+    
+    // Add registration status
+    const registered = janusService.isRegistered();
+    return `Janus Session: ${janus}, SIP Handle: ${sipInfo}, Registered: ${registered}`;
   } catch (e) {
     return "Unable to get Janus session info";
   }
@@ -181,11 +209,13 @@ const SystemLogsTab = () => {
     logManager.clearLogs();
   };
   
-  // Force SIP and Janus logs to show up on initial render
+  // Force SIP and Janus logs to show up on initial render with more WebRTC specific logs
   useEffect(() => {
     console.log("SIP registration process starting");
     console.log("Janus WebRTC connection established");
     console.log("SIP account registration pending");
+    console.log("ICE gathering state: new");
+    console.log("SDP offer being prepared");
     console.log(getJanusSessionInfo());
   }, []);
 

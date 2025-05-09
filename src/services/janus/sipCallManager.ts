@@ -1,3 +1,4 @@
+
 import { SipState } from './sip/sipState';
 import { MediaConfigHandler } from './mediaConfig';
 import { formatE164Number } from './utils/phoneNumberUtils';
@@ -194,14 +195,25 @@ export class SipCallManager {
     const pc = sipPlugin.webrtcStuff.pc;
     console.log("Setting up ontrack handler for RTCPeerConnection:", pc);
     
+    // Monitor ICE connection state changes (from demo)
+    pc.oniceconnectionstatechange = () => {
+      console.log("ICE state changed to", pc.iceConnectionState);
+      
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        console.log("Janus says our WebRTC PeerConnection is up now");
+      } else if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+        console.log("Janus says our WebRTC PeerConnection is down now");
+      }
+    };
+    
     // Set up direct ontrack handler as recommended
     pc.ontrack = (event) => {
       console.log("Incoming track", event);
       
-      // Log information about the streams
-      console.log("event.streams:", event.streams);
-      
+      // Critical: Check if we have streams
       if (event.streams && event.streams.length > 0) {
+        console.log("Created remote audio stream:", event.streams[0]);
+        
         // Get or create remote audio element
         const audio = document.getElementById("remoteAudio") as HTMLAudioElement;
         if (audio) {
@@ -227,6 +239,16 @@ export class SipCallManager {
               muted: track.muted,
               readyState: track.readyState
             });
+            
+            // Add unmute listener (from demo)
+            track.addEventListener('unmute', () => {
+              console.log("Remote track flowing again:", track);
+            });
+            
+            // Add ended listener (from demo)
+            track.addEventListener('ended', () => {
+              console.log("Remote track removed:", track);
+            });
           });
         } else {
           console.error("Remote audio element not found!");
@@ -250,10 +272,10 @@ export class SipCallManager {
     // Also set up connection state change monitoring
     pc.onconnectionstatechange = () => {
       console.log("PeerConnection connection state changed:", pc.connectionState);
-    };
-    
-    pc.oniceconnectionstatechange = () => {
-      console.log("PeerConnection ICE connection state changed:", pc.iceConnectionState);
+      
+      if (pc.connectionState === 'connected') {
+        console.log("Janus started receiving our audio");
+      }
     };
   }
 
