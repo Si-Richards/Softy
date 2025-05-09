@@ -72,9 +72,11 @@ export class JanusSipHandler {
       this.getSipPlugin().send({
         message: message,
         success: () => {
+          console.log(`DTMF tone ${digit} sent successfully`);
           resolve();
         },
         error: (error: any) => {
+          console.error(`Error sending DTMF tone ${digit}:`, error);
           reject(new Error(`Failed to send DTMF: ${error}`));
         }
       });
