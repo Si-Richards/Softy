@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -6,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import janusService from "@/services/JanusService";
 
 // Create a logger that captures messages
 class LogManager {
@@ -93,6 +95,18 @@ class LogManager {
     this.notifyListeners();
   }
 }
+
+// Function to get Janus session and handle information
+const getJanusSessionInfo = () => {
+  try {
+    const janus = janusService.isJanusConnected() ? "Connected" : "Disconnected";
+    const sipPlugin = janusService.getSipPlugin() ? `ID: ${janusService.getSipPlugin().id || "Unknown"}` : "Not attached";
+    return `Janus Session: ${janus}, SIP Handle: ${sipPlugin}`;
+  } catch (e) {
+    return "Unable to get Janus session info";
+  }
+};
+
 const SystemLogsTab = () => {
   const [logLevel, setLogLevel] = useState('all');
   const [logs, setLogs] = useState<Array<{
@@ -101,10 +115,12 @@ const SystemLogsTab = () => {
     message: string;
   }>>([]);
   const [isSending, setIsSending] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState("");
   const logManager = LogManager.getInstance();
   const {
     toast
   } = useToast();
+  
   useEffect(() => {
     const updateLogs = () => {
       setLogs(logManager.getLogs(logLevel));
@@ -115,14 +131,26 @@ const SystemLogsTab = () => {
 
     // Add listener for new logs
     logManager.addListener(updateLogs);
+    
+    // Set up interval to update Janus session info
+    const sessionInfoInterval = setInterval(() => {
+      setSessionInfo(getJanusSessionInfo());
+    }, 5000);
+    
+    // Get initial session info
+    setSessionInfo(getJanusSessionInfo());
+    
     return () => {
       // Cleanup listener
       logManager.removeListener(updateLogs);
+      clearInterval(sessionInfoInterval);
     };
   }, [logLevel]);
+  
   const handleLogLevelChange = (value: string) => {
     setLogLevel(value);
   };
+  
   const handleDownloadLogs = () => {
     const logsText = logs.map(log => `${log.timestamp} [${log.level}] ${log.message}`).join('\n');
     const blob = new Blob([logsText], {
@@ -135,6 +163,7 @@ const SystemLogsTab = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+  
   const handleSendLogs = () => {
     setIsSending(true);
 
@@ -147,22 +176,42 @@ const SystemLogsTab = () => {
       });
     }, 1500);
   };
+  
   const handleClearLogs = () => {
     logManager.clearLogs();
   };
-
+  
   // Force SIP and Janus logs to show up on initial render
   useEffect(() => {
     console.log("SIP registration process starting");
     console.log("Janus WebRTC connection established");
     console.log("SIP account registration pending");
+    console.log(getJanusSessionInfo());
   }, []);
-  return <Card className="w-full max-w-4xl mx-auto">
+
+  const refreshJanusInfo = () => {
+    const info = getJanusSessionInfo();
+    setSessionInfo(info);
+    console.log(info);
+    toast({
+      title: "Janus Info Refreshed",
+      description: info,
+    });
+  };
+  
+  return (
+    <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>System Logs</CardTitle>
         <CardDescription>Communication Activity logs</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 p-3 bg-gray-100 rounded-md border">
+          <p className="font-mono text-sm">{sessionInfo}</p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={refreshJanusInfo}>
+            Refresh Janus Info
+          </Button>
+        </div>
         <div className="space-y-2 mb-4">
           <Label>Log Level</Label>
           <Select value={logLevel} onValueChange={handleLogLevelChange}>
@@ -197,6 +246,8 @@ const SystemLogsTab = () => {
           </Button>
         </div>
       </CardFooter>
-    </Card>;
+    </Card>
+  );
 };
+
 export default SystemLogsTab;
