@@ -1,4 +1,3 @@
-
 import { AudioOutputHandler } from './janus/utils/audioOutputHandler';
 import userInteractionService from './UserInteractionService';
 
@@ -36,6 +35,9 @@ class AudioService {
   };
   
   private constructor() {
+    // Initialize browser info first, before it's used elsewhere
+    this.browserInfo = this.detectBrowser();
+    
     this.getPreferredAudioOutput();
     
     // Early initialization of audio element on service creation
@@ -43,9 +45,6 @@ class AudioService {
     
     // Apply user's master volume setting from local storage
     this.loadVolumeFromSettings();
-    
-    // Detect browser for specific workarounds
-    this.browserInfo = this.detectBrowser();
     
     // Register for the first user interaction event
     userInteractionService.onUserInteraction(() => {
@@ -254,7 +253,8 @@ class AudioService {
         this.audioElement.volume = this.masterVolume;
         
         // Safari requires extra attributes
-        if (this.browserInfo.isSafari || this.browserInfo.isIOS) {
+        // Make sure browserInfo is defined before accessing it
+        if (this.browserInfo && (this.browserInfo.isSafari || this.browserInfo.isIOS)) {
           this.audioElement.setAttribute('playsinline', 'true');
           this.audioElement.setAttribute('webkit-playsinline', 'true');
         }
