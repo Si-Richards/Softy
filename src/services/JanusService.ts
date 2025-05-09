@@ -8,12 +8,12 @@ class JanusService {
   private eventHandlers: JanusEventHandlers;
   private opaqueId: string;
   private registered: boolean = false;
-  private localStream: MediaStream | null = null;
-  private remoteStream: MediaStream | null = null;
-
+  private mediaHandler: JanusMediaHandler;
+  
   constructor() {
     this.eventHandlers = new JanusEventHandlers();
     this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
+    this.mediaHandler = new JanusMediaHandler();
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
@@ -105,16 +105,29 @@ class JanusService {
         },
         onlocalstream: (stream: MediaStream) => {
           console.log("Got local stream", stream);
-          this.localStream = stream;
+          this.mediaHandler.setLocalStream(stream);
         },
         onremotestream: (stream: MediaStream) => {
           console.log("Got remote stream", stream);
-          this.remoteStream = stream;
+          this.mediaHandler.setRemoteStream(stream);
+          
+          // Log audio track information
+          const audioTracks = stream.getAudioTracks();
+          console.log(`Remote stream has ${audioTracks.length} audio tracks`);
+          audioTracks.forEach((track, idx) => {
+            console.log(`Audio track ${idx}:`, {
+              id: track.id,
+              kind: track.kind,
+              label: track.label,
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState
+            });
+          });
         },
         oncleanup: () => {
           console.log("SIP plugin cleaned up");
-          this.localStream = null;
-          this.remoteStream = null;
+          this.mediaHandler.clearStreams();
         }
       });
     });
@@ -521,11 +534,19 @@ class JanusService {
   
   // Stream handling methods
   getLocalStream(): MediaStream | null {
-    return this.localStream;
+    return this.mediaHandler.getLocalStream();
   }
   
   getRemoteStream(): MediaStream | null {
-    return this.remoteStream;
+    return this.mediaHandler.getRemoteStream();
+  }
+  
+  hasAudioTracks(): boolean {
+    return this.mediaHandler.hasAudioTracks();
+  }
+  
+  getAudioTracks(): MediaStreamTrack[] {
+    return this.mediaHandler.getAudioTracks();
   }
 
   isRegistered(): boolean {
@@ -538,6 +559,9 @@ class JanusService {
 
   disconnect(): void {
     this.registered = false;
+    
+    // Clean up media handler
+    this.mediaHandler.clearStreams();
     
     if (this.sipPlugin) {
       this.sipPlugin.detach();

@@ -1,7 +1,9 @@
+
 import { useEffect, useState } from 'react';
 import janusService from "@/services/JanusService";
 import { useIncomingCall } from '@/hooks/useIncomingCall';
 import { useJanusInitialization } from '@/hooks/useJanusInitialization';
+import audioService from '@/services/AudioService';
 
 export const useJanusSetup = () => {
   const {
@@ -31,11 +33,20 @@ export const useJanusSetup = () => {
 
     janusService.setOnCallConnected(() => {
       // This is handled by useCallControls
+      // Ensure audio service is ready for the call
+      const remoteStream = janusService.getRemoteStream();
+      if (remoteStream) {
+        console.log("Call connected, ensuring audio service has the stream");
+        audioService.attachStream(remoteStream);
+      }
     });
 
     janusService.setOnCallEnded(() => {
       // Call handleCallEnded from useIncomingCall to update history
       handleCallEnded();
+      
+      // Clean up audio service when call ends
+      audioService.detachStream();
     });
 
     janusService.setOnError(handleError);
@@ -57,7 +68,19 @@ export const useJanusSetup = () => {
       setIsJanusConnected(connected);
       setIsRegistered(registered);
       
-      console.log("Connection status check: Janus connected:", connected, "SIP registered:", registered);
+      // Log more detailed status including audio track info
+      if (connected) {
+        const hasAudioTracks = janusService.hasAudioTracks();
+        const audioTracks = janusService.getAudioTracks();
+        
+        console.log("Connection status check:", {
+          janusConnected: connected,
+          sipRegistered: registered,
+          hasAudioTracks,
+          audioTrackCount: audioTracks.length,
+          audioTracksActive: audioTracks.filter(t => t.readyState === 'live' && !t.muted).length
+        });
+      }
     }, 10000);
 
     return () => {
