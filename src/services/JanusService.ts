@@ -1,8 +1,6 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
-import { JanusMediaHandler } from './janus/mediaHandler';
 
 class JanusService {
   private janus: any = null;
@@ -432,7 +430,7 @@ class JanusService {
                   
                   // Apply audio output device if specified and supported
                   const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-                  if (savedAudioOutput && this.getRemoteStream()) {
+                  if (savedAudioOutput && this.remoteStream) {
                     // Find or create audio element to play the remote stream
                     let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
                     if (!audioElement) {
@@ -450,7 +448,7 @@ class JanusService {
                     }
                     
                     // Set the remote stream to the audio element
-                    audioElement.srcObject = this.getRemoteStream();
+                    audioElement.srcObject = this.remoteStream;
                   }
                   
                   resolve();
