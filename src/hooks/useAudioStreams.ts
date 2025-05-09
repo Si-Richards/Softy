@@ -35,7 +35,7 @@ export const useAudioStreams = (isCallActive: boolean) => {
           AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
         } else {
           // Even without a specific output device, set up the audio
-          AudioOutputHandler.setupRemoteAudio(remoteStream);
+          AudioOutputHandler.setupRemoteAudio(remoteStream, undefined);
         }
         
         // Audio-only call - use the audio service
