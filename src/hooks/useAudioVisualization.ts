@@ -29,8 +29,9 @@ export const useAudioVisualization = () => {
       animationRef.current = requestAnimationFrame(updateVisualization);
     };
     
-    // Force initialization of audio before starting visualization
-    audioService.initializeAudioForVisualization();
+    // Initialize audio context before starting visualization
+    // Make sure audioService has audio context initialized
+    audioService.getAudioElement();
     
     animationRef.current = requestAnimationFrame(updateVisualization);
   }, []);

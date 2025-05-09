@@ -116,4 +116,52 @@ export class AudioOutputHandler {
       }
     }
   }
+  
+  /**
+   * Prompt the user for interaction to enable audio playback
+   * @returns Promise that resolves to true if the user interacted, false otherwise
+   */
+  static promptForUserInteraction(): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Create a modal overlay with a button
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      overlay.style.display = 'flex';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.zIndex = '10000';
+      overlay.style.flexDirection = 'column';
+      
+      const message = document.createElement('div');
+      message.textContent = 'Audio permission required';
+      message.style.color = 'white';
+      message.style.marginBottom = '20px';
+      message.style.fontSize = '20px';
+      
+      const button = document.createElement('button');
+      button.textContent = 'Enable Audio';
+      button.style.padding = '12px 24px';
+      button.style.backgroundColor = '#4CAF50';
+      button.style.border = 'none';
+      button.style.color = 'white';
+      button.style.fontSize = '16px';
+      button.style.borderRadius = '4px';
+      button.style.cursor = 'pointer';
+      
+      overlay.appendChild(message);
+      overlay.appendChild(button);
+      document.body.appendChild(overlay);
+      
+      // Handle button click
+      button.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(true);
+      });
+    });
+  }
 }
