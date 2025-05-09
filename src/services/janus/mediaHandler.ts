@@ -56,6 +56,9 @@ export class JanusMediaHandler {
           if (track.readyState !== 'ended') {
             track.enabled = true;
           }
+          
+          // Notify audio service about the ended track
+          audioService.handleTrackEnded(track);
         };
         
         track.addEventListener('ended', onEnded);
@@ -71,6 +74,7 @@ export class JanusMediaHandler {
       // Add stream ended event listener
       stream.addEventListener('inactive', () => {
         console.warn("Remote stream became inactive");
+        audioService.handleStreamInactive();
       });
       
       // Auto-play audio as soon as we get the stream
@@ -82,6 +86,9 @@ export class JanusMediaHandler {
     // Directly attach the stream to our audio service
     if (stream) {
       audioService.attachStream(stream);
+    } else {
+      // Clear the audio service if stream is null
+      audioService.detachStream();
     }
   }
 
@@ -156,8 +163,17 @@ export class JanusMediaHandler {
     return this.remoteStream;
   }
 
+  getAudioTracks(): MediaStreamTrack[] {
+    return this.remoteStream?.getAudioTracks() || [];
+  }
+
+  hasAudioTracks(): boolean {
+    return this.getAudioTracks().length > 0;
+  }
+
   clearStreams() {
     this.clearTrackListeners();
+    audioService.detachStream(); // Make sure to detach from audio service
     this.localStream = null;
     this.remoteStream = null;
     this.autoPlayAttempted = false;
