@@ -1,166 +1,129 @@
-
 /**
- * Service to detect and track user interaction status for audio autoplay purposes
+ * Service to track user interaction with the page
+ * This is important for audio autoplay policies in browsers
  */
 class UserInteractionService {
-  private static instance: UserInteractionService;
-  private hasInteracted: boolean = false;
-  private interactionCallbacks: Array<() => void> = [];
-  private initialized: boolean = false;
-  private debugMode: boolean = false;
-
-  private constructor() {
-    // Private constructor for singleton
-  }
-
-  public static getInstance(): UserInteractionService {
-    if (!UserInteractionService.instance) {
-      UserInteractionService.instance = new UserInteractionService();
+  private userHasInteractedState: boolean = false;
+  private interactionListeners: Function[] = [];
+  private interactionEvents = [
+    'mousedown', 'keydown', 'touchstart', 'click'
+  ];
+  private boundHandleInteraction: () => void;
+  
+  constructor() {
+    // Bind once to keep reference for later removal
+    this.boundHandleInteraction = this.handleInteraction.bind(this);
+    
+    // Check if we've already been initialized
+    this.userHasInteractedState = localStorage.getItem('userHasInteracted') === 'true';
+    
+    // If we're in a testing environment or headless browser, force interaction state
+    if (navigator.userAgent.includes('HeadlessChrome') || 
+        document.visibilityState === 'hidden' ||
+        /PhantomJS|Puppeteer/.test(navigator.userAgent)) {
+      this.userHasInteractedState = true;
     }
-    return UserInteractionService.instance;
   }
-
+  
   /**
-   * Initialize user interaction tracking
-   * Must be called early in app lifecycle
+   * Initialize the interaction tracking 
    */
-  public initialize(): void {
-    if (this.initialized) return;
+  initialize(): void {
+    // Don't add listeners more than once
+    this.cleanup();
     
-    console.log("UserInteractionService: Initializing user interaction detection");
-    
-    // Listen for any user interaction event that could qualify as user gesture
-    const interactionEvents = [
-      'click', 'touchstart', 'keydown', 'pointerdown', 'mousedown'
-    ];
-    
-    const handleUserInteraction = this.handleUserInteraction.bind(this);
-    
-    interactionEvents.forEach(eventType => {
-      document.addEventListener(eventType, handleUserInteraction, { 
-        once: false, // Keep listening
-        passive: true, // Performance optimization
-        capture: true // Capture in all phases including bubbling
-      });
+    // Listen for user interactions
+    this.interactionEvents.forEach(event => {
+      document.addEventListener(event, this.boundHandleInteraction, { once: false });
     });
     
-    this.initialized = true;
-    console.log("UserInteractionService: User interaction listeners registered");
-    
-    // Check if user has already interacted (e.g. if this loads after a click)
-    if (document.hasFocus()) {
-      // If the document is in focus, there's a good chance user has already interacted
-      setTimeout(() => {
-        if (!this.hasInteracted) {
-          console.log("UserInteractionService: Document has focus, assuming user has interacted");
-          this.handleUserInteraction();
-        }
-      }, 1000);
-    }
-    
-    // Monitor for visibility changes (tab focus/blur)
+    // Also listen for visibility changes
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && this.hasInteracted) {
-        console.log("UserInteractionService: Page visibility changed, checking audio state");
-        // Notify listeners about visibility change
-        const visibilityEvent = new CustomEvent('lovable:visibilitychange', {
-          detail: { hasInteracted: this.hasInteracted }
+      if (document.visibilityState === 'visible' && this.userHasInteractedState) {
+        // Dispatch custom event to notify listeners
+        const event = new CustomEvent('lovable:visibilitychange', { 
+          detail: { hasInteracted: this.userHasInteractedState }
         });
-        document.dispatchEvent(visibilityEvent);
+        document.dispatchEvent(event);
       }
     });
     
-    // Enable debug mode based on local storage setting or URL param
-    this.debugMode = localStorage.getItem('audioDebug') === 'true' || 
-                     window.location.search.includes('audioDebug=true');
+    console.log("UserInteractionService initialized, current state:", this.userHasInteractedState);
   }
   
   /**
-   * Handle any user interaction event
+   * Handle user interaction events
    */
-  private handleUserInteraction(): void {
-    if (this.hasInteracted) return;
-    
-    console.log("UserInteractionService: First user interaction detected!");
-    this.hasInteracted = true;
-    
-    // Notify all registered callbacks
-    this.interactionCallbacks.forEach(callback => {
-      try {
-        callback();
-      } catch (error) {
-        console.error("Error in user interaction callback:", error);
-      }
-    });
-    
-    // Dispatch a custom event that other components can listen for
-    const interactionEvent = new CustomEvent('lovable:userinteraction', {
-      detail: { timestamp: Date.now() }
-    });
-    document.dispatchEvent(interactionEvent);
-    
-    // Clear callbacks after first interaction as they're no longer needed
-    this.interactionCallbacks = [];
-  }
-  
-  /**
-   * Check if user has interacted with the page
-   */
-  public userHasInteracted(): boolean {
-    return this.hasInteracted;
-  }
-  
-  /**
-   * Register a callback to be called once user interaction happens
-   * If user has already interacted, callback will be called immediately
-   */
-  public onUserInteraction(callback: () => void): void {
-    if (this.hasInteracted) {
-      // If user has already interacted, call callback immediately
-      setTimeout(callback, 0);
-    } else {
-      // Otherwise, store callback to be called on first interaction
-      this.interactionCallbacks.push(callback);
-    }
-  }
-  
-  /**
-   * Force the userInteraction state to be set to true
-   * Useful for scenarios where we need to bypass the check
-   */
-  public forceInteractionState(state: boolean = true): void {
-    if (state && !this.hasInteracted) {
-      // Only trigger callbacks if changing from false to true
-      this.hasInteracted = true;
-      this.interactionCallbacks.forEach(callback => callback());
-      this.interactionCallbacks = [];
+  private handleInteraction(): void {
+    // Only trigger once for the first interaction
+    if (!this.userHasInteractedState) {
+      console.log("First user interaction detected");
+      this.userHasInteractedState = true;
+      localStorage.setItem('userHasInteracted', 'true');
       
-      // Also dispatch the custom event
-      const interactionEvent = new CustomEvent('lovable:userinteraction', {
-        detail: { timestamp: Date.now(), forced: true }
+      // Notify all listeners
+      this.interactionListeners.forEach(listener => {
+        try {
+          listener();
+        } catch (error) {
+          console.error("Error in interaction listener:", error);
+        }
       });
-      document.dispatchEvent(interactionEvent);
-    } else {
-      this.hasInteracted = state;
     }
   }
   
   /**
-   * Enable or disable debug mode
+   * Register a callback for first user interaction
    */
-  public setDebugMode(enabled: boolean): void {
-    this.debugMode = enabled;
-    localStorage.setItem('audioDebug', enabled.toString());
+  onUserInteraction(callback: Function): void {
+    // If user has already interacted, call immediately
+    if (this.userHasInteractedState) {
+      setTimeout(() => callback(), 0);
+      return;
+    }
+    
+    // Otherwise add to listeners
+    this.interactionListeners.push(callback);
   }
   
   /**
-   * Check if debug mode is enabled
+   * Check if the user has interacted with the page
    */
-  public isDebugMode(): boolean {
-    return this.debugMode;
+  userHasInteracted(): boolean {
+    return this.userHasInteractedState;
+  }
+  
+  /**
+   * Force the interaction state - useful for programmatic triggering
+   */
+  forceInteractionState(interacted: boolean): void {
+    this.userHasInteractedState = interacted;
+    localStorage.setItem('userHasInteracted', interacted ? 'true' : 'false');
+    
+    if (interacted) {
+      // Notify listeners
+      this.interactionListeners.forEach(listener => {
+        try {
+          listener();
+        } catch (error) {
+          console.error("Error in interaction listener:", error);
+        }
+      });
+      
+      // Clear listeners since they've all been called
+      this.interactionListeners = [];
+    }
+  }
+  
+  /**
+   * Clean up event listeners
+   */
+  cleanup(): void {
+    this.interactionEvents.forEach(event => {
+      document.removeEventListener(event, this.boundHandleInteraction);
+    });
   }
 }
 
-// Export singleton instance
-const userInteractionService = UserInteractionService.getInstance();
+const userInteractionService = new UserInteractionService();
 export default userInteractionService;

@@ -1,3 +1,4 @@
+
 import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
@@ -12,6 +13,8 @@ class JanusService {
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private trackListeners: Map<string, () => void> = new Map();
+  private pcListeners: Map<string, any> = new Map();
+  private receivedTracks: MediaStreamTrack[] = [];
 
   constructor() {
     this.eventHandlers = new JanusEventHandlers();
@@ -93,6 +96,12 @@ class JanusService {
         success: (pluginHandle: any) => {
           this.sipPlugin = pluginHandle;
           console.log("SIP plugin attached:", pluginHandle);
+          
+          // Access and monitor the underlying PeerConnection
+          if (this.sipPlugin.webrtcStuff && this.sipPlugin.webrtcStuff.pc) {
+            this.monitorPeerConnection(this.sipPlugin.webrtcStuff.pc);
+          }
+          
           resolve();
         },
         error: (error: any) => {
@@ -192,9 +201,162 @@ class JanusService {
           this.clearTrackListeners();
           this.localStream = null;
           this.remoteStream = null;
+        },
+        // NEW: Add explicit ontrack handler
+        ontrack: (track: MediaStreamTrack, mid: string, on: boolean) => {
+          console.log(`TRACK RECEIVED! kind=${track.kind}, id=${track.id}, mid=${mid}, enabled=${on}`);
+          
+          // For audio tracks, handle immediately
+          if (track.kind === 'audio') {
+            console.log(`Audio track received:`, {
+              id: track.id,
+              label: track.label,
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState
+            });
+            
+            // Save the track for debugging and further use
+            this.receivedTracks.push(track);
+            
+            // Create a dedicated stream for this track if needed
+            if (!this.remoteStream) {
+              this.remoteStream = new MediaStream();
+            }
+            
+            // Add the track to our remote stream
+            this.remoteStream.addTrack(track);
+            
+            // Ensure the track is enabled
+            track.enabled = true;
+            
+            // Direct attach to audio service immediately
+            audioService.attachAudioTrack(track);
+            
+            // Create a dedicated audio element for immediate playback
+            this.createTrackAudioElement(track);
+          }
         }
       });
     });
+  }
+  
+  /**
+   * Monitor the PeerConnection directly for track events
+   */
+  private monitorPeerConnection(pc: RTCPeerConnection) {
+    console.log("Monitoring RTCPeerConnection for track events", pc);
+    
+    // Remove any existing listeners
+    if (this.pcListeners.has('track')) {
+      const oldListener = this.pcListeners.get('track');
+      pc.removeEventListener('track', oldListener);
+      this.pcListeners.delete('track');
+    }
+    
+    // Add direct ontrack listener to PeerConnection
+    const trackListener = (event: RTCTrackEvent) => {
+      console.log("PC TRACK EVENT!", event);
+      
+      event.streams.forEach(stream => {
+        console.log("Track event stream:", stream.id);
+      });
+      
+      event.track.onunmute = () => {
+        console.log(`Track ${event.track.id} unmuted!`);
+      };
+      
+      if (event.track.kind === 'audio') {
+        console.log(`Direct PC audio track received:`, {
+          id: event.track.id,
+          enabled: event.track.enabled,
+          muted: event.track.muted,
+          readyState: event.track.readyState
+        });
+        
+        // Save track
+        this.receivedTracks.push(event.track);
+        
+        // Ensure we have a stream
+        if (!this.remoteStream) {
+          this.remoteStream = new MediaStream();
+        }
+        
+        // Add to our stream
+        this.remoteStream.addTrack(event.track);
+        
+        // Make sure the track is enabled
+        event.track.enabled = true;
+        
+        // Use both direct methods to play the track
+        audioService.attachAudioTrack(event.track);
+        this.createTrackAudioElement(event.track);
+      }
+    };
+    
+    pc.addEventListener('track', trackListener);
+    this.pcListeners.set('track', trackListener);
+    
+    // Also listen for SDP renegotiation events
+    pc.addEventListener('signalingstatechange', () => {
+      console.log("Signaling state changed:", pc.signalingState);
+      
+      // Log all transceivers when in stable state to check media directions
+      if (pc.signalingState === 'stable' && pc.getTransceivers) {
+        console.log("Connection stable - checking transceivers");
+        pc.getTransceivers().forEach((transceiver, idx) => {
+          console.log(`Transceiver ${idx}:`, {
+            mid: transceiver.mid,
+            direction: transceiver.direction,
+            currentDirection: transceiver.currentDirection,
+            stopped: transceiver.stopped,
+            kind: transceiver.receiver.track?.kind || 'unknown'
+          });
+        });
+      }
+    });
+  }
+  
+  /**
+   * Create a dedicated audio element for a track to ensure it plays
+   */
+  private createTrackAudioElement(track: MediaStreamTrack) {
+    // Create a new stream with just this track
+    const singleTrackStream = new MediaStream([track]);
+    
+    // Create dedicated audio element
+    const trackAudio = document.createElement('audio');
+    trackAudio.id = `audio-track-${track.id}`;
+    trackAudio.autoplay = true;
+    trackAudio.playsInline = true;
+    trackAudio.style.display = 'none';
+    trackAudio.srcObject = singleTrackStream;
+    
+    // Set output device if specified
+    const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+    if (savedAudioOutput && 'setSinkId' in HTMLAudioElement.prototype) {
+      (trackAudio as any).setSinkId(savedAudioOutput)
+        .catch((e: any) => console.warn("Error setting audio output on dedicated element:", e));
+    }
+    
+    // Append to document and attempt to play
+    document.body.appendChild(trackAudio);
+    
+    trackAudio.play()
+      .then(() => console.log(`Dedicated audio element for track ${track.id} playing`))
+      .catch(e => console.warn(`Error playing dedicated audio for track ${track.id}:`, e));
+    
+    // Set up monitoring interval to check if audio is flowing
+    const monitorInterval = setInterval(() => {
+      if (track.readyState === 'ended') {
+        console.warn(`Track ${track.id} has ended - cleaning up dedicated element`);
+        document.body.removeChild(trackAudio);
+        clearInterval(monitorInterval);
+      }
+    }, 5000);
+    
+    // Return the element for potential further use
+    return trackAudio;
   }
   
   /**
@@ -273,8 +435,78 @@ class JanusService {
     
     if (jsep) {
       console.log("Handling incoming JSEP:", jsep);
-      this.sipPlugin?.handleRemoteJsep({ jsep: jsep });
+      
+      // Analyze SDP for audio track information
+      if (jsep.sdp) {
+        console.log("Analyzing SDP for audio tracks:");
+        this.analyzeSDP(jsep.sdp);
+      }
+      
+      this.sipPlugin?.handleRemoteJsep({ 
+        jsep: jsep,
+        success: () => {
+          console.log("Remote JSEP processed successfully");
+          
+          // Check if we have the PeerConnection after handling remote jsep
+          if (this.sipPlugin.webrtcStuff && this.sipPlugin.webrtcStuff.pc) {
+            this.monitorPeerConnection(this.sipPlugin.webrtcStuff.pc);
+          }
+        },
+        error: (error: any) => {
+          console.error("Error handling remote JSEP:", error);
+        }
+      });
     }
+  }
+  
+  /**
+   * Analyze SDP to find issues with audio tracks
+   */
+  private analyzeSDP(sdp: string): void {
+    const lines = sdp.split('\r\n');
+    let currentMedia: 'audio' | 'video' | null = null;
+    let hasAudio = false;
+    let audioDirection: string | null = null;
+    
+    console.log("--- SDP Analysis ---");
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Check for media sections
+      if (line.startsWith('m=audio')) {
+        currentMedia = 'audio';
+        hasAudio = true;
+        console.log("Found audio media section");
+      } else if (line.startsWith('m=video')) {
+        currentMedia = 'video';
+      }
+      
+      // Check direction attributes in audio section
+      if (currentMedia === 'audio') {
+        if (line.startsWith('a=sendrecv')) {
+          audioDirection = 'sendrecv';
+          console.log("Audio direction: sendrecv (bidirectional)");
+        } else if (line.startsWith('a=sendonly')) {
+          audioDirection = 'sendonly';
+          console.log("Audio direction: sendonly (remote can only receive)");
+        } else if (line.startsWith('a=recvonly')) {
+          audioDirection = 'recvonly';
+          console.log("Audio direction: recvonly (remote can only send)");
+        } else if (line.startsWith('a=inactive')) {
+          audioDirection = 'inactive';
+          console.log("Audio direction: inactive (no audio flowing)");
+        }
+      }
+    }
+    
+    if (!hasAudio) {
+      console.warn("SDP does not contain audio media section!");
+    } else if (!audioDirection) {
+      console.warn("Audio section does not have explicit direction attribute!");
+    }
+    
+    console.log("--- End SDP Analysis ---");
   }
   
   // Callback handlers for SIP events
@@ -548,6 +780,9 @@ class JanusService {
       console.log("Getting user media for accepting call:", constraints);
       console.log("Incoming JSEP:", jsep);
       
+      // Analyze the SDP
+      this.analyzeSDP(jsep.sdp);
+      
       navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           console.log("Got local stream for accepting call", stream);
@@ -613,6 +848,11 @@ class JanusService {
                 success: () => {
                   console.log("Call accepted");
                   
+                  // Access and monitor the underlying PeerConnection if available
+                  if (this.sipPlugin.webrtcStuff && this.sipPlugin.webrtcStuff.pc) {
+                    this.monitorPeerConnection(this.sipPlugin.webrtcStuff.pc);
+                  }
+                  
                   // Apply audio output device if specified and supported
                   const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
                   if (savedAudioOutput && this.remoteStream) {
@@ -650,6 +890,12 @@ class JanusService {
                     // Use AudioService for playback
                     if (this.remoteStream) {
                       audioService.attachStream(this.remoteStream);
+                      
+                      // Try to auto-play immediately
+                      setTimeout(() => {
+                        audioService.forcePlayAudio()
+                          .catch(e => console.warn("Auto-play error in acceptCall:", e));
+                      }, 300);
                     }
                   }
                   
@@ -718,23 +964,29 @@ class JanusService {
     
     const hangupMsg = { request: "hangup" };
     
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       this.sipPlugin.send({
         message: hangupMsg,
         success: () => {
-          console.log("Hangup sent");
+          console.log("Hangup request sent successfully");
           resolve();
         },
         error: (error: any) => {
-          console.error("Error hanging up:", error);
-          // Still resolve as we want to clean up the UI
-          resolve();
+          console.error("Error sending hangup request:", error);
+          reject(error);
         }
       });
     });
   }
   
-  // Stream handling methods
+  isJanusConnected(): boolean {
+    return this.janus !== null;
+  }
+  
+  isRegistered(): boolean {
+    return this.registered;
+  }
+  
   getLocalStream(): MediaStream | null {
     return this.localStream;
   }
@@ -742,25 +994,52 @@ class JanusService {
   getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
-
-  isRegistered(): boolean {
-    return this.registered;
+  
+  getReceivedTracks(): MediaStreamTrack[] {
+    return this.receivedTracks;
   }
-
-  isJanusConnected(): boolean {
-    return !!this.janus;
-  }
-
+  
   disconnect(): void {
-    this.registered = false;
+    // Clean up track listeners
+    this.clearTrackListeners();
     
+    // Clean up PC event listeners
+    if (this.sipPlugin?.webrtcStuff?.pc) {
+      for (const [event, listener] of this.pcListeners.entries()) {
+        this.sipPlugin.webrtcStuff.pc.removeEventListener(event, listener);
+      }
+    }
+    this.pcListeners.clear();
+    
+    // Reset state
+    this.localStream = null;
+    this.remoteStream = null;
+    this.registered = false;
+    this.receivedTracks = [];
+    
+    // Detach plugin
     if (this.sipPlugin) {
-      this.sipPlugin.detach();
+      this.sipPlugin.detach({
+        success: () => {
+          console.log("SIP plugin detached successfully");
+        },
+        error: (error: any) => {
+          console.error("Error detaching SIP plugin:", error);
+        }
+      });
       this.sipPlugin = null;
     }
     
+    // Destroy Janus session
     if (this.janus) {
-      this.janus.destroy();
+      this.janus.destroy({
+        success: () => {
+          console.log("Janus session destroyed successfully");
+        },
+        error: (error: any) => {
+          console.error("Error destroying Janus session:", error);
+        }
+      });
       this.janus = null;
     }
   }
