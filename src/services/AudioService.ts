@@ -1,4 +1,3 @@
-
 /**
  * Service for handling audio playback and visualization
  */
@@ -109,6 +108,26 @@ class AudioService {
       sum += this.dataArray[i];
     }
     return sum / (this.dataArray.length * 255);
+  }
+
+  /**
+   * Set the volume for audio playback
+   * @param volume Volume level (0-1)
+   */
+  setVolume(volume: number): void {
+    // Make sure volume is between 0 and 1
+    volume = Math.min(1, Math.max(0, volume));
+    
+    // Set volume on the gain node if it exists
+    if (this.gainNode) {
+      this.gainNode.gain.value = volume;
+      console.log(`AudioService: Volume set to ${volume}`);
+    }
+    
+    // Also set volume on the audio element as a fallback
+    if (this.audioElement) {
+      this.audioElement.volume = volume;
+    }
   }
 
   /**
