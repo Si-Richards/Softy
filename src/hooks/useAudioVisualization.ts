@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import audioService from '@/services/AudioService';
-import janusService from '@/services/JanusService';
 
 export const useAudioVisualization = () => {
   const [audioLevel, setAudioLevel] = useState(0);
@@ -29,13 +28,6 @@ export const useAudioVisualization = () => {
       // Continue animation loop
       animationRef.current = requestAnimationFrame(updateVisualization);
     };
-    
-    // Ensure audio service has the correct stream by connecting to Janus service
-    const remoteStream = janusService.getRemoteStream();
-    if (remoteStream && remoteStream.getAudioTracks().length > 0) {
-      console.log("useAudioVisualization: Found audio tracks, attaching to audio service");
-      audioService.attachStream(remoteStream);
-    }
     
     animationRef.current = requestAnimationFrame(updateVisualization);
   }, []);

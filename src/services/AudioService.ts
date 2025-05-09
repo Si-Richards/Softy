@@ -13,15 +13,12 @@ class AudioService {
   private currentAudioOutput: string | null = null;
   private audioTrackPatched = false;
   private audioContext: AudioContext | null = null;
-  private audioSource: MediaStreamAudioSourceNode | null = null;
   private audioAnalyser: AnalyserNode | null = null;
   private dataArray: Uint8Array | null = null;
   private isAudioFlowing = false;
   private lastAudioFlowCheck = 0;
   private audioInitialized = false;
   private streamToAttachOnInitialization: MediaStream | null = null;
-  private currentStream: MediaStream | null = null;
-  private currentTracks: MediaStreamTrack[] = [];
   private autoplayAttempted = false;
   private enabledByUserInteraction = false;
   private masterVolume: number = 1.0;
@@ -66,7 +63,7 @@ class AudioService {
       this.forcePlayAudio().catch(e => console.warn("Auto-play after user interaction failed:", e));
     });
     
-    // Listen for page visibility changes
+    // Listen for page visibility changes to resume audio
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && this.audioElement && this.audioElement.paused && 
           this.audioElement.srcObject && userInteractionService.userHasInteracted()) {
@@ -77,21 +74,17 @@ class AudioService {
       }
     });
     
-    // Set up interval to log audio status
-    setInterval(() => {
-      console.log("Audio service status:", {
-        hasAudioElement: !!this.audioElement,
-        isPlaying: this.isAudioPlaying(),
-        hasStream: !!this.currentStream,
-        trackCount: this.currentTracks.length,
-        audioTracks: this.currentTracks.map(t => ({
-          id: t.id,
-          enabled: t.enabled,
-          muted: t.muted,
-          readyState: t.readyState
-        }))
-      });
-    }, 10000);
+    // Listen for custom visibility change events
+    document.addEventListener('lovable:visibilitychange', () => {
+      // Try to resume audio playback when page regains focus
+      if (this.audioElement && this.audioElement.paused && 
+          this.audioElement.srcObject && userInteractionService.userHasInteracted()) {
+        console.log("AudioService: Visibility changed, attempting to resume audio");
+        setTimeout(() => {
+          this.forcePlayAudio().catch(e => console.warn("Resume after custom visibility event failed:", e));
+        }, 300);
+      }
+    });
   }
   
   /**
@@ -177,41 +170,10 @@ class AudioService {
             state: this.audioContext.state,
             sampleRate: this.audioContext.sampleRate
           });
-          
-          // If we already have a stream, connect it to the analyzer
-          if (this.currentStream && this.currentStream.getAudioTracks().length > 0) {
-            this.connectStreamToAnalyzer(this.currentStream);
-          }
         }
       } catch (e) {
         console.warn("Could not initialize audio analyzer:", e);
       }
-    }
-  }
-  
-  /**
-   * Connect a media stream to the audio analyzer
-   */
-  private connectStreamToAnalyzer(stream: MediaStream): void {
-    if (!this.audioContext || !this.audioAnalyser) {
-      console.warn("Cannot connect stream to analyzer: Audio context not initialized");
-      return;
-    }
-    
-    try {
-      // Disconnect previous source if it exists
-      if (this.audioSource) {
-        this.audioSource.disconnect();
-        this.audioSource = null;
-      }
-      
-      // Create new audio source from the stream
-      this.audioSource = this.audioContext.createMediaStreamSource(stream);
-      this.audioSource.connect(this.audioAnalyser);
-      
-      console.log("Stream connected to audio analyzer");
-    } catch (e) {
-      console.warn("Error connecting stream to analyzer:", e);
     }
   }
   
@@ -233,54 +195,6 @@ class AudioService {
     this.audioInitialized = true;
   }
   
-  /**
-   * Get the singleton audio element or create it if it doesn't exist
-   */
-  public getAudioElement(): HTMLAudioElement {
-    if (!this.audioElement) {
-      // Check if there's already an audio element on the page with id='remoteAudio'
-      const existingElement = document.getElementById('remoteAudio') as HTMLAudioElement;
-      
-      if (existingElement && existingElement.tagName === 'AUDIO') {
-        console.log("Found existing audio element, using it");
-        this.audioElement = existingElement;
-      } else {
-        // Create a new audio element
-        console.log("Creating new audio element");
-        this.audioElement = document.createElement('audio');
-        this.audioElement.id = 'remoteAudio';
-        this.audioElement.autoplay = true;
-        this.audioElement.controls = false;
-        this.audioElement.volume = this.masterVolume;
-        
-        // Safari requires extra attributes
-        if (this.browserInfo.isSafari || this.browserInfo.isIOS) {
-          this.audioElement.setAttribute('playsinline', 'true');
-          this.audioElement.setAttribute('webkit-playsinline', 'true');
-        }
-        
-        document.body.appendChild(this.audioElement);
-      }
-      
-      // Add event listeners for logging
-      this.audioElement.addEventListener('play', () => console.log("Audio element: play event"));
-      this.audioElement.addEventListener('playing', () => console.log("Audio element: playing event"));
-      this.audioElement.addEventListener('pause', () => console.log("Audio element: pause event"));
-      this.audioElement.addEventListener('ended', () => console.log("Audio element: ended event"));
-      this.audioElement.addEventListener('stalled', () => console.log("Audio element: stalled event"));
-      this.audioElement.addEventListener('error', (e) => console.log("Audio element: error event", e));
-      
-      // Apply preferred output device if available
-      if (this.currentAudioOutput && 'setSinkId' in HTMLAudioElement.prototype) {
-        (this.audioElement as any).setSinkId(this.currentAudioOutput)
-          .then(() => console.log("Audio output device set to:", this.currentAudioOutput))
-          .catch((e: Error) => console.warn("Error setting audio output device:", e));
-      }
-    }
-    
-    return this.audioElement;
-  }
-  
   public static getInstance(): AudioService {
     if (!AudioService.instance) {
       AudioService.instance = new AudioService();
@@ -299,44 +213,56 @@ class AudioService {
   /**
    * Sets up an audio analyzer to verify that audio is flowing
    */
-  private setupAudioAnalytics(): void {
-    if (this.analyticsInterval) {
-      clearInterval(this.analyticsInterval);
-    }
-    
-    this.analyticsInterval = window.setInterval(() => {
-      if (this.audioElement) {
-        // Log audio element state periodically for debugging
-        console.log("Audio element status:", {
-          volume: this.audioElement.volume,
-          muted: this.audioElement.muted,
-          paused: this.audioElement.paused,
-          currentTime: this.audioElement.currentTime,
-          readyState: this.audioElement.readyState,
-          networkState: this.audioElement.networkState
-        });
+  private setupAudioAnalyzer(): void {
+    try {
+      // Create audio context if browser supports it
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        this.audioContext = new AudioContext();
+        this.audioAnalyser = this.audioContext.createAnalyser();
+        this.audioAnalyser.fftSize = 256;
+        const bufferLength = this.audioAnalyser.frequencyBinCount;
+        this.dataArray = new Uint8Array(bufferLength);
+        
+        console.log("Audio analyzer initialized");
       }
-    }, 30000); // Every 30 seconds
+    } catch (e) {
+      console.warn("Could not initialize audio analyzer:", e);
+    }
   }
   
   /**
-   * Return detailed status of the audio service and element
+   * Analyzes audio data to detect if audio is actually flowing
+   * @returns true if audio data is detected, false otherwise
    */
-  public getAudioStatus(): any {
-    return {
-      volume: this.audioElement?.volume,
-      muted: this.audioElement?.muted,
-      paused: this.audioElement?.paused,
-      currentTime: this.audioElement?.currentTime,
-      readyState: this.audioElement?.readyState,
-      networkState: this.audioElement?.networkState,
-      hasAudioTracks: this.currentTracks.length,
-      audioFlowing: this.isAudioFlowing,
-      userHasInteracted: userInteractionService.userHasInteracted(),
-      enabledByUserInteraction: this.enabledByUserInteraction,
-      controlsVisible: this.controlsVisible,
-      browserInfo: this.browserInfo
-    };
+  private analyzeAudioFlow(): boolean {
+    if (!this.audioAnalyser || !this.dataArray || !this.audioContext) {
+      return false; // Can't analyze without analyzer
+    }
+    
+    // Don't check too often
+    const now = Date.now();
+    if (now - this.lastAudioFlowCheck < 500) {
+      return this.isAudioFlowing;
+    }
+    
+    this.lastAudioFlowCheck = now;
+    
+    // Get frequency data
+    this.audioAnalyser.getByteFrequencyData(this.dataArray);
+    
+    // Check if we have any non-zero values in the frequency data
+    let sum = 0;
+    for (let i = 0; i < this.dataArray.length; i++) {
+      sum += this.dataArray[i];
+    }
+    
+    this.isAudioFlowing = sum > 0;
+    if (this.isAudioFlowing) {
+      console.log("Audio is flowing, signal strength:", sum);
+    }
+    
+    return this.isAudioFlowing;
   }
   
   /**
@@ -344,13 +270,8 @@ class AudioService {
    * Used for visualization
    */
   public getAudioLevel(): number {
-    // No audio analyzer or no data array means no audio level
     if (!this.audioAnalyser || !this.dataArray) return 0;
     
-    // No audio tracks means no audio level
-    if (this.currentTracks.length === 0) return 0;
-    
-    // Get frequency data
     this.audioAnalyser.getByteFrequencyData(this.dataArray);
     
     // Calculate average energy level
@@ -365,335 +286,611 @@ class AudioService {
   }
   
   /**
-   * Attach a MediaStream to the audio element
+   * Set up audio analytics to monitor the state of the audio element
+   */
+  private setupAudioAnalytics(): void {
+    if (this.analyticsInterval) {
+      clearInterval(this.analyticsInterval);
+    }
+    
+    this.analyticsInterval = window.setInterval(() => {
+      if (this.audioElement) {
+        const audioStatus = {
+          volume: this.audioElement.volume,
+          muted: this.audioElement.muted,
+          paused: this.audioElement.paused,
+          currentTime: this.audioElement.currentTime,
+          readyState: this.audioElement.readyState,
+          networkState: this.audioElement.networkState,
+          hasAudioTracks: this.audioElement.srcObject ? 
+            (this.audioElement.srcObject as MediaStream).getAudioTracks().length : 0,
+          audioFlowing: this.analyzeAudioFlow(),
+          userHasInteracted: userInteractionService.userHasInteracted(),
+          enabledByUserInteraction: this.enabledByUserInteraction,
+          controlsVisible: this.controlsVisible,
+          browserInfo: this.browserInfo
+        };
+        
+        console.log("Audio element detailed status:", audioStatus);
+        
+        // If we have user interaction and audio is paused, try to play
+        if (audioStatus.userHasInteracted && audioStatus.paused && 
+            audioStatus.hasAudioTracks > 0 && !this.autoplayAttempted) {
+          console.log("Auto-fixing: User has interacted but audio is paused with tracks");
+          this.autoplayAttempted = true;
+          this.forcePlayAudio().catch(e => console.warn("Auto-fix failed:", e));
+        }
+      }
+    }, 5000); // Check less frequently to reduce console noise
+  }
+  
+  /**
+   * Creates or gets the singleton audio element for playing remote audio
+   * @returns The HTML audio element used for remote audio playback
+   */
+  public getAudioElement(): HTMLAudioElement {
+    if (!this.audioElement) {
+      // Look for existing element first
+      const existingElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
+      if (existingElement) {
+        console.log("Using existing audio element for remote audio");
+        this.audioElement = existingElement;
+      } else {
+        // Create a new audio element if none exists
+        console.log("Creating new audio element for remote audio");
+        const newAudioElement = document.createElement('audio');
+        newAudioElement.id = 'remoteAudio';
+        newAudioElement.autoplay = true;
+        newAudioElement.controls = false; // Hidden controls by default
+        newAudioElement.style.display = 'none';
+        newAudioElement.volume = this.masterVolume; // Apply master volume setting
+        newAudioElement.setAttribute('playsinline', ''); // Important for iOS
+        newAudioElement.setAttribute('webkit-playsinline', ''); // For older iOS
+        
+        // Important: Add to document body so it's part of the DOM
+        document.body.appendChild(newAudioElement);
+        this.audioElement = newAudioElement;
+      }
+      
+      // Add event listeners to monitor audio element state
+      this.setupAudioElementListeners();
+    }
+    
+    return this.audioElement;
+  }
+  
+  /**
+   * Set up listeners to monitor the audio element state
+   */
+  private setupAudioElementListeners(): void {
+    if (!this.audioElement) return;
+    
+    this.audioElement.addEventListener('play', () => {
+      console.log("Audio element started playing");
+      this.autoplayAttempted = true;
+    });
+    
+    this.audioElement.addEventListener('pause', () => {
+      console.warn("Audio element paused - may need user interaction");
+      
+      // Only try to auto-resume if we have user interaction
+      if (userInteractionService.userHasInteracted()) {
+        // Try to auto-resume playback
+        setTimeout(() => {
+          if (this.audioElement && 
+              this.audioElement.paused && 
+              this.audioElement.srcObject &&
+              (this.audioElement.srcObject as MediaStream).getAudioTracks().length > 0) {
+            console.log("Attempting to resume paused audio with user interaction");
+            this.forcePlayAudio().catch(e => console.warn("Resume failed:", e));
+          }
+        }, 500);
+      } else {
+        console.log("Audio paused but no user interaction yet - waiting for interaction");
+      }
+    });
+    
+    this.audioElement.addEventListener('ended', () => {
+      console.warn("Audio element playback ended unexpectedly");
+    });
+    
+    this.audioElement.addEventListener('error', (e) => {
+      console.error("Audio element error:", e);
+    });
+    
+    // For iOS/Safari - listen for audio interruptions
+    this.audioElement.addEventListener('suspend', () => {
+      console.warn("Audio playback suspended (iOS audio interruption)");
+      
+      if (userInteractionService.userHasInteracted()) {
+        setTimeout(() => this.forcePlayAudio().catch(e => console.warn("Resume after suspend failed:", e)), 500);
+      }
+    });
+    
+    // Important for Safari - can reveal autoplay issues
+    this.audioElement.addEventListener('waiting', () => {
+      console.warn("Audio element waiting for data");
+    });
+    
+    // Get early detection of autoplay issues
+    this.audioElement.addEventListener('canplay', () => {
+      console.log("Audio element can play - readyState:", this.audioElement?.readyState);
+      
+      // If we have user interaction and audio is ready but paused, try to play
+      if (this.audioElement && 
+          this.audioElement.paused && 
+          userInteractionService.userHasInteracted() &&
+          !this.autoplayAttempted) {
+        console.log("Audio can play and we have user interaction - attempting playback");
+        this.forcePlayAudio().catch(e => console.warn("Canplay autostart failed:", e));
+      }
+    });
+  }
+  
+  /**
+   * Directly attach WebRTC audio track to the audio element
+   * This is more reliable than using a MediaStream in some browsers
+   * @param track Audio track from WebRTC
+   */
+  public attachAudioTrack(track: MediaStreamTrack): boolean {
+    if (!track || track.kind !== 'audio') {
+      console.warn("Invalid audio track provided");
+      return false;
+    }
+    
+    console.log("Attaching individual audio track:", {
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+      id: track.id,
+      kind: track.kind,
+      label: track.label
+    });
+    
+    // Ensure track is enabled
+    if (!track.enabled) {
+      console.log("Enabling disabled audio track");
+      track.enabled = true;
+    }
+    
+    // Create a new stream with just this track
+    const stream = new MediaStream([track]);
+    return this.attachStream(stream);
+  }
+  
+  /**
+   * Attach a media stream to the audio element, ensuring proper audio output routing
+   * @param stream The media stream containing audio tracks
+   * @returns True if successfully attached, false otherwise
    */
   public attachStream(stream: MediaStream | null): boolean {
     if (!stream) {
-      console.warn("AudioService: Cannot attach null stream");
+      console.warn("No stream provided to attachStream");
       return false;
     }
     
-    console.log("AudioService: Attaching stream with ID", stream.id);
-    
-    // Clear any existing tracks
-    this.currentTracks = [];
-    
-    // Get audio tracks from the stream
-    const audioTracks = stream.getAudioTracks();
-    console.log(`AudioService: Stream has ${audioTracks.length} audio tracks`);
-    
-    if (audioTracks.length === 0) {
-      console.warn("AudioService: Stream has no audio tracks");
-      return false;
-    }
-    
-    // Store the current stream and its audio tracks
-    this.currentStream = stream;
-    this.currentTracks = [...audioTracks];
-    
-    // Make sure all tracks are enabled
-    this.currentTracks.forEach(track => {
-      track.enabled = true;
-    });
-    
-    // Connect to audio analyzer if context is initialized
-    if (this.audioContext && this.audioAnalyser) {
-      this.connectStreamToAnalyzer(stream);
-    }
-    
-    // If user hasn't interacted yet, store the stream for later
-    if (!userInteractionService.userHasInteracted()) {
-      console.log("AudioService: Storing stream for attachment after user interaction");
+    // If audio isn't initialized yet or we don't have user interaction,
+    // store stream for later attachment
+    if (!this.audioInitialized || !userInteractionService.userHasInteracted()) {
+      console.log("Storing stream for later attachment after user interaction");
       this.streamToAttachOnInitialization = stream;
-      return false;
+      
+      // If the audio element already exists, attach the stream now but don't play
+      if (this.audioElement) {
+        console.log("Setting stream to existing audio element (won't play until user interacts)");
+        this.audioElement.srcObject = stream;
+      }
+      
+      return true;
     }
     
-    // Get or create the audio element
     const audioElement = this.getAudioElement();
     
-    // Make sure we're using the correct audio output device
-    this.applyAudioOutput();
+    // Log detailed stream information
+    console.log("Attaching stream to audio element:", {
+      audioTracks: stream.getAudioTracks().length,
+      videoTracks: stream.getVideoTracks().length,
+      streamId: stream.id,
+      userHasInteracted: userInteractionService.userHasInteracted()
+    });
+    
+    // Log audio track details
+    stream.getAudioTracks().forEach((track, idx) => {
+      console.log(`Audio track ${idx}:`, {
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+        id: track.id,
+        kind: track.kind,
+        label: track.label
+      });
+      
+      // Ensure tracks are enabled
+      if (!track.enabled) {
+        console.log("Enabling disabled audio track");
+        track.enabled = true;
+      }
+      
+      // Patch audio track for Safari browser if needed
+      if (!this.audioTrackPatched) {
+        this.patchAudioTrack(track);
+        this.audioTrackPatched = true;
+      }
+    });
+    
+    // Connect the audio analyzer if available
+    if (this.audioContext && this.audioAnalyser && stream.getAudioTracks().length > 0) {
+      try {
+        const source = this.audioContext.createMediaStreamSource(stream);
+        source.connect(this.audioAnalyser);
+        console.log("Connected stream to audio analyzer");
+      } catch (e) {
+        console.warn("Could not connect to audio analyzer:", e);
+      }
+    }
     
     // Attach the stream to the audio element
     audioElement.srcObject = stream;
     
-    // Try to play the audio
-    this.forcePlayAudio().catch(e => {
-      console.warn("AudioService: Failed to play audio after attachment:", e);
-    });
+    // Apply current master volume
+    audioElement.volume = this.masterVolume;
+    
+    // Apply preferred audio output device if available
+    const audioOutput = this.getPreferredAudioOutput();
+    if (audioOutput) {
+      this.setAudioOutput(audioOutput).catch(e => {
+        console.warn("Failed to set initial audio output, using default:", e);
+        // Try the default device as fallback
+        this.tryDefaultAudioOutput();
+      });
+    } else {
+      // If no specific output is selected, try to use default
+      this.tryDefaultAudioOutput();
+    }
+    
+    // Force play the audio only if we have user interaction
+    if (userInteractionService.userHasInteracted()) {
+      console.log("User has interacted - trying to auto-play audio");
+      this.forcePlayAudio();
+    } else {
+      console.log("No user interaction yet - audio will play when user interacts");
+    }
     
     return true;
   }
   
   /**
-   * Attach a specific audio track to the audio element
+   * Try to use the default audio output device (browser's default)
    */
-  public attachAudioTrack(track: MediaStreamTrack): boolean {
-    console.log("AudioService: Attaching audio track with ID", track.id);
+  private tryDefaultAudioOutput(): void {
+    if (!this.audioElement) return;
     
-    // Create a new MediaStream with just this track
-    const stream = new MediaStream([track]);
-    
-    // Attach the stream
-    return this.attachStream(stream);
-  }
-  
-  /**
-   * Detach any stream from the audio element
-   */
-  public detachStream(): void {
-    console.log("AudioService: Detaching stream");
-    
-    this.currentStream = null;
-    this.currentTracks = [];
-    
-    if (this.audioElement) {
-      this.audioElement.srcObject = null;
-    }
-    
-    // Disconnect audio analyzer source if it exists
-    if (this.audioSource) {
-      this.audioSource.disconnect();
-      this.audioSource = null;
+    if ('setSinkId' in HTMLAudioElement.prototype) {
+      console.log("Setting audio output to default device");
+      (this.audioElement as any).setSinkId('default')
+        .then(() => console.log("Set audio output to system default"))
+        .catch((e: any) => console.warn("Failed to set default audio output:", e));
     }
   }
   
   /**
-   * Handle a track that has ended
+   * Patch audio track for Safari compatibility
+   * Safari has some unique WebRTC audio routing issues
    */
-  public handleTrackEnded(track: MediaStreamTrack): void {
-    console.log("AudioService: Handling ended track", track.id);
-    
-    // Try to remove this track from our current tracks list
-    this.currentTracks = this.currentTracks.filter(t => t.id !== track.id);
-    
-    // If we have no tracks left, show a warning
-    if (this.currentTracks.length === 0) {
-      console.warn("AudioService: All audio tracks have ended");
-    }
-  }
-  
-  /**
-   * Handle a stream becoming inactive
-   */
-  public handleStreamInactive(): void {
-    console.log("AudioService: Handling inactive stream");
-    
-    // Check if our current stream still has active tracks
-    if (this.currentStream) {
-      const activeTracks = this.currentStream.getAudioTracks().filter(t => t.readyState === 'live');
+  private patchAudioTrack(track: MediaStreamTrack): void {
+    // Check if browser is Safari
+    if (this.browserInfo.isSafari || this.browserInfo.isIOS) {
+      console.log("Applying Safari/iOS-specific audio track patches");
       
-      if (activeTracks.length === 0) {
-        console.warn("AudioService: Stream has no active audio tracks");
-        this.currentTracks = [];
-      } else {
-        // Update our tracks list to only include active tracks
-        this.currentTracks = activeTracks;
+      // Create an audio context to process the audio track directly
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(new MediaStream([track]));
+        const destination = audioCtx.createMediaStreamDestination();
+        source.connect(destination);
+        
+        // On Safari, we need to connect to the destination to get audio
+        source.connect(audioCtx.destination);
+        
+        console.log("Applied Safari audio track patch");
+      } catch (e) {
+        console.error("Failed to apply Safari audio patch:", e);
       }
     }
+  }
+  
+  /**
+   * Set the audio output device using the setSinkId API
+   * @param deviceId ID of the audio output device
+   * @returns Promise that resolves when the audio output has been set
+   */
+  public setAudioOutput(deviceId: string): Promise<void> {
+    if (!this.audioElement) {
+      return Promise.reject(new Error("No audio element available"));
+    }
+    
+    this.currentAudioOutput = deviceId;
+    
+    if (!('setSinkId' in HTMLAudioElement.prototype)) {
+      console.warn("Audio output device selection not supported by this browser");
+      return Promise.resolve();
+    }
+    
+    console.log("Setting audio output device to:", deviceId);
+    
+    // Cast to any to access the non-standard setSinkId method
+    return (this.audioElement as any).setSinkId(deviceId)
+      .then(() => {
+        console.log("Audio output set successfully to:", deviceId);
+      })
+      .catch((error: any) => {
+        console.error("Failed to set audio output device:", error);
+        throw error;
+      });
+  }
+  
+  /**
+   * Update the master volume
+   * @param volume Volume level (0-1)
+   */
+  public setMasterVolume(volume: number): void {
+    console.log("Setting master volume to:", volume);
+    this.masterVolume = Math.max(0, Math.min(1, volume));
+    
+    if (this.audioElement) {
+      this.audioElement.volume = this.masterVolume;
+    }
+  }
+  
+  /**
+   * Force play the audio element to overcome browser autoplay restrictions
+   * @returns Promise resolving to a boolean indicating if playback started
+   */
+  public forcePlayAudio(): Promise<boolean> {
+    if (!this.audioElement) {
+      return Promise.resolve(false);
+    }
+    
+    if (!this.audioElement.paused) {
+      console.log("Audio is already playing");
+      return Promise.resolve(true);
+    }
+    
+    if (!userInteractionService.userHasInteracted()) {
+      console.warn("Cannot force-play audio without user interaction");
+      return Promise.resolve(false);
+    }
+    
+    console.log("Attempting to force play audio with user interaction");
+    
+    // For iOS Safari specifically
+    if (this.audioElement.srcObject && this.audioElement.srcObject instanceof MediaStream) {
+      const stream = this.audioElement.srcObject as MediaStream;
+      if (stream.getAudioTracks().length > 0) {
+        console.log("Ensuring audio tracks are enabled before play");
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+        });
+      }
+    }
+    
+    // Set volume explicitly to make sure it's not muted
+    this.audioElement.volume = this.masterVolume;
+    this.audioElement.muted = false;
+    
+    // Try to start audio context if it exists and is suspended
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      console.log("Resuming suspended AudioContext before play");
+      this.audioContext.resume().catch(e => console.warn("Failed to resume audio context:", e));
+    }
+    
+    this.autoplayAttempted = true;
+    
+    return this.audioElement.play()
+      .then(() => {
+        console.log("Audio playback started successfully");
+        return true;
+      })
+      .catch(error => {
+        console.warn("Audio playback failed (probably due to autoplay policy):", error);
+        
+        // Make the audio element visible with controls as a fallback
+        // but only if we actually have a stream to play
+        if (this.audioElement?.srcObject instanceof MediaStream && 
+            (this.audioElement.srcObject as MediaStream).getAudioTracks().length > 0) {
+          this.showAudioControls();
+        }
+        
+        return false;
+      });
+  }
+  
+  /**
+   * Show audio controls to allow user to manually start playback
+   * This is needed when autoplay is blocked by browser policy
+   */
+  public showAudioControls(): void {
+    if (!this.audioElement) return;
+    
+    console.log("Showing audio controls for user interaction");
+    
+    // Make the audio element visible with controls
+    this.audioElement.controls = true;
+    this.audioElement.style.display = 'block';
+    this.audioElement.style.position = 'fixed';
+    this.audioElement.style.bottom = '20px';
+    this.audioElement.style.right = '20px';
+    this.audioElement.style.width = '300px';
+    this.audioElement.style.zIndex = '9999';
+    this.controlsVisible = true;
+  }
+  
+  /**
+   * Hide the audio controls
+   */
+  public hideAudioControls(): void {
+    if (!this.audioElement) return;
+    
+    this.audioElement.controls = false;
+    this.audioElement.style.display = 'none';
+    this.controlsVisible = false;
   }
   
   /**
    * Check if audio is currently playing
    */
   public isAudioPlaying(): boolean {
+    // Check if audio element exists and is playing
     if (!this.audioElement) return false;
-    return !this.audioElement.paused && this.audioElement.readyState > 2;
-  }
-  
-  /**
-   * Force audio playback without requiring user interaction
-   */
-  public async forcePlayAudio(): Promise<boolean> {
-    // If no audio element, create one
-    const audioElement = this.getAudioElement();
     
-    // If no stream is attached and we don't have any tracks, nothing to play
-    if (!audioElement.srcObject && this.currentTracks.length === 0) {
-      console.log("AudioService: No stream attached to audio element");
-      return false;
-    }
-    
-    // If already playing, nothing to do
-    if (!audioElement.paused) {
-      console.log("AudioService: Audio already playing");
+    // If we have the AudioAnalyzer, use it for more accurate detection
+    if (this.analyzeAudioFlow()) {
       return true;
     }
     
-    // Set audio element unmuted and with volume
-    audioElement.muted = false;
-    audioElement.volume = this.masterVolume;
-    
-    try {
-      // Try to play the audio
-      await audioElement.play();
-      console.log("AudioService: Successfully started audio playback");
-      return true;
-    } catch (error) {
-      console.warn("AudioService: Failed to auto-play audio:", error);
-      return false;
-    }
+    // Fall back to standard paused check
+    return !this.audioElement.paused;
   }
   
   /**
-   * Set the audio output device
+   * Get current audio status for debugging
    */
-  public async setAudioOutput(deviceId: string): Promise<boolean> {
-    console.log("AudioService: Setting audio output device to", deviceId);
-    
-    this.currentAudioOutput = deviceId;
-    
-    // Store in local storage
-    localStorage.setItem('selectedAudioOutput', deviceId);
-    
-    return this.applyAudioOutput();
-  }
-  
-  /**
-   * Apply the current audio output device to the audio element
-   */
-  private async applyAudioOutput(): Promise<boolean> {
+  public getAudioStatus(): any {
     if (!this.audioElement) {
-      console.warn("AudioService: No audio element to set output device");
-      return false;
+      return { error: "No audio element available" };
     }
     
-    if (!this.currentAudioOutput) {
-      console.log("AudioService: No audio output device specified");
-      return false;
-    }
+    const stream = this.audioElement.srcObject as MediaStream;
+    const audioTracks = stream ? stream.getAudioTracks() : [];
     
-    if (!('setSinkId' in HTMLAudioElement.prototype)) {
-      console.warn("AudioService: setSinkId not supported by this browser");
-      return false;
-    }
-    
-    try {
-      await (this.audioElement as any).setSinkId(this.currentAudioOutput);
-      console.log("AudioService: Audio output device set to", this.currentAudioOutput);
-      return true;
-    } catch (error) {
-      console.error("AudioService: Error setting audio output device:", error);
-      return false;
-    }
+    return {
+      volume: this.audioElement.volume,
+      masterVolume: this.masterVolume,
+      muted: this.audioElement.muted,
+      paused: this.audioElement.paused,
+      readyState: this.audioElement.readyState,
+      networkState: this.audioElement.networkState,
+      hasAudioTracks: audioTracks.length,
+      tracks: audioTracks.map(t => ({
+        id: t.id,
+        enabled: t.enabled,
+        muted: t.muted,
+        readyState: t.readyState,
+        label: t.label
+      })),
+      audioFlowing: this.analyzeAudioFlow(),
+      currentTime: this.audioElement.currentTime,
+      duration: this.audioElement.duration,
+      controlsVisible: this.controlsVisible,
+      browserInfo: this.browserInfo
+    };
   }
   
   /**
-   * Show audio controls for manual playback
-   */
-  public showAudioControls(): void {
-    const audioElement = this.getAudioElement();
-    audioElement.controls = true;
-    this.controlsVisible = true;
-  }
-  
-  /**
-   * Hide audio controls
-   */
-  public hideAudioControls(): void {
-    const audioElement = this.getAudioElement();
-    audioElement.controls = false;
-    this.controlsVisible = false;
-  }
-  
-  /**
-   * Prompt for user interaction to enable audio
-   */
-  public async promptForUserInteraction(): Promise<boolean> {
-    console.log("AudioService: Prompting for user interaction");
-    
-    // Create a simple prompt that requires interaction
-    return new Promise<boolean>((resolve) => {
-      const modal = document.createElement('div');
-      modal.style.position = 'fixed';
-      modal.style.top = '0';
-      modal.style.left = '0';
-      modal.style.width = '100%';
-      modal.style.height = '100%';
-      modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
-      modal.style.display = 'flex';
-      modal.style.justifyContent = 'center';
-      modal.style.alignItems = 'center';
-      modal.style.zIndex = '9999';
-      
-      const content = document.createElement('div');
-      content.style.backgroundColor = 'white';
-      content.style.padding = '20px';
-      content.style.borderRadius = '8px';
-      content.style.maxWidth = '400px';
-      content.style.textAlign = 'center';
-      
-      const message = document.createElement('p');
-      message.textContent = 'Click the button below to enable audio';
-      message.style.marginBottom = '20px';
-      
-      const button = document.createElement('button');
-      button.textContent = 'Enable Audio';
-      button.style.padding = '10px 20px';
-      button.style.backgroundColor = '#4CAF50';
-      button.style.border = 'none';
-      button.style.borderRadius = '4px';
-      button.style.color = 'white';
-      button.style.cursor = 'pointer';
-      
-      content.appendChild(message);
-      content.appendChild(button);
-      modal.appendChild(content);
-      document.body.appendChild(modal);
-      
-      // Focus the button (helps with keyboard navigation)
-      button.focus();
-      
-      button.onclick = () => {
-        document.body.removeChild(modal);
-        // Force the user interaction state to be true
-        userInteractionService.forceInteractionState(true);
-        this.enabledByUserInteraction = true;
-        
-        // Initialize audio context if needed
-        this.initializeAudioContext();
-        
-        // If we have a pending stream, attach it now
-        if (this.streamToAttachOnInitialization) {
-          console.log("AudioService: Attaching pending stream after prompt");
-          this.attachStream(this.streamToAttachOnInitialization);
-          this.streamToAttachOnInitialization = null;
-        }
-        
-        resolve(true);
-      };
-    });
-  }
-  
-  /**
-   * Clean up resources
+   * Clean up resources when audio is no longer needed
    */
   public cleanup(): void {
-    console.log("AudioService: Cleaning up");
-    
     if (this.analyticsInterval) {
       clearInterval(this.analyticsInterval);
       this.analyticsInterval = null;
     }
     
-    // Don't remove the audio element, just clean it
     if (this.audioElement) {
+      // Don't remove the element, just reset it
       this.audioElement.srcObject = null;
       this.audioElement.pause();
+      this.hideAudioControls();
     }
     
-    this.detachStream();
-    
-    if (this.audioSource) {
-      this.audioSource.disconnect();
-      this.audioSource = null;
+    // Clean up audio context if it exists
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      try {
+        this.audioContext.close();
+      } catch (e) {
+        console.warn("Error closing audio context:", e);
+      }
     }
     
-    this.currentStream = null;
-    this.currentTracks = [];
+    this.audioTrackPatched = false;
+    this.autoplayAttempted = false;
+  }
+  
+  /**
+   * Prompt user for interaction to enable audio
+   * This creates a visible button the user can click to enable audio
+   * @returns Promise that resolves when user interacts
+   */
+  public promptForUserInteraction(): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Check if we already have interaction
+      if (userInteractionService.userHasInteracted()) {
+        console.log("User has already interacted, no need for prompt");
+        resolve(true);
+        return;
+      }
+      
+      console.log("Creating user interaction prompt");
+      
+      // Create a modal overlay with a button
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      overlay.style.display = 'flex';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.zIndex = '10000';
+      overlay.style.flexDirection = 'column';
+      
+      const message = document.createElement('div');
+      message.textContent = 'Audio permission required';
+      message.style.color = 'white';
+      message.style.marginBottom = '20px';
+      message.style.fontSize = '20px';
+      
+      const button = document.createElement('button');
+      button.textContent = 'Enable Audio';
+      button.style.padding = '12px 24px';
+      button.style.backgroundColor = '#4CAF50';
+      button.style.border = 'none';
+      button.style.color = 'white';
+      button.style.fontSize = '16px';
+      button.style.borderRadius = '4px';
+      button.style.cursor = 'pointer';
+      
+      overlay.appendChild(message);
+      overlay.appendChild(button);
+      document.body.appendChild(overlay);
+      
+      // Ensure button is focused for keyboard users
+      button.focus();
+      
+      button.addEventListener('click', () => {
+        // Remove the overlay
+        document.body.removeChild(overlay);
+        
+        // Force the interaction state
+        userInteractionService.forceInteractionState(true);
+        
+        console.log("User clicked the interaction button");
+        
+        // Resume audio context if it exists
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+          this.audioContext.resume().catch(e => console.warn("Failed to resume audio context:", e));
+        }
+        
+        // Try to play audio if we have a stream
+        this.forcePlayAudio().catch(e => console.warn("Play after interaction prompt failed:", e));
+        
+        resolve(true);
+      });
+    });
   }
 }
 
-// Export a singleton instance
+// Export singleton instance
 const audioService = AudioService.getInstance();
 export default audioService;
