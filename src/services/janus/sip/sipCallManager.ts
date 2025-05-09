@@ -1,4 +1,3 @@
-
 import { SipState } from './sipState';
 import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';

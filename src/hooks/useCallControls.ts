@@ -161,7 +161,8 @@ export const useCallControls = () => {
             duration: 3000,
           });
           
-          await janusService.call(formattedNumber, audioOptions);
+          // Fixed: Pass audioOptions as the second parameter, with false for isVideoCall
+          await janusService.call(formattedNumber, false, audioOptions);
           setIsCallActive(true);
           setCallStartTime(new Date());
           
