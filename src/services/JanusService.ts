@@ -1,4 +1,3 @@
-
 import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
@@ -309,7 +308,8 @@ class JanusService {
             mid: transceiver.mid,
             direction: transceiver.direction,
             currentDirection: transceiver.currentDirection,
-            stopped: transceiver.stopped,
+            // Changed: Use an optional chaining to check if 'stopped' exists
+            stopped: 'stopped' in transceiver ? transceiver.stopped : false,
             kind: transceiver.receiver.track?.kind || 'unknown'
           });
         });
@@ -328,7 +328,10 @@ class JanusService {
     const trackAudio = document.createElement('audio');
     trackAudio.id = `audio-track-${track.id}`;
     trackAudio.autoplay = true;
-    trackAudio.playsInline = true;
+    
+    // Fixed: Use setAttribute instead of direct property assignment for non-standard properties
+    trackAudio.setAttribute('playsinline', 'true');
+    
     trackAudio.style.display = 'none';
     trackAudio.srcObject = singleTrackStream;
     

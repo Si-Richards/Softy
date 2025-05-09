@@ -71,7 +71,9 @@ class AudioVolumeManager {
   private applyMasterVolume(): void {
     // Convert percentage to 0-1 range for the audio element
     const normalizedVolume = this.masterVolume / 100;
-    audioService.setMasterVolume(normalizedVolume);
+    
+    // Changed from setMasterVolume to setVolume which exists in AudioService
+    audioService.setVolume(normalizedVolume);
   }
 
   /**

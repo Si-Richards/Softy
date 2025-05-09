@@ -1,3 +1,4 @@
+
 /**
  * Service to track user interaction with the page
  * This is important for audio autoplay policies in browsers
@@ -9,6 +10,7 @@ class UserInteractionService {
     'mousedown', 'keydown', 'touchstart', 'click'
   ];
   private boundHandleInteraction: () => void;
+  private debugMode: boolean = false;
   
   constructor() {
     // Bind once to keep reference for later removal
@@ -113,6 +115,21 @@ class UserInteractionService {
       // Clear listeners since they've all been called
       this.interactionListeners = [];
     }
+  }
+  
+  /**
+   * Set debug mode for additional logging
+   */
+  setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+    console.log(`UserInteractionService debug mode ${enabled ? 'enabled' : 'disabled'}`);
+  }
+  
+  /**
+   * Check if debug mode is enabled
+   */
+  isDebugModeEnabled(): boolean {
+    return this.debugMode;
   }
   
   /**
