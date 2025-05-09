@@ -1,8 +1,7 @@
-
-import { SipState } from './sipState';
-import { MediaConfigHandler } from '../mediaConfig';
-import { formatE164Number } from '../utils/phoneNumberUtils';
-import { AudioCallOptions } from './types';
+import { SipState } from './sip/sipState';
+import { MediaConfigHandler } from './mediaConfig';
+import { formatE164Number } from './utils/phoneNumberUtils';
+import { AudioCallOptions } from './sip/types';
 
 export class SipCallManager {
   private mediaConfig: MediaConfigHandler;
