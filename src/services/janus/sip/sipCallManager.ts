@@ -2,6 +2,7 @@ import { SipState } from './sipState';
 import { MediaConfigHandler } from '../mediaConfig';
 import { formatE164Number } from '../utils/phoneNumberUtils';
 import { AudioCallOptions } from './types';
+import { AudioElementHandler } from '../utils/audioElementHandler';
 
 export class SipCallManager {
   private mediaConfig: MediaConfigHandler;
@@ -192,6 +193,89 @@ export class SipCallManager {
   }
 
   /**
+   * Set up the peer connection track handlers
+   * This implements the recommended track handling approach from Janus demo
+   */
+  private setupPeerConnectionHandlers(): void {
+    // Get the RTCPeerConnection from the SIP plugin
+    const sipPlugin = this.sipState.getSipPlugin();
+    if (!sipPlugin || !sipPlugin.webrtcStuff || !sipPlugin.webrtcStuff.pc) {
+      console.warn("Cannot set up peer connection handlers: No RTCPeerConnection available");
+      return;
+    }
+    
+    const pc = sipPlugin.webrtcStuff.pc;
+    console.log("Setting up ontrack handler for RTCPeerConnection:", pc);
+    
+    // Monitor ICE connection state changes (from demo)
+    pc.oniceconnectionstatechange = () => {
+      console.log("ICE state changed to", pc.iceConnectionState);
+      
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        console.log("Janus says our WebRTC PeerConnection is up now");
+      } else if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+        console.log("Janus says our WebRTC PeerConnection is down now");
+      }
+    };
+    
+    // Set up direct ontrack handler, exactly matching the Janus demo implementation
+    pc.ontrack = (event) => {
+      console.log("Incoming track", event);
+      
+      // Critical: Check if we have streams
+      if (event.streams && event.streams.length > 0) {
+        console.log("Created remote audio stream:", event.streams[0]);
+        
+        // Get the audio element and assign the stream
+        const audio = AudioElementHandler.getAudioElement();
+        audio.srcObject = event.streams[0];
+        
+        // Try to play the audio immediately
+        audio.play().catch(err => {
+          console.error("Playback error:", err);
+          // If autoplay fails, show controls for user interaction
+          audio.controls = true;
+          audio.style.display = 'block';
+        });
+        
+        // Log audio tracks for debugging
+        const tracks = event.streams[0].getAudioTracks();
+        console.log(`Audio tracks (${tracks.length}):`, tracks);
+        tracks.forEach((track, idx) => {
+          console.log(`Track ${idx}:`, {
+            id: track.id,
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState
+          });
+          
+          // Add event listeners for track events (from demo)
+          track.addEventListener('unmute', () => {
+            console.log("Remote track flowing again:", track);
+          });
+          
+          track.addEventListener('ended', () => {
+            console.log("Remote track removed:", track);
+          });
+        });
+      } else {
+        console.warn("No streams in ontrack event");
+      }
+    };
+    
+    // Also set up connection state change monitoring
+    pc.onconnectionstatechange = () => {
+      console.log("PeerConnection connection state changed:", pc.connectionState);
+      
+      if (pc.connectionState === 'connected') {
+        console.log("Janus started receiving our audio");
+        // Check audio status after connection
+        setTimeout(() => AudioElementHandler.logAudioState(), 500);
+      }
+    };
+  }
+
+  /**
    * Handles remote JSEP (JavaScript Session Establishment Protocol) objects
    * used in WebRTC signaling for SIP calls
    * @param jsep The remote JSEP object containing SDP information
@@ -212,6 +296,12 @@ export class SipCallManager {
 
     sipPlugin.handleRemoteJsep({
       jsep: jsep,
+      success: () => {
+        console.log("Remote JSEP processed successfully");
+        
+        // Set up ontrack handler after handling remote jsep
+        this.setupPeerConnectionHandlers();
+      },
       error: (error: any) => {
         console.error(`Error handling remote JSEP: ${error}`);
       }

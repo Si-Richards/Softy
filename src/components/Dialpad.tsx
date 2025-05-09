@@ -12,7 +12,8 @@ import { useCallControls } from "@/hooks/useCallControls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import AudioStatus from "./dialpad/AudioStatus";
-import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
+import AudioCheckButton from "./dialpad/AudioCheckButton";
+import { AudioElementHandler } from "@/services/janus/utils/audioElementHandler";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -36,30 +37,13 @@ const Dialpad = () => {
   // Effect for setting up audio element
   useEffect(() => {
     if (isCallActive) {
-      // Ensure we have an audio element for the call
-      const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+      // Ensure the audio element is properly set up
+      const audioElement = AudioElementHandler.getAudioElement();
       
-      // Create a dedicated audio element for the call if not exists
-      if (!document.querySelector('audio#remoteAudio')) {
-        const audioElement = document.createElement('audio');
-        audioElement.id = 'remoteAudio';
-        audioElement.autoplay = true;
-        audioElement.volume = 1.0;
-        document.body.appendChild(audioElement);
-        audioElementRef.current = audioElement;
-        
-        console.log("Created dedicated audio element for call");
-      }
-      
-      // Monitor audio tracks during call
+      // Monitor audio status during call
       const audioCheckInterval = setInterval(() => {
-        const audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-        if (audioElement) {
-          console.log("Audio element status:", {
-            volume: audioElement.volume,
-            muted: audioElement.muted,
-            paused: audioElement.paused
-          });
+        if (isCallActive) {
+          AudioElementHandler.logAudioState();
         }
       }, 5000);
       
@@ -109,7 +93,10 @@ const Dialpad = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
-      <AudioStatus isCallActive={isCallActive} />
+      <div className="flex justify-between items-center mb-4">
+        <AudioStatus isCallActive={isCallActive} />
+        <AudioCheckButton isCallActive={isCallActive} />
+      </div>
 
       {!isJanusConnected && (
         <Alert className="mb-4 bg-yellow-50 border-yellow-200">
@@ -140,6 +127,10 @@ const Dialpad = () => {
           <AlertTitle>Call Active</AlertTitle>
           <AlertDescription>
             Use the dialpad to send DTMF tones to the remote party.
+            {/* Added note about audio troubleshooting */}
+            {isCallActive && <div className="mt-2 text-xs text-green-700">
+              Can't hear audio? Click the "Check Audio" button above.
+            </div>}
           </AlertDescription>
         </Alert>
       )}

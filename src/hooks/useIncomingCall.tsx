@@ -4,6 +4,7 @@ import { useCallHistory } from "@/hooks/useCallHistory";
 import janusService from "@/services/JanusService";
 import { PhoneIncoming, BellRing } from "lucide-react";
 import { AudioCallOptions } from '@/services/janus/sip/types';
+import { AudioElementHandler } from '@/services/janus/utils/audioElementHandler';
 
 export const useIncomingCall = () => {
   const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
@@ -131,22 +132,19 @@ export const useIncomingCall = () => {
           setTimeout(() => {
             const remoteStream = janusService.getRemoteStream();
             if (remoteStream) {
-              let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-              if (!audioElement) {
-                audioElement = document.createElement('audio');
-                audioElement.id = 'remoteAudio';
-                audioElement.autoplay = true;
-                document.body.appendChild(audioElement);
-              }
-              
-              // Set the stream to the audio element
-              audioElement.srcObject = remoteStream;
-              
-              // Set the audio output device if the browser supports it
-              if ('setSinkId' in HTMLAudioElement.prototype) {
-                (audioElement as any).setSinkId(savedAudioOutput)
-                  .then(() => console.log("Audio output set to:", savedAudioOutput))
-                  .catch((e: any) => console.error("Error setting audio output:", e));
+              try {
+                // Use our consistent audio element handler
+                AudioElementHandler.getAudioElement().srcObject = remoteStream;
+                if (savedAudioOutput) {
+                  AudioElementHandler.setAudioOutput(savedAudioOutput)
+                    .catch(e => console.warn("Error setting audio output:", e));
+                }
+                
+                // Try to play the audio
+                AudioElementHandler.playStream(remoteStream)
+                  .catch(e => console.warn("Error starting playback:", e));
+              } catch (error) {
+                console.error("Error handling audio for incoming call:", error);
               }
             }
           }, 500); // Small delay to ensure stream is available
