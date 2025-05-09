@@ -1046,6 +1046,14 @@ class JanusService {
       this.janus = null;
     }
   }
+
+  getJanus() {
+    return this.janus;
+  }
+
+  getSipPlugin() {
+    return this.sipPlugin;
+  }
 }
 
 const janusService = new JanusService();
