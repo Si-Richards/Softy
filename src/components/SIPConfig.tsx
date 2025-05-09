@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AudioEnhancementTab from "./sip-config/AudioEnhancementTab";
 import AudioVolumeSettings from "./sip-config/AudioVolumeSettings";
-import VideoSettingsTab from "./sip-config/VideoSettingsTab";
 import SystemLogsTab from "./sip-config/SystemLogsTab";
 import AboutTab from "./sip-config/AboutTab";
 import SipCredentialsTab from "./sip-config/SipCredentialsTab";
@@ -16,12 +15,7 @@ interface SIPConfigProps {
 
 const SIPConfig: React.FC<SIPConfigProps> = ({ activeTab = "settings" }) => {
   const [currentTab, setCurrentTab] = useState("sip");
-  const { 
-    audioSettings, 
-    setAudioSettings,
-    videoSettings,
-    setVideoSettings 
-  } = useSettings();
+  const { audioSettings, setAudioSettings } = useSettings();
 
   useEffect(() => {
     // If devices tab was selected in the sidebar, switch to the devices tab
@@ -42,11 +36,10 @@ const SIPConfig: React.FC<SIPConfigProps> = ({ activeTab = "settings" }) => {
     <div className="w-full max-w-3xl mx-auto p-6">
       <h2 className="text-xl font-semibold mb-6">Settings</h2>
       <Tabs value={currentTab} onValueChange={setCurrentTab}>
-        <TabsList className="grid grid-cols-6 mb-6">
+        <TabsList className="grid grid-cols-5 mb-6">
           <TabsTrigger value="sip">SIP</TabsTrigger>
           <TabsTrigger value="audio">Audio</TabsTrigger>
           <TabsTrigger value="devices">Devices</TabsTrigger>
-          <TabsTrigger value="video">Video</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
         </TabsList>
@@ -79,16 +72,6 @@ const SIPConfig: React.FC<SIPConfigProps> = ({ activeTab = "settings" }) => {
         </TabsContent>
         <TabsContent value="devices">
           <AudioSettings />
-        </TabsContent>
-        <TabsContent value="video">
-          <VideoSettingsTab
-            videoEnabled={videoSettings.videoEnabled}
-            setVideoEnabled={(value) => 
-              setVideoSettings(prev => ({ ...prev, videoEnabled: value }))}
-            hdVideo={videoSettings.hdVideo}
-            setHdVideo={(value) => 
-              setVideoSettings(prev => ({ ...prev, hdVideo: value }))}
-          />
         </TabsContent>
         <TabsContent value="logs">
           <SystemLogsTab />
