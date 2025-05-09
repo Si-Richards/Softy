@@ -5,32 +5,14 @@ import audioService from '@/services/AudioService';
 import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
 import userInteractionService from '@/services/UserInteractionService';
 
-export const useVideoStreams = (
-  isCallActive: boolean,
-  localVideoRef: React.RefObject<HTMLVideoElement>,
-  remoteVideoRef: React.RefObject<HTMLVideoElement>
-) => {
+export const useAudioStreams = (isCallActive: boolean) => {
   useEffect(() => {
     if (isCallActive) {
-      const localStream = janusService.getLocalStream();
       const remoteStream = janusService.getRemoteStream();
       
-      console.log("Local stream in useVideoStreams:", localStream);
-      console.log("Remote stream in useVideoStreams:", remoteStream);
+      console.log("Remote stream in useAudioStreams:", remoteStream);
       
-      if (localVideoRef.current && localStream) {
-        localVideoRef.current.srcObject = localStream;
-        localVideoRef.current.muted = true; // Mute local stream to prevent echo
-      }
-      
-      if (remoteVideoRef.current && remoteStream) {
-        console.log("Setting remote stream to video element");
-        remoteVideoRef.current.srcObject = remoteStream;
-        
-        // Ensure audio playback is properly enabled
-        remoteVideoRef.current.muted = false;
-        remoteVideoRef.current.volume = 1.0;
-        
+      if (remoteStream) {
         // Add specific audio trace logging
         const audioTracks = remoteStream.getAudioTracks();
         console.log("Remote stream audio tracks:", audioTracks.length);
@@ -46,23 +28,6 @@ export const useVideoStreams = (
           track.enabled = true;
         });
         
-        // Try to play the video element (for video calls)
-        if (remoteVideoRef.current) {
-          const playPromise = remoteVideoRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => console.log("Remote video playback started successfully"))
-              .catch(error => {
-                console.error("Error playing remote video:", error);
-                // If video fails to play, ensure audio still works via AudioService
-                if (remoteStream.getAudioTracks().length > 0) {
-                  console.log("Video playback failed, ensuring audio works via AudioService");
-                  audioService.attachStream(remoteStream);
-                }
-              });
-          }
-        }
-        
         // Get and set audio output device
         const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
         if (savedAudioOutput) {
@@ -71,6 +36,16 @@ export const useVideoStreams = (
         } else {
           // Even without a specific output device, set up the audio
           AudioOutputHandler.setupRemoteAudio(remoteStream);
+        }
+        
+        // Audio-only call - use the audio service
+        console.log("Audio call, using AudioService for playback");
+        audioService.attachStream(remoteStream);
+        
+        // Apply audio output device if supported
+        if (savedAudioOutput) {
+          audioService.setAudioOutput(savedAudioOutput)
+            .catch(error => console.warn("Couldn't set audio output:", error));
         }
         
         // Force audio playback (after user interaction)
@@ -113,39 +88,6 @@ export const useVideoStreams = (
           document.addEventListener('touchstart', userInteractionHandler);
           document.addEventListener('keydown', userInteractionHandler);
         }
-      } else if (remoteStream) {
-        // Audio-only call - just use the audio service
-        console.log("Audio-only call, using AudioService for playback");
-        audioService.attachStream(remoteStream);
-        
-        // Apply audio output device if supported
-        const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-        if (savedAudioOutput) {
-          audioService.setAudioOutput(savedAudioOutput)
-            .catch(error => console.warn("Couldn't set audio output:", error));
-        }
-        
-        // Try to auto-play the audio immediately if user has interacted
-        if (userInteractionService.userHasInteracted()) {
-          setTimeout(() => {
-            console.log("Attempting to auto-play audio for audio-only call");
-            audioService.forcePlayAudio()
-              .then(success => {
-                if (!success) {
-                  return AudioOutputHandler.checkAndPlayRemoteAudio();
-                }
-                return success;
-              })
-              .catch(e => console.warn("Auto-play error:", e));
-          }, 300);
-        } else {
-          console.log("No user interaction yet for audio-only call, will try after interaction");
-          // Set up listener for future interaction
-          userInteractionService.onUserInteraction(() => {
-            console.log("User interaction detected for audio-only call");
-            audioService.forcePlayAudio().catch(e => console.warn("Auto-play after interaction failed:", e));
-          });
-        }
       }
       
       // Setup a periodic check for audio playback
@@ -168,5 +110,5 @@ export const useVideoStreams = (
         audioService.cleanup();
       };
     }
-  }, [isCallActive, localVideoRef, remoteVideoRef]);
+  }, [isCallActive]);
 };

@@ -42,12 +42,12 @@ export class JanusSipHandler {
     return this.registrationManager.register(username, password, sipHost);
   }
 
-  async call(uri: string, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
-    return this.callManager.call(uri, isVideoCall, audioOptions);
+  async call(uri: string, audioOptions?: AudioCallOptions): Promise<void> {
+    return this.callManager.call(uri, audioOptions);
   }
 
-  async acceptCall(jsep: any, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
-    return this.callManager.acceptCall(jsep, isVideoCall, audioOptions);
+  async acceptCall(jsep: any, audioOptions?: AudioCallOptions): Promise<void> {
+    return this.callManager.acceptCall(jsep, audioOptions);
   }
 
   async hangup(): Promise<void> {

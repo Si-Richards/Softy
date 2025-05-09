@@ -7,18 +7,12 @@ import audioService from "@/services/AudioService";
 import userInteractionService from "@/services/UserInteractionService";
 import AudioStatusIndicator from "@/components/audio/AudioStatusIndicator";
 
-interface VideoDisplayProps {
-  localVideoRef: React.RefObject<HTMLVideoElement>;
-  remoteVideoRef: React.RefObject<HTMLVideoElement>;
-  isVideoEnabled: boolean;
+interface AudioStatusProps {
   isCallActive: boolean;
 }
 
-const VideoDisplay: React.FC<VideoDisplayProps> = ({
-  localVideoRef,
-  remoteVideoRef,
-  isVideoEnabled,
-  isCallActive,
+const AudioStatus: React.FC<AudioStatusProps> = ({
+  isCallActive
 }) => {
   const [isAudioPaused, setIsAudioPaused] = useState(false);
   const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
@@ -33,18 +27,18 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     userInteractionService.initialize();
     
     // Log if we already have user interaction
-    console.log("VideoDisplay: User has interacted:", userInteractionService.userHasInteracted());
+    console.log("AudioStatus: User has interacted:", userInteractionService.userHasInteracted());
     setBrowserHasInteracted(userInteractionService.userHasInteracted());
     
     // If no interaction yet, register for notification when it happens
     if (!userInteractionService.userHasInteracted()) {
       userInteractionService.onUserInteraction(() => {
-        console.log("VideoDisplay: User has now interacted with the page");
+        console.log("AudioStatus: User has now interacted with the page");
         setBrowserHasInteracted(true);
         
         // If we're in a call, try to play audio now that we have interaction
         if (isCallActive) {
-          console.log("VideoDisplay: In call with user interaction - attempting to play audio");
+          console.log("AudioStatus: In call with user interaction - attempting to play audio");
           audioService.forcePlayAudio()
             .then(success => {
               console.log("Audio playback after interaction:", success ? "succeeded" : "failed");
@@ -73,29 +67,8 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Custom event listener for visibility changes
-    const handleCustomVisibilityChange = (e: CustomEvent) => {
-      if (isCallActive && e.detail.hasInteracted) {
-        console.log("Custom visibility event - checking audio status");
-        setTimeout(() => {
-          const isAudioCurrentlyPlaying = audioService.isAudioPlaying();
-          if (!isAudioCurrentlyPlaying) {
-            console.log("Audio not playing after custom visibility event, attempting to resume");
-            audioService.forcePlayAudio()
-              .then(success => setIsAudioPaused(!success))
-              .catch(e => console.warn("Resume after custom visibility event failed:", e));
-          }
-        }, 300);
-      }
-    };
-    
-    document.addEventListener('lovable:visibilitychange', 
-      handleCustomVisibilityChange as EventListener);
-    
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('lovable:visibilitychange', 
-        handleCustomVisibilityChange as EventListener);
     };
   }, [isCallActive, browserHasInteracted]);
 
@@ -104,32 +77,19 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     const checkAudioOutput = async () => {
       try {
         const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-        if (savedAudioOutput && remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
-          await (remoteVideoRef.current as any).setSinkId(savedAudioOutput);
-          console.log("Video element audio output device set to:", savedAudioOutput);
-          
-          // Also set the audio service's output device
+        if (savedAudioOutput) {
+          // Set the audio service's output device
           await audioService.setAudioOutput(savedAudioOutput);
         }
       } catch (error) {
-        console.error("Error setting video element audio output device:", error);
-        
-        // Try to fall back to default device
-        try {
-          if (remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
-            await (remoteVideoRef.current as any).setSinkId('default');
-            console.log("Video element audio output set to default device");
-          }
-        } catch (e) {
-          console.error("Failed to set default audio device:", e);
-        }
+        console.error("Error setting audio output device:", error);
       }
     };
     
     if (isCallActive) {
       checkAudioOutput();
     }
-  }, [isCallActive, remoteVideoRef]);
+  }, [isCallActive]);
 
   // Auto-play audio when call becomes active
   useEffect(() => {
@@ -261,7 +221,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       // First, ensure the button click event is completed and browser knows user interacted
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Try three different methods to start audio playback
+      // Try two different methods to start audio playback
       
       // Method 1: Audio Service
       console.log("Trying method 1: Audio Service");
@@ -283,19 +243,6 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         return;
       }
       
-      // Method 3: Direct video element manipulation if we have a video call
-      if (isVideoEnabled && remoteVideoRef.current) {
-        console.log("Method 2 failed, trying method 3: Direct video element play");
-        try {
-          await remoteVideoRef.current.play();
-          console.log("Audio playback started via video element");
-          setIsAudioPaused(false);
-          return;
-        } catch (e) {
-          console.warn("Video element play failed:", e);
-        }
-      }
-      
       // Last resort - show audio controls
       console.log("All methods failed, showing audio controls");
       audioService.showAudioControls();
@@ -306,9 +253,6 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
       audioService.showAudioControls();
     }
   };
-
-  // Only show video container if video is enabled
-  if (!isVideoEnabled && !isAudioPaused) return null;
 
   // Show audio playback notification if audio is paused
   if (isCallActive && isAudioPaused) {
@@ -321,36 +265,6 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         >
           <Play className="mr-1 h-4 w-4" /> Enable Audio
         </Button>
-      </div>
-    );
-  }
-
-  // Regular video display with audio status indicator
-  if (isVideoEnabled) {
-    return (
-      <div className={`relative mb-6 ${isCallActive ? "block" : "hidden"}`}>
-        <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
-          <video
-            ref={remoteVideoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            playsInline
-          ></video>
-          {isCallActive && (
-            <div className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-md">
-              <AudioStatusIndicator isCallActive={isCallActive} />
-            </div>
-          )}
-        </div>
-        <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
-          <video
-            ref={localVideoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            playsInline
-            muted
-          ></video>
-        </div>
       </div>
     );
   }
@@ -368,4 +282,4 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
   return null;
 };
 
-export default VideoDisplay;
+export default AudioStatus;

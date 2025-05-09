@@ -119,9 +119,6 @@ export const useIncomingCall = () => {
         const audioOptions = getAudioOptions();
         console.log("Using audio options for incoming call:", audioOptions);
         
-        // Determine if this is a video call based on the SDP
-        const isVideoCall = incomingCall.jsep.sdp.includes("m=video");
-        
         await janusService.acceptCall(incomingCall.jsep, audioOptions);
         toast({
           title: "Call Accepted",

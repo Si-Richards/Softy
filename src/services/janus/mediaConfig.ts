@@ -3,18 +3,14 @@ import { AudioCallOptions } from './sip/types';
 
 interface MediaConfig {
   audioRecv: boolean;
-  videoRecv: boolean;
   audioSend: boolean;
-  videoSend: boolean;
   removeAudio: boolean;
-  removeVideo: boolean;
 }
 
 export class MediaConfigHandler {
   getCallMediaConstraints(options?: AudioCallOptions): MediaStreamConstraints {
     // Get stored device IDs or use options if provided
     const audioInput = options?.audioInput || localStorage.getItem('selectedAudioInput');
-    const videoInput = localStorage.getItem('selectedVideoInput');
     
     // Get audio settings from localStorage
     let audioSettings;
@@ -46,32 +42,25 @@ export class MediaConfigHandler {
     
     console.log("Using audio constraints:", audioConstraints);
     
-    // Only include video constraints if explicitly requested with a device
     return {
       audio: audioConstraints,
-      video: false // Default to no video for audio calls
+      video: false
     };
   }
 
-  getCallMediaConfig(isVideoCall: boolean): MediaConfig {
+  getCallMediaConfig(): MediaConfig {
     return {
       audioRecv: true,
-      videoRecv: isVideoCall,
       audioSend: true,
-      videoSend: isVideoCall,
-      removeAudio: false, // Never remove audio
-      removeVideo: !isVideoCall
+      removeAudio: false
     };
   }
 
-  getAnswerMediaConfig(isVideoCall: boolean = false): MediaConfig {
+  getAnswerMediaConfig(): MediaConfig {
     return {
       audioRecv: true,
-      videoRecv: isVideoCall,
       audioSend: true,
-      videoSend: isVideoCall,
-      removeAudio: false, // Never remove audio
-      removeVideo: !isVideoCall
+      removeAudio: false
     };
   }
 }

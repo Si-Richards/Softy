@@ -1,7 +1,5 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import VideoDisplay from "./dialpad/VideoDisplay";
 import DialpadGrid from "./dialpad/DialpadGrid";
 import NumberInput from "./dialpad/NumberInput";
 import CallControls from "./dialpad/CallControls";
@@ -9,16 +7,15 @@ import { useJanusSetup } from "./dialpad/useJanusSetup";
 import { useDTMFTone } from "@/hooks/useDTMFTone";
 import { useSendDTMF } from "@/hooks/useSendDTMF";
 import { useKeypadInput } from "@/hooks/useKeypadInput";
-import { useVideoStreams } from "@/hooks/useVideoStreams";
+import { useAudioStreams } from "@/hooks/useAudioStreams";
 import { useCallControls } from "@/hooks/useCallControls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+import AudioStatus from "./dialpad/AudioStatus";
 import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
   const { isJanusConnected, isRegistered, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
@@ -29,12 +26,12 @@ const Dialpad = () => {
   const {
     isCallActive,
     muted,
-    isVideoEnabled,
     handleCall,
     toggleMute,
-    toggleVideo,
-    startVideoCall,
   } = useCallControls();
+
+  // Hook for handling audio streams
+  useAudioStreams(isCallActive);
 
   // Effect for setting up audio element
   useEffect(() => {
@@ -90,7 +87,6 @@ const Dialpad = () => {
   };
 
   useKeypadInput(addDigitToNumber);
-  useVideoStreams(isCallActive, localVideoRef, remoteVideoRef);
 
   const handleKeyPress = (key: string) => {
     addDigitToNumber(key);
@@ -113,12 +109,7 @@ const Dialpad = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
-      <VideoDisplay
-        localVideoRef={localVideoRef}
-        remoteVideoRef={remoteVideoRef}
-        isVideoEnabled={isVideoEnabled}
-        isCallActive={isCallActive}
-      />
+      <AudioStatus isCallActive={isCallActive} />
 
       {!isJanusConnected && (
         <Alert className="mb-4 bg-yellow-50 border-yellow-200">
@@ -166,13 +157,10 @@ const Dialpad = () => {
       <CallControls
         isCallActive={isCallActive}
         muted={muted}
-        isVideoEnabled={isVideoEnabled}
         number={number}
         onCall={() => handleCall(number, isJanusConnected)}
         onToggleMute={toggleMute}
-        onToggleVideo={toggleVideo}
         onCallVoicemail={callVoicemail}
-        onStartVideoCall={() => startVideoCall(number)}
       />
     </div>
   );

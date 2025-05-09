@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
@@ -8,7 +9,6 @@ import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
 export const useCallControls = () => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [audioTestInterval, setAudioTestInterval] = useState<NodeJS.Timeout | null>(null);
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const { toast } = useToast();
@@ -114,7 +114,6 @@ export const useCallControls = () => {
         }
         
         setIsCallActive(false);
-        setIsVideoEnabled(false);
         setCallStartTime(null);
         
         if (audioTestInterval) {
@@ -162,7 +161,7 @@ export const useCallControls = () => {
             duration: 3000,
           });
           
-          await janusService.call(formattedNumber, false, audioOptions);
+          await janusService.call(formattedNumber, audioOptions);
           setIsCallActive(true);
           setCallStartTime(new Date());
           
@@ -257,43 +256,10 @@ export const useCallControls = () => {
     }
   };
 
-  const toggleVideo = () => {
-    setIsVideoEnabled(!isVideoEnabled);
-    if (janusService.getLocalStream()) {
-      janusService.getLocalStream()?.getVideoTracks().forEach(track => {
-        track.enabled = !isVideoEnabled;
-      });
-    }
-  };
-
-  const startVideoCall = async (number: string) => {
-    if (number) {
-      try {
-        // Get audio options with selected audio devices
-        const audioOptions = getAudioOptions();
-        console.log("Using audio options for video call:", audioOptions);
-        
-        await janusService.call(number, true, audioOptions);
-        setIsCallActive(true);
-        setIsVideoEnabled(true);
-      } catch (error) {
-        console.error("Error starting video call:", error);
-        toast({
-          title: "Video Call Failed",
-          description: "Failed to establish video call",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
   return {
     isCallActive,
     muted,
-    isVideoEnabled,
     handleCall,
     toggleMute,
-    toggleVideo,
-    startVideoCall,
   };
 };
