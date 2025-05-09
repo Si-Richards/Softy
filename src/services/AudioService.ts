@@ -1,3 +1,4 @@
+
 import { AudioOutputHandler } from './janus/utils/audioOutputHandler';
 import userInteractionService from './UserInteractionService';
 
@@ -20,12 +21,28 @@ class AudioService {
   private streamToAttachOnInitialization: MediaStream | null = null;
   private autoplayAttempted = false;
   private enabledByUserInteraction = false;
+  private masterVolume: number = 1.0;
+  private controlsVisible: boolean = false;
+  private browserInfo: {
+    name: string;
+    version: string;
+    isSafari: boolean;
+    isChrome: boolean;
+    isFirefox: boolean;
+    isIOS: boolean;
+  };
   
   private constructor() {
     this.getPreferredAudioOutput();
     
     // Early initialization of audio element on service creation
     this.initializeAudio();
+    
+    // Apply user's master volume setting from local storage
+    this.loadVolumeFromSettings();
+    
+    // Detect browser for specific workarounds
+    this.browserInfo = this.detectBrowser();
     
     // Register for the first user interaction event
     userInteractionService.onUserInteraction(() => {
@@ -45,6 +62,85 @@ class AudioService {
       // Try to force play audio if there's an active element
       this.forcePlayAudio().catch(e => console.warn("Auto-play after user interaction failed:", e));
     });
+    
+    // Listen for page visibility changes to resume audio
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.audioElement && this.audioElement.paused && 
+          this.audioElement.srcObject && userInteractionService.userHasInteracted()) {
+        console.log("AudioService: Page became visible, attempting to resume audio");
+        setTimeout(() => {
+          this.forcePlayAudio().catch(e => console.warn("Resume after visibility change failed:", e));
+        }, 300);
+      }
+    });
+    
+    // Listen for custom visibility change events
+    document.addEventListener('lovable:visibilitychange', () => {
+      // Try to resume audio playback when page regains focus
+      if (this.audioElement && this.audioElement.paused && 
+          this.audioElement.srcObject && userInteractionService.userHasInteracted()) {
+        console.log("AudioService: Visibility changed, attempting to resume audio");
+        setTimeout(() => {
+          this.forcePlayAudio().catch(e => console.warn("Resume after custom visibility event failed:", e));
+        }, 300);
+      }
+    });
+  }
+  
+  /**
+   * Detect browser info for browser-specific workarounds
+   */
+  private detectBrowser(): {
+    name: string;
+    version: string;
+    isSafari: boolean;
+    isChrome: boolean;
+    isFirefox: boolean;
+    isIOS: boolean;
+  } {
+    const userAgent = navigator.userAgent;
+    let name = "unknown";
+    let version = "unknown";
+    const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
+    const isChrome = userAgent.indexOf("Chrome") > -1;
+    const isFirefox = userAgent.indexOf("Firefox") > -1;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    
+    if (isSafari) {
+      name = "Safari";
+      version = userAgent.match(/Version\/([\d.]+)/)?.[1] || "unknown";
+    } else if (isChrome) {
+      name = "Chrome";
+      version = userAgent.match(/Chrome\/([\d.]+)/)?.[1] || "unknown";
+    } else if (isFirefox) {
+      name = "Firefox";
+      version = userAgent.match(/Firefox\/([\d.]+)/)?.[1] || "unknown";
+    }
+    
+    return { name, version, isSafari, isChrome, isFirefox, isIOS };
+  }
+  
+  /**
+   * Load volume setting from local storage
+   */
+  private loadVolumeFromSettings(): void {
+    try {
+      const audioSettings = localStorage.getItem('audioSettings');
+      if (audioSettings) {
+        const settings = JSON.parse(audioSettings);
+        if (settings.masterVolume !== undefined) {
+          this.masterVolume = settings.masterVolume / 100;
+          console.log(`AudioService: Loaded master volume: ${this.masterVolume * 100}%`);
+          
+          // Apply to audio element if it exists
+          if (this.audioElement) {
+            this.audioElement.volume = this.masterVolume;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("AudioService: Error loading volume settings:", e);
+    }
   }
   
   /**
@@ -170,6 +266,26 @@ class AudioService {
   }
   
   /**
+   * Get the current audio level (0-1)
+   * Used for visualization
+   */
+  public getAudioLevel(): number {
+    if (!this.audioAnalyser || !this.dataArray) return 0;
+    
+    this.audioAnalyser.getByteFrequencyData(this.dataArray);
+    
+    // Calculate average energy level
+    let sum = 0;
+    for (let i = 0; i < this.dataArray.length; i++) {
+      sum += this.dataArray[i];
+    }
+    
+    // Normalize to 0-1
+    const maxPossible = 255 * this.dataArray.length;
+    return sum / maxPossible;
+  }
+  
+  /**
    * Set up audio analytics to monitor the state of the audio element
    */
   private setupAudioAnalytics(): void {
@@ -190,7 +306,9 @@ class AudioService {
             (this.audioElement.srcObject as MediaStream).getAudioTracks().length : 0,
           audioFlowing: this.analyzeAudioFlow(),
           userHasInteracted: userInteractionService.userHasInteracted(),
-          enabledByUserInteraction: this.enabledByUserInteraction
+          enabledByUserInteraction: this.enabledByUserInteraction,
+          controlsVisible: this.controlsVisible,
+          browserInfo: this.browserInfo
         };
         
         console.log("Audio element detailed status:", audioStatus);
@@ -225,7 +343,7 @@ class AudioService {
         newAudioElement.autoplay = true;
         newAudioElement.controls = false; // Hidden controls by default
         newAudioElement.style.display = 'none';
-        newAudioElement.volume = 1.0;
+        newAudioElement.volume = this.masterVolume; // Apply master volume setting
         newAudioElement.setAttribute('playsinline', ''); // Important for iOS
         newAudioElement.setAttribute('webkit-playsinline', ''); // For older iOS
         
@@ -414,10 +532,20 @@ class AudioService {
     // Attach the stream to the audio element
     audioElement.srcObject = stream;
     
+    // Apply current master volume
+    audioElement.volume = this.masterVolume;
+    
     // Apply preferred audio output device if available
     const audioOutput = this.getPreferredAudioOutput();
     if (audioOutput) {
-      this.setAudioOutput(audioOutput);
+      this.setAudioOutput(audioOutput).catch(e => {
+        console.warn("Failed to set initial audio output, using default:", e);
+        // Try the default device as fallback
+        this.tryDefaultAudioOutput();
+      });
+    } else {
+      // If no specific output is selected, try to use default
+      this.tryDefaultAudioOutput();
     }
     
     // Force play the audio only if we have user interaction
@@ -432,15 +560,27 @@ class AudioService {
   }
   
   /**
+   * Try to use the default audio output device (browser's default)
+   */
+  private tryDefaultAudioOutput(): void {
+    if (!this.audioElement) return;
+    
+    if ('setSinkId' in HTMLAudioElement.prototype) {
+      console.log("Setting audio output to default device");
+      (this.audioElement as any).setSinkId('default')
+        .then(() => console.log("Set audio output to system default"))
+        .catch((e: any) => console.warn("Failed to set default audio output:", e));
+    }
+  }
+  
+  /**
    * Patch audio track for Safari compatibility
    * Safari has some unique WebRTC audio routing issues
    */
   private patchAudioTrack(track: MediaStreamTrack): void {
     // Check if browser is Safari
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    
-    if (isSafari) {
-      console.log("Applying Safari-specific audio track patches");
+    if (this.browserInfo.isSafari || this.browserInfo.isIOS) {
+      console.log("Applying Safari/iOS-specific audio track patches");
       
       // Create an audio context to process the audio track directly
       try {
@@ -448,6 +588,9 @@ class AudioService {
         const source = audioCtx.createMediaStreamSource(new MediaStream([track]));
         const destination = audioCtx.createMediaStreamDestination();
         source.connect(destination);
+        
+        // On Safari, we need to connect to the destination to get audio
+        source.connect(audioCtx.destination);
         
         console.log("Applied Safari audio track patch");
       } catch (e) {
@@ -487,6 +630,19 @@ class AudioService {
   }
   
   /**
+   * Update the master volume
+   * @param volume Volume level (0-1)
+   */
+  public setMasterVolume(volume: number): void {
+    console.log("Setting master volume to:", volume);
+    this.masterVolume = Math.max(0, Math.min(1, volume));
+    
+    if (this.audioElement) {
+      this.audioElement.volume = this.masterVolume;
+    }
+  }
+  
+  /**
    * Force play the audio element to overcome browser autoplay restrictions
    * @returns Promise resolving to a boolean indicating if playback started
    */
@@ -519,7 +675,7 @@ class AudioService {
     }
     
     // Set volume explicitly to make sure it's not muted
-    this.audioElement.volume = 1.0;
+    this.audioElement.volume = this.masterVolume;
     this.audioElement.muted = false;
     
     // Try to start audio context if it exists and is suspended
@@ -566,6 +722,7 @@ class AudioService {
     this.audioElement.style.right = '20px';
     this.audioElement.style.width = '300px';
     this.audioElement.style.zIndex = '9999';
+    this.controlsVisible = true;
   }
   
   /**
@@ -576,6 +733,7 @@ class AudioService {
     
     this.audioElement.controls = false;
     this.audioElement.style.display = 'none';
+    this.controlsVisible = false;
   }
   
   /**
@@ -592,6 +750,40 @@ class AudioService {
     
     // Fall back to standard paused check
     return !this.audioElement.paused;
+  }
+  
+  /**
+   * Get current audio status for debugging
+   */
+  public getAudioStatus(): any {
+    if (!this.audioElement) {
+      return { error: "No audio element available" };
+    }
+    
+    const stream = this.audioElement.srcObject as MediaStream;
+    const audioTracks = stream ? stream.getAudioTracks() : [];
+    
+    return {
+      volume: this.audioElement.volume,
+      masterVolume: this.masterVolume,
+      muted: this.audioElement.muted,
+      paused: this.audioElement.paused,
+      readyState: this.audioElement.readyState,
+      networkState: this.audioElement.networkState,
+      hasAudioTracks: audioTracks.length,
+      tracks: audioTracks.map(t => ({
+        id: t.id,
+        enabled: t.enabled,
+        muted: t.muted,
+        readyState: t.readyState,
+        label: t.label
+      })),
+      audioFlowing: this.analyzeAudioFlow(),
+      currentTime: this.audioElement.currentTime,
+      duration: this.audioElement.duration,
+      controlsVisible: this.controlsVisible,
+      browserInfo: this.browserInfo
+    };
   }
   
   /**

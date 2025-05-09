@@ -5,6 +5,7 @@ import { Play } from "lucide-react";
 import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
 import audioService from "@/services/AudioService";
 import userInteractionService from "@/services/UserInteractionService";
+import AudioStatusIndicator from "@/components/audio/AudioStatusIndicator";
 
 interface VideoDisplayProps {
   localVideoRef: React.RefObject<HTMLVideoElement>;
@@ -22,6 +23,9 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
   const [isAudioPaused, setIsAudioPaused] = useState(false);
   const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
   const autoplayAttempted = useRef(false);
+  const [browserHasInteracted, setBrowserHasInteracted] = useState(
+    userInteractionService.userHasInteracted()
+  );
 
   // Initialize user interaction service when component mounts
   useEffect(() => {
@@ -30,11 +34,13 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     
     // Log if we already have user interaction
     console.log("VideoDisplay: User has interacted:", userInteractionService.userHasInteracted());
+    setBrowserHasInteracted(userInteractionService.userHasInteracted());
     
     // If no interaction yet, register for notification when it happens
     if (!userInteractionService.userHasInteracted()) {
       userInteractionService.onUserInteraction(() => {
         console.log("VideoDisplay: User has now interacted with the page");
+        setBrowserHasInteracted(true);
         
         // If we're in a call, try to play audio now that we have interaction
         if (isCallActive) {
@@ -48,7 +54,50 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         }
       });
     }
-  }, []);
+    
+    // Listen for visibility change events
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isCallActive && browserHasInteracted) {
+        console.log("Document became visible during call - checking audio status");
+        setTimeout(() => {
+          const isAudioCurrentlyPlaying = audioService.isAudioPlaying();
+          if (!isAudioCurrentlyPlaying) {
+            console.log("Audio not playing after visibility change, attempting to resume");
+            audioService.forcePlayAudio()
+              .then(success => setIsAudioPaused(!success))
+              .catch(e => console.warn("Resume after visibility change failed:", e));
+          }
+        }, 300);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Custom event listener for visibility changes
+    const handleCustomVisibilityChange = (e: CustomEvent) => {
+      if (isCallActive && e.detail.hasInteracted) {
+        console.log("Custom visibility event - checking audio status");
+        setTimeout(() => {
+          const isAudioCurrentlyPlaying = audioService.isAudioPlaying();
+          if (!isAudioCurrentlyPlaying) {
+            console.log("Audio not playing after custom visibility event, attempting to resume");
+            audioService.forcePlayAudio()
+              .then(success => setIsAudioPaused(!success))
+              .catch(e => console.warn("Resume after custom visibility event failed:", e));
+          }
+        }, 300);
+      }
+    };
+    
+    document.addEventListener('lovable:visibilitychange', 
+      handleCustomVisibilityChange as EventListener);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('lovable:visibilitychange', 
+        handleCustomVisibilityChange as EventListener);
+    };
+  }, [isCallActive, browserHasInteracted]);
 
   // Check for audio output device
   useEffect(() => {
@@ -64,6 +113,16 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
         }
       } catch (error) {
         console.error("Error setting video element audio output device:", error);
+        
+        // Try to fall back to default device
+        try {
+          if (remoteVideoRef.current && 'setSinkId' in remoteVideoRef.current) {
+            await (remoteVideoRef.current as any).setSinkId('default');
+            console.log("Video element audio output set to default device");
+          }
+        } catch (e) {
+          console.error("Failed to set default audio device:", e);
+        }
       }
     };
     
@@ -89,6 +148,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
           .then(interacted => {
             if (interacted) {
               console.log("User interacted with prompt, trying playback");
+              setBrowserHasInteracted(true);
               setIsAudioPaused(false);
             }
           });
@@ -195,6 +255,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     
     // This click is our user interaction
     userInteractionService.forceInteractionState(true);
+    setBrowserHasInteracted(true);
     
     try {
       // First, ensure the button click event is completed and browser knows user interacted
@@ -264,7 +325,7 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
     );
   }
 
-  // Regular video display
+  // Regular video display with audio status indicator
   if (isVideoEnabled) {
     return (
       <div className={`relative mb-6 ${isCallActive ? "block" : "hidden"}`}>
@@ -275,6 +336,11 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
             autoPlay
             playsInline
           ></video>
+          {isCallActive && (
+            <div className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-md">
+              <AudioStatusIndicator isCallActive={isCallActive} />
+            </div>
+          )}
         </div>
         <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
           <video
@@ -285,6 +351,16 @@ const VideoDisplay: React.FC<VideoDisplayProps> = ({
             muted
           ></video>
         </div>
+      </div>
+    );
+  }
+
+  // Audio-only call status
+  if (isCallActive) {
+    return (
+      <div className="mb-6 p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+        <span className="text-sm text-gray-700">Audio Call Active</span>
+        <AudioStatusIndicator isCallActive={isCallActive} />
       </div>
     );
   }

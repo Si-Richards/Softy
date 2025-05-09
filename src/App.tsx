@@ -4,12 +4,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useParams, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import userInteractionService from "@/services/UserInteractionService";
+import audioVolumeManager from "@/services/AudioVolumeManager";
 import Index from "./pages/Index";
 import ContactEdit from "./pages/ContactEdit";
 import NotFound from "./pages/NotFound";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import AudioDebugPanel from "@/components/audio/AudioDebugPanel";
 
 const queryClient = new QueryClient();
 
@@ -31,15 +33,46 @@ const ContactEditWrapper = () => {
   );
 };
 
-// Initialize user interaction service at the app root level
+// Initialize essential services at the app root level
 const AppInitializer = ({ children }: { children: React.ReactNode }) => {
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  
   useEffect(() => {
     // Initialize user interaction detection as early as possible
     console.log("Initializing user interaction service");
     userInteractionService.initialize();
+    
+    // Initialize audio volume manager
+    console.log("Initializing audio volume manager");
+    audioVolumeManager.initialize();
+    
+    // Check for debug mode in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('audioDebug')) {
+      setShowDebugPanel(true);
+    }
+    
+    // Listen for debug keyboard shortcut (Ctrl+Shift+D)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setShowDebugPanel(prev => !prev);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
   
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <AudioDebugPanel visible={showDebugPanel} />
+    </>
+  );
 };
 
 const App = () => (

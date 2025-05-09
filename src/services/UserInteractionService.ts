@@ -1,3 +1,4 @@
+
 /**
  * Service to detect and track user interaction status for audio autoplay purposes
  */
@@ -6,6 +7,7 @@ class UserInteractionService {
   private hasInteracted: boolean = false;
   private interactionCallbacks: Array<() => void> = [];
   private initialized: boolean = false;
+  private debugMode: boolean = false;
 
   private constructor() {
     // Private constructor for singleton
@@ -55,6 +57,22 @@ class UserInteractionService {
         }
       }, 1000);
     }
+    
+    // Monitor for visibility changes (tab focus/blur)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.hasInteracted) {
+        console.log("UserInteractionService: Page visibility changed, checking audio state");
+        // Notify listeners about visibility change
+        const visibilityEvent = new CustomEvent('lovable:visibilitychange', {
+          detail: { hasInteracted: this.hasInteracted }
+        });
+        document.dispatchEvent(visibilityEvent);
+      }
+    });
+    
+    // Enable debug mode based on local storage setting or URL param
+    this.debugMode = localStorage.getItem('audioDebug') === 'true' || 
+                     window.location.search.includes('audioDebug=true');
   }
   
   /**
@@ -74,6 +92,12 @@ class UserInteractionService {
         console.error("Error in user interaction callback:", error);
       }
     });
+    
+    // Dispatch a custom event that other components can listen for
+    const interactionEvent = new CustomEvent('lovable:userinteraction', {
+      detail: { timestamp: Date.now() }
+    });
+    document.dispatchEvent(interactionEvent);
     
     // Clear callbacks after first interaction as they're no longer needed
     this.interactionCallbacks = [];
@@ -110,9 +134,30 @@ class UserInteractionService {
       this.hasInteracted = true;
       this.interactionCallbacks.forEach(callback => callback());
       this.interactionCallbacks = [];
+      
+      // Also dispatch the custom event
+      const interactionEvent = new CustomEvent('lovable:userinteraction', {
+        detail: { timestamp: Date.now(), forced: true }
+      });
+      document.dispatchEvent(interactionEvent);
     } else {
       this.hasInteracted = state;
     }
+  }
+  
+  /**
+   * Enable or disable debug mode
+   */
+  public setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+    localStorage.setItem('audioDebug', enabled.toString());
+  }
+  
+  /**
+   * Check if debug mode is enabled
+   */
+  public isDebugMode(): boolean {
+    return this.debugMode;
   }
 }
 
