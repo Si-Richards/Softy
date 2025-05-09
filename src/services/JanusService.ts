@@ -10,6 +10,7 @@ class JanusService {
   private registered: boolean = false;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
+  private trackListeners: Map<string, () => void> = new Map();
 
   constructor() {
     this.eventHandlers = new JanusEventHandlers();
@@ -106,18 +107,109 @@ class JanusService {
         onlocalstream: (stream: MediaStream) => {
           console.log("Got local stream", stream);
           this.localStream = stream;
+          
+          // Ensure all local audio tracks are enabled
+          stream.getAudioTracks().forEach(track => {
+            console.log("Local audio track:", track.label, "enabled:", track.enabled);
+            track.enabled = true;
+          });
         },
         onremotestream: (stream: MediaStream) => {
           console.log("Got remote stream", stream);
+          
+          // Log remote stream details for debugging
+          console.log("Remote stream details:", {
+            id: stream.id,
+            active: stream.active,
+            audioTracks: stream.getAudioTracks().length,
+            videoTracks: stream.getVideoTracks().length
+          });
+          
+          // Clean up previous track listeners
+          this.clearTrackListeners();
+          
+          // Set up listeners for all audio tracks
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Remote audio track ${idx}:`, {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              id: track.id,
+              label: track.label
+            });
+            
+            // Ensure tracks are enabled
+            if (!track.enabled) {
+              console.log("Enabling disabled remote audio track");
+              track.enabled = true;
+            }
+            
+            // Setup listeners for track status changes
+            const onEnded = () => {
+              console.warn(`Audio track ${track.id} ended - attempting to re-enable`);
+              // Try to re-enable the track if possible
+              if (track.readyState !== 'ended') {
+                track.enabled = true;
+              }
+            };
+            
+            track.addEventListener('ended', onEnded);
+            this.trackListeners.set(track.id, onEnded);
+            
+            // Also listen for muted events
+            track.addEventListener('mute', () => {
+              console.warn(`Audio track ${track.id} was muted - unmuting`);
+              track.enabled = true;
+            });
+            
+            // Directly attach this track to our audio service right away
+            audioService.attachAudioTrack(track);
+          });
+          
           this.remoteStream = stream;
+          
+          // Also attach the entire stream to the audio service for redundancy
+          audioService.attachStream(stream);
+          
+          // Apply audio output device if supported
+          const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+          if (savedAudioOutput) {
+            console.log("Setting saved audio output device:", savedAudioOutput);
+            audioService.setAudioOutput(savedAudioOutput)
+              .catch(error => console.warn("Couldn't set audio output:", error));
+          }
+          
+          // Try to auto-play the audio immediately
+          setTimeout(() => {
+            console.log("Attempting to auto-play audio after receiving remote stream");
+            audioService.forcePlayAudio()
+              .catch(e => console.warn("Auto-play error after receiving stream:", e));
+          }, 300);
         },
         oncleanup: () => {
           console.log("SIP plugin cleaned up");
+          this.clearTrackListeners();
           this.localStream = null;
           this.remoteStream = null;
         }
       });
     });
+  }
+  
+  /**
+   * Clean up track event listeners
+   */
+  private clearTrackListeners(): void {
+    if (this.remoteStream) {
+      this.remoteStream.getAudioTracks().forEach(track => {
+        const listener = this.trackListeners.get(track.id);
+        if (listener) {
+          track.removeEventListener('ended', listener);
+          this.trackListeners.delete(track.id);
+        }
+      });
+    }
+    this.trackListeners.clear();
   }
 
   private handleSipMessage(msg: any, jsep?: any): void {
@@ -277,7 +369,7 @@ class JanusService {
     }
   }
   
-  // Updated call method to use audio devices
+  // Updated call method to use audio devices and improve SDP offer
   async call(destination: string, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
     if (!this.sipPlugin) {
       throw new Error("SIP plugin not attached");
@@ -314,29 +406,85 @@ class JanusService {
       // Get media constraints for the call
       const constraints = {
         audio: audioOptions?.audioInput ? 
-          { deviceId: { exact: audioOptions.audioInput } } : true,
+          { 
+            deviceId: { exact: audioOptions.audioInput },
+            echoCancellation: audioOptions.echoCancellation ?? true,
+            noiseSuppression: audioOptions.noiseSuppression ?? true,
+            autoGainControl: audioOptions.autoGainControl ?? true
+          } : {
+            echoCancellation: audioOptions?.echoCancellation ?? true,
+            noiseSuppression: audioOptions?.noiseSuppression ?? true,
+            autoGainControl: audioOptions?.autoGainControl ?? true
+          },
         video: isVideoCall ? (localStorage.getItem('selectedVideoInput') ? 
           { deviceId: { exact: localStorage.getItem('selectedVideoInput') } } : true) : false
       };
       
-      console.log("Getting user media with constraints:", constraints);
+      console.log("Getting user media with constraints:", JSON.stringify(constraints));
       
       navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           console.log("Got local media stream for call:", stream);
           
-          // Ensure audio tracks are enabled
-          stream.getAudioTracks().forEach(track => {
-            console.log("Audio track settings:", track.getSettings());
+          // Log audio tracks and ensure they're enabled
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Audio track ${idx} settings:`, track.getSettings());
             track.enabled = true;
           });
           
+          // Create SDP offer with explicit sendrecv for audio
           this.sipPlugin.createOffer({
             media: {
               audioSend: true,
               audioRecv: true,
               videoSend: isVideoCall,
-              videoRecv: isVideoCall
+              videoRecv: isVideoCall,
+              audioSendCodec: "opus",   // Prefer Opus for better audio quality
+              audioRecvCodec: "opus",
+              data: false
+            },
+            // Add explicit specification of SDP direction attributes
+            customizeSdp: (jsep: any) => {
+              // Make sure the SDP explicitly allows bidirectional audio
+              if (jsep && jsep.sdp) {
+                const sdpLines = jsep.sdp.split("\r\n");
+                let audioFound = false;
+                
+                // Find the audio m-line
+                for (let i = 0; i < sdpLines.length; i++) {
+                  if (sdpLines[i].startsWith("m=audio")) {
+                    audioFound = true;
+                  }
+                  
+                  // If we're in the audio section and there's a direction line, ensure it's sendrecv
+                  if (audioFound && sdpLines[i].startsWith("a=")) {
+                    if (sdpLines[i].startsWith("a=sendonly") || 
+                        sdpLines[i].startsWith("a=recvonly") || 
+                        sdpLines[i].startsWith("a=inactive")) {
+                      sdpLines[i] = "a=sendrecv";
+                      console.log("Modified SDP direction to sendrecv for audio");
+                    }
+                    
+                    // If we find a media attribute that's not direction, we're past the point where we'd add it
+                    if (sdpLines[i].startsWith("a=rtpmap") || 
+                        sdpLines[i].startsWith("a=fmtp") || 
+                        sdpLines[i].startsWith("a=rtcp")) {
+                      // If we haven't seen a direction attribute yet, add one
+                      sdpLines.splice(i, 0, "a=sendrecv");
+                      console.log("Added explicit sendrecv direction to audio section");
+                      break;
+                    }
+                  }
+                  
+                  // If we've found a new media section, we're done with audio
+                  if (audioFound && sdpLines[i].startsWith("m=") && !sdpLines[i].startsWith("m=audio")) {
+                    break;
+                  }
+                }
+                
+                jsep.sdp = sdpLines.join("\r\n");
+                console.log("Modified SDP:", jsep.sdp);
+              }
             },
             success: (jsep: any) => {
               console.log("Got SDP offer", jsep);
@@ -383,11 +531,21 @@ class JanusService {
       // Get media access with specified audio device
       const constraints = {
         audio: audioOptions?.audioInput ? 
-          { deviceId: { exact: audioOptions.audioInput } } : true,
+          { 
+            deviceId: { exact: audioOptions.audioInput },
+            echoCancellation: audioOptions.echoCancellation ?? true,
+            noiseSuppression: audioOptions.noiseSuppression ?? true,
+            autoGainControl: audioOptions.autoGainControl ?? true
+          } : {
+            echoCancellation: audioOptions?.echoCancellation ?? true,
+            noiseSuppression: audioOptions?.noiseSuppression ?? true,
+            autoGainControl: audioOptions?.autoGainControl ?? true
+          },
         video: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
       };
       
       console.log("Getting user media for accepting call:", constraints);
+      console.log("Incoming JSEP:", jsep);
       
       navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
@@ -395,7 +553,7 @@ class JanusService {
           
           // Ensure audio tracks are enabled
           stream.getAudioTracks().forEach(track => {
-            console.log("Audio track settings:", track.getSettings());
+            console.log("Local audio track settings:", track.getSettings());
             track.enabled = true;
           });
           
@@ -405,7 +563,46 @@ class JanusService {
               audioSend: true, 
               audioRecv: true,
               videoSend: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
-              videoRecv: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
+              videoRecv: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
+              audioSendCodec: "opus",
+              audioRecvCodec: "opus"
+            },
+            // Customize SDP to ensure audio directions are set correctly
+            customizeSdp: (jsep: any) => {
+              if (jsep && jsep.sdp) {
+                const sdpLines = jsep.sdp.split("\r\n");
+                let audioFound = false;
+                
+                for (let i = 0; i < sdpLines.length; i++) {
+                  if (sdpLines[i].startsWith("m=audio")) {
+                    audioFound = true;
+                  }
+                  
+                  if (audioFound && sdpLines[i].startsWith("a=")) {
+                    if (sdpLines[i].startsWith("a=sendonly") || 
+                        sdpLines[i].startsWith("a=recvonly") || 
+                        sdpLines[i].startsWith("a=inactive")) {
+                      sdpLines[i] = "a=sendrecv";
+                      console.log("Modified answer SDP direction to sendrecv for audio");
+                    }
+                    
+                    if (sdpLines[i].startsWith("a=rtpmap") || 
+                        sdpLines[i].startsWith("a=fmtp") || 
+                        sdpLines[i].startsWith("a=rtcp")) {
+                      sdpLines.splice(i, 0, "a=sendrecv");
+                      console.log("Added explicit sendrecv direction to audio section in answer");
+                      break;
+                    }
+                  }
+                  
+                  if (audioFound && sdpLines[i].startsWith("m=") && !sdpLines[i].startsWith("m=audio")) {
+                    break;
+                  }
+                }
+                
+                jsep.sdp = sdpLines.join("\r\n");
+                console.log("Modified answer SDP:", jsep.sdp);
+              }
             },
             success: (ourjsep: any) => {
               const body = { request: "accept" };
@@ -436,6 +633,23 @@ class JanusService {
                     
                     // Set the remote stream to the audio element
                     audioElement.srcObject = this.remoteStream;
+                    
+                    // Try to force play the audio
+                    setTimeout(() => {
+                      console.log("Attempting to play audio after accepting call");
+                      audioElement.play()
+                        .catch(e => {
+                          console.warn("Audio play failed in acceptCall:", e);
+                          // Use AudioService as fallback
+                          audioService.attachStream(this.remoteStream);
+                          audioService.forcePlayAudio().catch(e => console.warn("Fallback play failed:", e));
+                        });
+                    }, 300);
+                  } else {
+                    // Use AudioService for playback
+                    if (this.remoteStream) {
+                      audioService.attachStream(this.remoteStream);
+                    }
                   }
                   
                   resolve();

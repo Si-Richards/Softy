@@ -1,4 +1,3 @@
-
 import { AudioOutputHandler } from './janus/utils/audioOutputHandler';
 import userInteractionService from './UserInteractionService';
 
@@ -33,6 +32,9 @@ class AudioService {
   };
   
   private constructor() {
+    // Initialize browser detection first to avoid undefined access
+    this.browserInfo = this.detectBrowser();
+    
     this.getPreferredAudioOutput();
     
     // Early initialization of audio element on service creation
@@ -40,9 +42,6 @@ class AudioService {
     
     // Apply user's master volume setting from local storage
     this.loadVolumeFromSettings();
-    
-    // Detect browser for specific workarounds
-    this.browserInfo = this.detectBrowser();
     
     // Register for the first user interaction event
     userInteractionService.onUserInteraction(() => {
@@ -116,6 +115,8 @@ class AudioService {
       name = "Firefox";
       version = userAgent.match(/Firefox\/([\d.]+)/)?.[1] || "unknown";
     }
+    
+    console.log("Browser detected:", { name, version, isSafari, isChrome, isFirefox, isIOS });
     
     return { name, version, isSafari, isChrome, isFirefox, isIOS };
   }
@@ -282,7 +283,14 @@ class AudioService {
     
     // Normalize to 0-1
     const maxPossible = 255 * this.dataArray.length;
-    return sum / maxPossible;
+    const level = sum / maxPossible;
+    
+    // Debug logs for audio levels - throttled to reduce spam
+    if (sum > 0 && Date.now() % 1000 < 100) { // Log only briefly every second
+      console.log("Audio level:", level.toFixed(4), "raw sum:", sum);
+    }
+    
+    return level;
   }
   
   /**
@@ -453,6 +461,16 @@ class AudioService {
       track.enabled = true;
     }
     
+    // Add specific track event listeners for debugging
+    track.addEventListener('ended', () => {
+      console.warn(`Audio track ${track.id} ended unexpectedly`);
+    });
+    
+    track.addEventListener('mute', () => {
+      console.warn(`Audio track ${track.id} was muted - attempting to unmute`);
+      track.enabled = true;
+    });
+    
     // Create a new stream with just this track
     const stream = new MediaStream([track]);
     return this.attachStream(stream);
@@ -502,19 +520,14 @@ class AudioService {
         readyState: track.readyState,
         id: track.id,
         kind: track.kind,
-        label: track.label
+        label: track.label,
+        settings: track.getSettings()
       });
       
       // Ensure tracks are enabled
       if (!track.enabled) {
         console.log("Enabling disabled audio track");
         track.enabled = true;
-      }
-      
-      // Patch audio track for Safari browser if needed
-      if (!this.audioTrackPatched) {
-        this.patchAudioTrack(track);
-        this.audioTrackPatched = true;
       }
     });
     
@@ -686,6 +699,7 @@ class AudioService {
     
     this.autoplayAttempted = true;
     
+    // Play with additional attempt mechanism if first attempt fails
     return this.audioElement.play()
       .then(() => {
         console.log("Audio playback started successfully");
@@ -694,14 +708,30 @@ class AudioService {
       .catch(error => {
         console.warn("Audio playback failed (probably due to autoplay policy):", error);
         
-        // Make the audio element visible with controls as a fallback
-        // but only if we actually have a stream to play
-        if (this.audioElement?.srcObject instanceof MediaStream && 
-            (this.audioElement.srcObject as MediaStream).getAudioTracks().length > 0) {
-          this.showAudioControls();
-        }
-        
-        return false;
+        // Try again with a slight delay
+        return new Promise((resolve) => {
+          // Small timeout to let browser process before trying again
+          setTimeout(() => {
+            console.log("Retrying audio playback after short delay");
+            // Get a fresh reference to the audio element
+            const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
+            if (audioEl) {
+              audioEl.play()
+                .then(() => {
+                  console.log("Retry playback succeeded");
+                  resolve(true);
+                })
+                .catch(e => {
+                  console.warn("Retry playback failed:", e);
+                  // Make controls visible as a last resort
+                  this.showAudioControls();
+                  resolve(false);
+                });
+            } else {
+              resolve(false);
+            }
+          }, 500);
+        });
       });
   }
   
@@ -802,12 +832,13 @@ class AudioService {
       this.hideAudioControls();
     }
     
-    // Clean up audio context if it exists
-    if (this.audioContext && this.audioContext.state !== 'closed') {
+    // Don't close the audio context, just suspend it for future use
+    if (this.audioContext && this.audioContext.state !== 'closed' && this.audioContext.state !== 'suspended') {
       try {
-        this.audioContext.close();
+        console.log("Suspending audio context for future use");
+        this.audioContext.suspend();
       } catch (e) {
-        console.warn("Error closing audio context:", e);
+        console.warn("Error suspending audio context:", e);
       }
     }
     
