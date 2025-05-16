@@ -21,7 +21,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     const hash = window.location.hash.replace("#", "") || "home";
     
     switch (hash) {
-      case "home": return "Quick Dial";
+      case "home": return "My Company";
       case "dialpad": return "Dialpad";
       case "history": return "Call History";
       case "contacts": return "Contacts";
@@ -29,7 +29,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       case "voicemail": return "Voicemail";
       case "statistics": return "Statistics";
       case "settings": return "Settings";
-      default: return "Quick Dial";
+      default: return "My Company";
     }
   };
 
