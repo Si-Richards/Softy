@@ -11,7 +11,7 @@ import {
   Voicemail,
   ParkingSquare,
   ArrowDown,
-  Intercom,
+  PhoneCall,  // Replacing Intercom with PhoneCall
   AlarmClock,
   PhoneIncoming,
   UserPlus,
@@ -42,7 +42,7 @@ const ShortCodes: React.FC<ShortCodeProps> = ({ onShortCodeSelect }) => {
       codes: [
         { name: "Page Extension", code: "*2#", description: "+ extension number", icon: <ArrowDown /> },
         { name: "Page Group", code: "*3#", description: "+ call group", icon: <ArrowDown /> },
-        { name: "Intercom", code: "*4#", description: "+ extension number", icon: <Intercom /> },
+        { name: "Intercom", code: "*4#", description: "+ extension number", icon: <PhoneCall /> },
         { name: "Wake-up Call", code: "*5#", description: "+ 24H time", icon: <AlarmClock /> }
       ] 
     },

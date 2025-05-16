@@ -99,7 +99,7 @@ const MainLayout = () => {
             connectionStatus={connectionStatus}
           />
           
-          <MainContent activeTab={activeTab} />
+          <MainContent />
         </div>
       </div>
 
