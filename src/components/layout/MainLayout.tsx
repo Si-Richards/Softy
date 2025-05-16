@@ -13,7 +13,6 @@ type UserPresence = "available" | "away" | "busy" | "offline";
 
 const MainLayout = () => {
   // State management
-  const [activeTab, setActiveTab] = useState("home");
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "connecting">("disconnected");
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [userPresence, setUserPresence] = useState<UserPresence>("available");
@@ -83,8 +82,8 @@ const MainLayout = () => {
     <div className="min-h-screen bg-gray-100 flex">
       <div className="w-full max-w-5xl mx-auto my-8 bg-white rounded-xl shadow-lg overflow-hidden flex">
         <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
+          activeTab="dialpad" 
+          setActiveTab={() => {}} 
           connectionStatus={connectionStatus}
           doNotDisturb={doNotDisturb}
           setDoNotDisturb={setDoNotDisturb}
@@ -99,7 +98,12 @@ const MainLayout = () => {
             connectionStatus={connectionStatus}
           />
           
-          <MainContent activeTab={activeTab} />
+          <MainContent 
+            doNotDisturb={doNotDisturb}
+            setDoNotDisturb={setDoNotDisturb}
+            userPresence={userPresence}
+            connectionStatus={connectionStatus}
+          />
         </div>
       </div>
 
