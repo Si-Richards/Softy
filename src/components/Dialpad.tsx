@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import DialpadGrid from "./dialpad/DialpadGrid";
@@ -24,7 +23,7 @@ const Dialpad = () => {
   const { toast } = useToast();
   const { isJanusConnected, isRegistered, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
-  const { sendDTMFTone } = useSendDTMF();
+  const { sendDTMFTone, sendMultipleDTMFTones } = useSendDTMF();
   const voicemailNumber = "1571"; // Updated voicemail number
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   
@@ -97,19 +96,17 @@ const Dialpad = () => {
   
   const handleShortCodeSelect = (code: string) => {
     setNumber(code);
+    
     if (!isCallActive) {
+      // If not in a call, just set the number and play the first digit tone
       playDTMFTone(code.charAt(0));
       toast({
         title: `Code selected: ${code}`,
         description: "Press dial to use this code",
       });
     } else {
-      // If already in a call, send the DTMF tone
-      sendDTMFTone(code);
-      toast({
-        title: `Sending code: ${code}`,
-        description: "Code sent to current call",
-      });
+      // If already in a call, send the DTMF sequence
+      sendMultipleDTMFTones(code);
     }
   };
 

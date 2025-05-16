@@ -11,13 +11,12 @@ import {
   Voicemail,
   ParkingSquare,
   ArrowDown,
-  PhoneCall,  // Replacing Intercom with PhoneCall
+  PhoneCall,
   AlarmClock,
   PhoneIncoming,
   UserPlus,
   UserMinus
 } from "lucide-react";
-import { useSendDTMF } from "@/hooks/useSendDTMF";
 
 interface ShortCodeProps {
   onShortCodeSelect: (code: string) => void;
@@ -58,6 +57,8 @@ const ShortCodes: React.FC<ShortCodeProps> = ({ onShortCodeSelect }) => {
   ];
 
   const handleShortCodeClick = (code: string) => {
+    // Ensure we call the passed-in handler
+    console.log("ShortCode button clicked:", code);
     onShortCodeSelect(code);
   };
 
@@ -73,6 +74,7 @@ const ShortCodes: React.FC<ShortCodeProps> = ({ onShortCodeSelect }) => {
                 variant="outline"
                 className="flex flex-col justify-center items-center h-24 px-2 hover:bg-softphone-accent/10"
                 onClick={() => handleShortCodeClick(item.code)}
+                type="button"
               >
                 <div className="mb-2">
                   {item.icon}
