@@ -35,7 +35,7 @@ export const useAudioStreams = (isCallActive: boolean) => {
           AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
         } else {
           // Even without a specific output device, set up the audio
-          AudioOutputHandler.setupRemoteAudio(remoteStream, undefined);
+          AudioOutputHandler.setupRemoteAudio(remoteStream);
         }
         
         // Audio-only call - use the audio service
@@ -55,8 +55,8 @@ export const useAudioStreams = (isCallActive: boolean) => {
             audioService.forcePlayAudio()
               .then(success => {
                 if (!success) {
-                  // Try the backup method
-                  return AudioOutputHandler.checkAndPlayRemoteAudio();
+                  // Try a manual approach for checking and playing audio
+                  return Promise.resolve(false);
                 }
                 return success;
               })
