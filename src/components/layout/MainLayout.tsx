@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import PageHeader from "./PageHeader";
 import MainContent from "./MainContent";
@@ -7,11 +8,17 @@ import MobileDialpadDrawer from "./MobileDialpadDrawer";
 import IncomingCallHandler from "./IncomingCallHandler";
 import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 // Define user presence type
 type UserPresence = "available" | "away" | "busy" | "offline";
 
 const MainLayout = () => {
+  // Auth context
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
   // State management
   const [activeTab, setActiveTab] = useState("home");
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "connecting">("disconnected");
@@ -79,6 +86,25 @@ const MainLayout = () => {
     }
   }, [isJanusConnected, isRegistered]);
 
+  // Handle logout
+  const handleLogout = () => {
+    // Disconnect from Janus if connected
+    if (isJanusConnected) {
+      janusService.disconnect();
+    }
+    
+    // Log out from auth system
+    logout();
+    
+    // Navigate to login page
+    navigate("/login");
+    
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <div className="w-full max-w-5xl mx-auto my-8 bg-white rounded-xl shadow-lg overflow-hidden flex">
@@ -92,12 +118,22 @@ const MainLayout = () => {
         />
         
         <div className="flex-1 flex flex-col">
-          <PageHeader 
-            doNotDisturb={doNotDisturb}
-            setDoNotDisturb={setDoNotDisturb}
-            userPresence={userPresence}
-            connectionStatus={connectionStatus}
-          />
+          <div className="flex justify-between items-center">
+            <PageHeader 
+              doNotDisturb={doNotDisturb}
+              setDoNotDisturb={setDoNotDisturb}
+              userPresence={userPresence}
+              connectionStatus={connectionStatus}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              className="mr-4 text-gray-500 hover:text-gray-700"
+            >
+              Logout
+            </Button>
+          </div>
           
           <MainContent activeTab={activeTab} />
         </div>
