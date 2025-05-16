@@ -9,13 +9,20 @@ import Voicemail from "@/components/Voicemail";
 import Statistics from "@/components/Statistics";
 import SIPConfig from "@/components/SIPConfig";
 
-interface MainContentProps {
-  activeTab: string;
-}
-
-const MainContent = ({
-  activeTab
-}: MainContentProps) => {
+const MainContent = () => {
+  // Use the URL hash to determine which tab is active
+  const getActiveTab = () => {
+    // Default to home if no hash is present
+    if (!window.location.hash) {
+      return "home";
+    }
+    
+    // Remove the "#" character and return the rest
+    return window.location.hash.substring(1);
+  };
+  
+  const activeTab = getActiveTab();
+  
   const renderActiveTab = () => {
     switch (activeTab) {
       case "home":
