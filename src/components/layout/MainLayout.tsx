@@ -10,6 +10,7 @@ import { useJanusSetup } from "@/components/dialpad/useJanusSetup";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 // Define user presence type
 type UserPresence = "available" | "away" | "busy" | "offline";
@@ -132,6 +133,7 @@ const MainLayout = () => {
               className="mr-4 text-gray-500 hover:text-gray-700"
             >
               Logout
+              <LogOut className="ml-1 w-4 h-4" />
             </Button>
           </div>
           

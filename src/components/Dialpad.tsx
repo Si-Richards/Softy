@@ -10,10 +10,11 @@ import { useKeypadInput } from "@/hooks/useKeypadInput";
 import { useAudioStreams } from "@/hooks/useAudioStreams";
 import { useCallControls } from "@/hooks/useCallControls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { Info, MessageSquare, User, Settings, PhoneCall } from "lucide-react";
 import AudioStatus from "./dialpad/AudioStatus";
 import AudioCheckButton from "./dialpad/AudioCheckButton";
 import { AudioElementHandler } from "@/services/janus/utils/audioElementHandler";
+import { Button } from "@/components/ui/button";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -91,6 +92,23 @@ const Dialpad = () => {
     });
   };
 
+  // Quick access shortcodes
+  const shortcodes = [
+    { name: "Voicemail", number: "1571", icon: <MessageSquare className="h-4 w-4" /> },
+    { name: "Support", number: "5000", icon: <User className="h-4 w-4" /> },
+    { name: "Conference", number: "8000", icon: <PhoneCall className="h-4 w-4" /> },
+    { name: "Settings", number: "9999", icon: <Settings className="h-4 w-4" /> },
+  ];
+
+  const callShortcode = (code: string) => {
+    setNumber(code);
+    handleCall(code, isJanusConnected);
+    toast({
+      title: `Calling ${code}`,
+      description: `Connecting to shortcode service...`,
+    });
+  };
+
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <div className="flex justify-between items-center mb-4">
@@ -153,6 +171,30 @@ const Dialpad = () => {
         onToggleMute={toggleMute}
         onCallVoicemail={callVoicemail}
       />
+      
+      {/* Shortcode options */}
+      {!isCallActive && (
+        <div className="mt-6">
+          <h3 className="text-sm font-medium text-gray-600 mb-3">Quick Access</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {shortcodes.map((code) => (
+              <Button
+                key={code.number}
+                variant="outline"
+                className="flex justify-start items-center gap-2 py-2 border border-gray-200 rounded-md hover:bg-gray-50"
+                onClick={() => callShortcode(code.number)}
+                disabled={!isJanusConnected}
+              >
+                {code.icon}
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium">{code.name}</span>
+                  <span className="text-xs text-gray-500">{code.number}</span>
+                </div>
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

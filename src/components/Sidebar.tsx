@@ -155,12 +155,12 @@ const Sidebar = ({
                     {tab.icon}
                     {isExpanded && <div className={cn("flex items-center justify-between flex-1 transition-opacity duration-200", isTransitioning ? "opacity-0" : "opacity-100")}>
                         <span>{tab.label}</span>
-                        {tab.badge && tab.badge > 0 && <Badge className="ml-auto bg-softphone-error text-white text-xs" variant="destructive">
+                        {tab.badge && tab.badge > 0 && <Badge className="ml-auto bg-softphone-primary text-white text-xs" variant="default">
                             {tab.badge}
                           </Badge>}
                       </div>}
                   </Button>
-                  {!isExpanded && tab.badge && tab.badge > 0 && <Badge className={cn("absolute -top-1 right-2 px-2 min-w-[20px] h-5 bg-softphone-error text-white text-xs flex items-center justify-center rounded-full")} variant="destructive">
+                  {!isExpanded && tab.badge && tab.badge > 0 && <Badge className={cn("absolute -top-1 right-2 px-2 min-w-[20px] h-5 bg-softphone-primary text-white text-xs flex items-center justify-center rounded-full")} variant="default">
                       {tab.badge}
                     </Badge>}
                 </div>
