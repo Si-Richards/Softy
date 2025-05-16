@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -17,6 +18,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   // Check if there are stored credentials
   useEffect(() => {
@@ -54,8 +56,8 @@ const LoginPage = () => {
           localStorage.removeItem("rememberedUser");
         }
 
-        // Set auth in sessionStorage (this would be a token in a real app)
-        sessionStorage.setItem("isAuthenticated", "true");
+        // Use the login function from AuthContext
+        login();
         
         toast({
           title: "Login Successful",
