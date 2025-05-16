@@ -34,7 +34,7 @@ export const useAudioStreams = (isCallActive: boolean) => {
           console.log("Setting saved audio output device:", savedAudioOutput);
           AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
         } else {
-          // Even without a specific output device, set up the audio
+          // Fix: Pass undefined as the second parameter
           AudioOutputHandler.setupRemoteAudio(remoteStream, undefined);
         }
         
