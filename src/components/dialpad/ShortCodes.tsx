@@ -62,19 +62,19 @@ const ShortCodes: React.FC<ShortCodeProps> = ({ onShortCodeSelect }) => {
   };
 
   return (
-    <div className="mt-6 space-y-4 pb-8">
+    <div className="mt-6 space-y-6 pb-12">
       {shortCodes.map((category) => (
-        <div key={category.category} className="space-y-2">
+        <div key={category.category} className="space-y-3">
           <h4 className="text-xs font-medium text-gray-400">{category.category}</h4>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             {category.codes.map((item) => (
               <Button
                 key={item.code}
                 variant="outline"
-                className="flex flex-col justify-center items-center h-20 px-2 hover:bg-softphone-accent/10"
+                className="flex flex-col justify-center items-center h-24 px-2 hover:bg-softphone-accent/10"
                 onClick={() => handleShortCodeClick(item.code)}
               >
-                <div className="mb-1">
+                <div className="mb-2">
                   {item.icon}
                 </div>
                 <div className="text-center">
