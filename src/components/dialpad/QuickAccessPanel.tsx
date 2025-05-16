@@ -131,71 +131,64 @@ const QuickAccessPanel: React.FC<QuickAccessPanelProps> = ({
     });
   };
 
-  // Floating trigger button outside of sheet
-  const TriggerButton = () => (
-    <SheetTrigger asChild>
-      <Button 
-        variant="outline" 
-        size="icon"
-        className="fixed right-0 top-1/2 transform -translate-y-1/2 rounded-l-md rounded-r-none border-r-0 bg-white shadow-lg"
-        onClick={() => setIsOpen(true)}
-        disabled={isCallActive}
-      >
-        <ChevronsLeft className="h-4 w-4" />
-        <span className="sr-only">Open quick access</span>
-      </Button>
-    </SheetTrigger>
-  );
-
   return (
-    <>
-      <TriggerButton />
-      
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent 
-          side="right" 
-          className="w-[240px] p-3"
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      {/* Trigger button moved inside the Sheet component */}
+      <SheetTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="fixed right-0 top-1/2 transform -translate-y-1/2 rounded-l-md rounded-r-none border-r-0 bg-white shadow-lg"
+          disabled={isCallActive}
         >
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-medium">Quick Access</h3>
-            <SheetClose asChild>
-              <Button variant="ghost" size="sm">
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </SheetClose>
-          </div>
-          
-          <div className="grid grid-cols-1 gap-2">
-            {shortcodes.map((item, index) => (
-              <Tooltip key={index}>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="flex justify-start items-center gap-2 h-10 w-full text-left" 
-                    onClick={() => {
-                      setShortcode(item.code);
-                      setIsOpen(false);
-                    }}
-                    disabled={!isJanusConnected || isCallActive}
-                  >
-                    <span className="flex-shrink-0">{item.icon}</span>
-                    <span className="text-sm truncate">{item.name}</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-[200px]">
-                  <div className="space-y-1">
-                    <p className="text-xs">{item.description}</p>
-                    <div className="text-xs font-mono bg-gray-100 rounded px-1 py-0.5">
-                      {item.code}<span className="text-gray-400">{item.placeholder}</span>
-                    </div>
+          <ChevronsLeft className="h-4 w-4" />
+          <span className="sr-only">Open quick access</span>
+        </Button>
+      </SheetTrigger>
+      
+      <SheetContent 
+        side="right" 
+        className="w-[240px] p-3"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-medium">Quick Access</h3>
+          <SheetClose asChild>
+            <Button variant="ghost" size="sm">
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </SheetClose>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-2">
+          {shortcodes.map((item, index) => (
+            <Tooltip key={index}>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="flex justify-start items-center gap-2 h-10 w-full text-left" 
+                  onClick={() => {
+                    setShortcode(item.code);
+                    setIsOpen(false);
+                  }}
+                  disabled={!isJanusConnected || isCallActive}
+                >
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  <span className="text-sm truncate">{item.name}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[200px]">
+                <div className="space-y-1">
+                  <p className="text-xs">{item.description}</p>
+                  <div className="text-xs font-mono bg-gray-100 rounded px-1 py-0.5">
+                    {item.code}<span className="text-gray-400">{item.placeholder}</span>
                   </div>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 };
 
