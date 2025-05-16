@@ -16,24 +16,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   userPresence,
   connectionStatus
 }) => {
-  // Get page title based on the current hash
-  const getPageTitle = () => {
-    const hash = window.location.hash.replace("#", "") || "home";
-    
-    switch (hash) {
-      case "home": return "My Company";
-      case "dialpad": return "Dialpad";
-      case "history": return "Call History";
-      case "contacts": return "Contacts";
-      case "messages": return "Messages";
-      case "voicemail": return "Voicemail";
-      case "statistics": return "Statistics";
-      case "settings": return "Settings";
-      default: return "My Company";
-    }
-  };
-
-  const pageTitle = getPageTitle();
+  // Always return "My Company" as the title
+  const pageTitle = "My Company";
   
   return (
     <div className="flex-1 border-b p-4 flex justify-between items-center">
