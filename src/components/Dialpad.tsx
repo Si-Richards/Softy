@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import DialpadGrid from "./dialpad/DialpadGrid";
@@ -15,6 +16,7 @@ import AudioStatus from "./dialpad/AudioStatus";
 import AudioCheckButton from "./dialpad/AudioCheckButton";
 import { AudioElementHandler } from "@/services/janus/utils/audioElementHandler";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
@@ -238,28 +240,35 @@ const Dialpad = () => {
         onCallVoicemail={callVoicemail}
       />
       
-      {/* Updated shortcode options with three columns */}
+      {/* Updated shortcode options with tooltips */}
       {!isCallActive && (
         <div className="mt-6">
           <h3 className="text-sm font-medium text-gray-600 mb-3">Quick Access</h3>
           <div className="grid grid-cols-3 gap-2">
             {shortcodes.map((item, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className="flex flex-col items-start justify-start h-auto min-h-[80px] p-2 border border-gray-200 rounded-md hover:bg-gray-50"
-                onClick={() => setShortcode(item.code)}
-                disabled={!isJanusConnected}
-              >
-                <div className="flex items-center gap-1 mb-1">
-                  {item.icon}
-                  <span className="text-xs font-medium">{item.name}</span>
-                </div>
-                <span className="text-xs text-gray-500 mb-1">{item.description}</span>
-                <div className="text-xs font-mono bg-gray-100 rounded px-1">
-                  {item.code}<span className="text-gray-400">{item.placeholder}</span>
-                </div>
-              </Button>
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex flex-col items-center justify-center h-16 p-2 border border-gray-200 rounded-md hover:bg-gray-50"
+                    onClick={() => setShortcode(item.code)}
+                    disabled={!isJanusConnected}
+                  >
+                    <div className="flex items-center justify-center mb-1">
+                      {item.icon}
+                    </div>
+                    <span className="text-xs font-medium text-center">{item.name}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <div className="space-y-1">
+                    <p className="text-xs">{item.description}</p>
+                    <div className="text-xs font-mono bg-gray-100 rounded px-1 py-0.5">
+                      {item.code}<span className="text-gray-400">{item.placeholder}</span>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             ))}
           </div>
         </div>
