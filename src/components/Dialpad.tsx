@@ -14,16 +14,13 @@ import { Info } from "lucide-react";
 import AudioStatus from "./dialpad/AudioStatus";
 import AudioCheckButton from "./dialpad/AudioCheckButton";
 import { AudioElementHandler } from "@/services/janus/utils/audioElementHandler";
-import ShortCodes from "./dialpad/ShortCodes";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Dialpad = () => {
   const [number, setNumber] = useState("");
-  const [activeTab, setActiveTab] = useState("dialpad");
   const { toast } = useToast();
   const { isJanusConnected, isRegistered, errorMessage } = useJanusSetup();
   const { playDTMFTone } = useDTMFTone();
-  const { sendDTMFTone, sendMultipleDTMFTones } = useSendDTMF();
+  const { sendDTMFTone } = useSendDTMF();
   const voicemailNumber = "1571"; // Updated voicemail number
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   
@@ -93,25 +90,9 @@ const Dialpad = () => {
       description: "Connecting to voicemail service...",
     });
   };
-  
-  const handleShortCodeSelect = (code: string) => {
-    setNumber(code);
-    
-    if (!isCallActive) {
-      // If not in a call, just set the number and play the first digit tone
-      playDTMFTone(code.charAt(0));
-      toast({
-        title: `Code selected: ${code}`,
-        description: "Press dial to use this code",
-      });
-    } else {
-      // If already in a call, send the DTMF sequence
-      sendMultipleDTMFTones(code);
-    }
-  };
 
   return (
-    <div className="w-full max-w-md mx-auto p-4">
+    <div className="w-full max-w-md mx-auto p-6">
       <div className="flex justify-between items-center mb-4">
         <AudioStatus isCallActive={isCallActive} />
         <AudioCheckButton isCallActive={isCallActive} />
@@ -161,19 +142,8 @@ const Dialpad = () => {
         onBackspace={handleBackspace}
         disabled={isCallActive} // Disable editing number input during calls
       />
-      
-      <Tabs defaultValue="dialpad" className="w-full mt-4" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="dialpad">Dialpad</TabsTrigger>
-          <TabsTrigger value="shortcodes">Short Codes</TabsTrigger>
-        </TabsList>
-        <TabsContent value="dialpad" className="mt-4">
-          <DialpadGrid onKeyPress={handleKeyPress} isCallActive={isCallActive} />
-        </TabsContent>
-        <TabsContent value="shortcodes" className="mt-4">
-          <ShortCodes onShortCodeSelect={handleShortCodeSelect} />
-        </TabsContent>
-      </Tabs>
+
+      <DialpadGrid onKeyPress={handleKeyPress} isCallActive={isCallActive} />
 
       <CallControls
         isCallActive={isCallActive}

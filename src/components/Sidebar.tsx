@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -8,20 +7,18 @@ import { Home, Phone, Clock, Users, Settings, ChartBar, Voicemail, MessageSquare
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-
+import CallStatus from "@/components/CallStatus";
 interface SidebarProps {
-  // Make these props optional with default values
-  activeTab?: string;
-  setActiveTab?: (tab: string) => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
   connectionStatus: "connected" | "disconnected" | "connecting";
   doNotDisturb: boolean;
   setDoNotDisturb: (state: boolean) => void;
   userPresence: "available" | "away" | "busy" | "offline";
 }
-
 const Sidebar = ({
-  activeTab: propsActiveTab,
-  setActiveTab: propsSetActiveTab,
+  activeTab,
+  setActiveTab,
   connectionStatus,
   doNotDisturb,
   setDoNotDisturb,
@@ -29,8 +26,6 @@ const Sidebar = ({
 }: SidebarProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [activeTab, setActiveTab] = useState(() => propsActiveTab || "home");
-  
   const user = {
     name: "John Doe",
     avatar: null // Set to null to use the fallback icon
@@ -43,26 +38,6 @@ const Sidebar = ({
     messages: 5,
     voicemail: 3
   };
-  
-  // Update local activeTab state when URL hash changes
-  useEffect(() => {
-    const updateFromHash = () => {
-      const hash = window.location.hash.substring(1);
-      if (hash) {
-        setActiveTab(hash);
-      } else {
-        setActiveTab("home");
-      }
-    };
-    
-    // Set initial state from URL
-    updateFromHash();
-    
-    // Listen for hash changes
-    window.addEventListener('hashchange', updateFromHash);
-    return () => window.removeEventListener('hashchange', updateFromHash);
-  }, []);
-  
   const tabs = [{
     id: "home",
     label: "Home",
@@ -99,26 +74,11 @@ const Sidebar = ({
     label: "Settings",
     icon: <Settings className="w-[27.5px] h-[27.5px]" />
   }];
-  
-  const handleTabClick = (tabId: string) => {
-    // Update local state
-    setActiveTab(tabId);
-    
-    // Update parent state if function is provided
-    if (propsSetActiveTab) {
-      propsSetActiveTab(tabId);
-    }
-    
-    // Update the URL hash
-    window.location.hash = tabId;
-  };
-  
   const handleExpandToggle = () => {
     setIsTransitioning(true);
     setIsExpanded(!isExpanded);
     setTimeout(() => setIsTransitioning(false), 300);
   };
-  
   const getPresenceColor = () => {
     if (doNotDisturb) return "bg-softphone-error";
     switch (userPresence) {
@@ -132,12 +92,10 @@ const Sidebar = ({
         return "bg-gray-400";
     }
   };
-  
   const getPresenceText = () => {
     if (doNotDisturb) return "Do Not Disturb";
     return userPresence.charAt(0).toUpperCase() + userPresence.slice(1);
   };
-  
   const getStatusColor = () => {
     switch (connectionStatus) {
       case "connected":
@@ -148,7 +106,6 @@ const Sidebar = ({
         return "bg-red-500";
     }
   };
-  
   const getStatusText = () => {
     switch (connectionStatus) {
       case "connected":
@@ -159,7 +116,6 @@ const Sidebar = ({
         return "Disconnected";
     }
   };
-  
   return <div className={cn("h-full bg-softphone-dark flex flex-col border-r border-gray-700 transition-all duration-300", isExpanded ? "w-52" : "w-20")}>
       <div className="p-4 border-b border-gray-700">
         <div className={cn("flex items-center gap-3", !isExpanded && "justify-center")}>
@@ -195,7 +151,7 @@ const Sidebar = ({
           {tabs.map(tab => <Tooltip key={tab.id} delayDuration={300}>
               <TooltipTrigger asChild>
                 <div className="relative w-full px-3 mb-4">
-                  <Button variant="ghost" size={isExpanded ? "default" : "icon"} className={cn("w-full rounded-xl flex items-center gap-3", !isExpanded ? "justify-center" : "justify-start", activeTab === tab.id ? "bg-softphone-primary text-white" : "text-gray-400 hover:text-white hover:bg-gray-700")} onClick={() => handleTabClick(tab.id)}>
+                  <Button variant="ghost" size={isExpanded ? "default" : "icon"} className={cn("w-full rounded-xl flex items-center gap-3", !isExpanded ? "justify-center" : "justify-start", activeTab === tab.id ? "bg-softphone-primary text-white" : "text-gray-400 hover:text-white hover:bg-gray-700")} onClick={() => setActiveTab(tab.id)}>
                     {tab.icon}
                     {isExpanded && <div className={cn("flex items-center justify-between flex-1 transition-opacity duration-200", isTransitioning ? "opacity-0" : "opacity-100")}>
                         <span>{tab.label}</span>
@@ -232,5 +188,4 @@ const Sidebar = ({
       </div>
     </div>;
 };
-
 export default Sidebar;
