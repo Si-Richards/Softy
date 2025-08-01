@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import janusService from "@/services/JanusService";
 import { useIncomingCall } from '@/hooks/useIncomingCall';
 import { useJanusInitialization } from '@/hooks/useJanusInitialization';
+import { audioStreamManager } from '@/services/janus/audioStreamManager';
 
 export const useJanusSetup = () => {
   const {
@@ -26,6 +27,9 @@ export const useJanusSetup = () => {
 
   // Perform a connection status check on component mount and periodically
   useEffect(() => {
+    // Ensure AudioStreamManager is initialized
+    audioStreamManager.initialize();
+    
     // Set up Janus event handlers
     janusService.setOnIncomingCall(handleIncomingCall);
 

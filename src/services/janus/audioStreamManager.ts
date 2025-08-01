@@ -14,14 +14,14 @@ export class AudioStreamManager {
       return;
     }
 
-    console.log("Initializing AudioStreamManager");
+    console.log("🎵 Initializing AudioStreamManager");
     this.createAudioElement();
     this.initialized = true;
   }
 
   private createAudioElement(): void {
-    // Clean up any existing audio element
-    this.cleanup();
+    // Remove any conflicting audio elements first
+    this.removeConflictingElements();
 
     this.audioElement = document.createElement('audio');
     this.audioElement.id = 'remoteAudio';
@@ -40,8 +40,26 @@ export class AudioStreamManager {
     document.body.appendChild(this.audioElement);
   }
 
+  private removeConflictingElements(): void {
+    // Remove any existing audio elements that might conflict
+    const existingElements = ['remoteAudio', 'audioServiceElement'];
+    existingElements.forEach(id => {
+      const existing = document.getElementById(id);
+      if (existing) {
+        console.log(`🧹 Removing conflicting audio element: ${id}`);
+        existing.remove();
+      }
+    });
+  }
+
   setRemoteStream(stream: MediaStream): void {
     console.log("🎵 Setting remote stream:", stream.id);
+    
+    // Ensure we're initialized
+    if (!this.initialized) {
+      console.log("⚠️ AudioStreamManager not initialized, initializing now");
+      this.initialize();
+    }
     
     // Clean up previous stream listeners
     this.clearTrackListeners();
@@ -241,6 +259,19 @@ export class AudioStreamManager {
     this.initialized = false;
   }
 
+  /**
+   * Check if audio is currently playing
+   */
+  isAudioPlaying(): boolean {
+    if (!this.audioElement) return false;
+    
+    const hasStream = !!this.audioElement.srcObject;
+    const isPlaying = !this.audioElement.paused;
+    const hasActiveTracks = this.remoteStream?.getAudioTracks().filter(t => t.enabled && t.readyState === 'live').length > 0;
+    
+    return hasStream && isPlaying && !!hasActiveTracks;
+  }
+
   // Debug method to log current state
   logState(): void {
     console.log("🔍 AudioStreamManager State:", {
@@ -250,7 +281,8 @@ export class AudioStreamManager {
       remoteStreamTracks: this.remoteStream?.getAudioTracks().length || 0,
       trackListeners: this.trackListeners.size,
       audioElementSrc: this.audioElement?.srcObject ? 'present' : 'null',
-      audioElementPaused: this.audioElement?.paused
+      audioElementPaused: this.audioElement?.paused,
+      isPlaying: this.isAudioPlaying()
     });
   }
 }
