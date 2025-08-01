@@ -13,20 +13,94 @@ export class SipRegistrationManager {
 
   async register(username: string, password: string, sipHost: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      // Reset retry attempts for new registration requests
-      this.retryAttempts = 0;
+      const credentials = { username, password, sipHost };
       
-      // Clear any existing timer
-      if (this.registrationTimer) {
-        clearTimeout(this.registrationTimer);
-        this.registrationTimer = null;
+      // Check if we're already registered with same credentials
+      if (this.sipState.isRegistered() && !this.sipState.needsReregistration(credentials)) {
+        console.log("Already registered with same credentials, skipping registration");
+        resolve();
+        return;
       }
       
-      // Create registration request following Janus SIP demo format
-      this.registrationRequest = this.createRegistrationRequest(username, password, sipHost);
+      // Check if registration is already in progress
+      if (this.sipState.isRegistrationInProgress()) {
+        console.log("Registration already in progress, waiting...");
+        reject(new Error("Registration already in progress"));
+        return;
+      }
       
-      console.log("SIP Registration request created:", JSON.stringify(this.registrationRequest, null, 2));
-      this.performRegistration(resolve, reject);
+      // Unregister first if we're already registered with different credentials
+      if (this.sipState.isRegistered()) {
+        console.log("Unregistering existing session before new registration");
+        this.unregister().then(() => {
+          this.performNewRegistration(username, password, sipHost, resolve, reject);
+        }).catch(() => {
+          // Continue with registration even if unregister fails
+          this.performNewRegistration(username, password, sipHost, resolve, reject);
+        });
+      } else {
+        this.performNewRegistration(username, password, sipHost, resolve, reject);
+      }
+    });
+  }
+
+  private performNewRegistration(
+    username: string, 
+    password: string, 
+    sipHost: string, 
+    resolve: () => void, 
+    reject: (error: Error) => void
+  ): void {
+    // Reset retry attempts for new registration requests
+    this.retryAttempts = 0;
+    this.sipState.setRegistrationInProgress(true);
+    
+    // Clear any existing timer
+    if (this.registrationTimer) {
+      clearTimeout(this.registrationTimer);
+      this.registrationTimer = null;
+    }
+    
+    // Create registration request following Janus SIP demo format
+    this.registrationRequest = this.createRegistrationRequest(username, password, sipHost);
+    
+    console.log("SIP Registration request created:", JSON.stringify(this.registrationRequest, null, 2));
+    this.performRegistration(resolve, reject);
+  }
+
+  private async unregister(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (!this.sipState.getSipPlugin()) {
+        resolve();
+        return;
+      }
+
+      const unregisterRequest = {
+        request: "unregister"
+      };
+
+      console.log("Sending unregister request");
+      
+      this.sipState.getSipPlugin().send({
+        message: unregisterRequest,
+        success: () => {
+          console.log("Successfully unregistered");
+          this.sipState.setRegistered(false);
+          resolve();
+        },
+        error: (error: any) => {
+          console.warn("Error during unregister:", error);
+          this.sipState.setRegistered(false);
+          resolve(); // Resolve anyway to continue with new registration
+        }
+      });
+
+      // Timeout for unregister
+      setTimeout(() => {
+        console.warn("Unregister timed out, continuing with new registration");
+        this.sipState.setRegistered(false);
+        resolve();
+      }, 5000);
     });
   }
 
@@ -128,7 +202,8 @@ export class SipRegistrationManager {
             });
           }
           
-          resolve();
+          // Don't resolve here - wait for actual registration success
+          console.log("Registration request sent, waiting for server response...");
         },
         error: (error: any) => {
           // Clear the timer if we get an immediate error

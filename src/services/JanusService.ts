@@ -2,6 +2,7 @@ import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
 import audioService from '@/services/AudioService';
+import { audioStreamManager } from './janus/audioStreamManager';
 
 class JanusService {
   private janus: any = null;
@@ -18,6 +19,9 @@ class JanusService {
   constructor() {
     this.eventHandlers = new JanusEventHandlers();
     this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
+    
+    // Initialize audio stream manager
+    audioStreamManager.initialize();
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
@@ -124,116 +128,28 @@ class JanusService {
           });
         },
         onremotestream: (stream: MediaStream) => {
-          console.log("Got remote stream", stream);
+          console.log("📡 Got remote stream", stream);
           
-          // Log remote stream details for debugging
-          console.log("Remote stream details:", {
-            id: stream.id,
-            active: stream.active,
-            audioTracks: stream.getAudioTracks().length,
-            videoTracks: stream.getVideoTracks().length
-          });
-          
-          // Clean up previous track listeners
-          this.clearTrackListeners();
-          
-          // Set up listeners for all audio tracks
-          stream.getAudioTracks().forEach((track, idx) => {
-            console.log(`Remote audio track ${idx}:`, {
-              enabled: track.enabled,
-              muted: track.muted,
-              readyState: track.readyState,
-              id: track.id,
-              label: track.label
-            });
-            
-            // Ensure tracks are enabled
-            if (!track.enabled) {
-              console.log("Enabling disabled remote audio track");
-              track.enabled = true;
-            }
-            
-            // Setup listeners for track status changes
-            const onEnded = () => {
-              console.warn(`Audio track ${track.id} ended - attempting to re-enable`);
-              // Try to re-enable the track if possible
-              if (track.readyState !== 'ended') {
-                track.enabled = true;
-              }
-            };
-            
-            track.addEventListener('ended', onEnded);
-            this.trackListeners.set(track.id, onEnded);
-            
-            // Also listen for muted events
-            track.addEventListener('mute', () => {
-              console.warn(`Audio track ${track.id} was muted - unmuting`);
-              track.enabled = true;
-            });
-            
-            // Directly attach this track to our audio service right away
-            audioService.attachAudioTrack(track);
-          });
-          
+          // Use centralized audio stream manager
+          audioStreamManager.setRemoteStream(stream);
           this.remoteStream = stream;
           
-          // Also attach the entire stream to the audio service for redundancy
+          // Also notify audio service for compatibility
           audioService.attachStream(stream);
-          
-          // Apply audio output device if supported
-          const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-          if (savedAudioOutput) {
-            console.log("Setting saved audio output device:", savedAudioOutput);
-            audioService.setAudioOutput(savedAudioOutput)
-              .catch(error => console.warn("Couldn't set audio output:", error));
-          }
-          
-          // Try to auto-play the audio immediately
-          setTimeout(() => {
-            console.log("Attempting to auto-play audio after receiving remote stream");
-            audioService.forcePlayAudio()
-              .catch(e => console.warn("Auto-play error after receiving stream:", e));
-          }, 300);
         },
         oncleanup: () => {
-          console.log("SIP plugin cleaned up");
-          this.clearTrackListeners();
+          console.log("🧹 SIP plugin cleaned up");
+          audioStreamManager.cleanup();
           this.localStream = null;
           this.remoteStream = null;
         },
-        // NEW: Add explicit ontrack handler
+        // Explicit ontrack handler - use centralized manager
         ontrack: (track: MediaStreamTrack, mid: string, on: boolean) => {
-          console.log(`TRACK RECEIVED! kind=${track.kind}, id=${track.id}, mid=${mid}, enabled=${on}`);
+          console.log(`🎵 TRACK RECEIVED! kind=${track.kind}, id=${track.id}, mid=${mid}, enabled=${on}`);
           
-          // For audio tracks, handle immediately
           if (track.kind === 'audio') {
-            console.log(`Audio track received:`, {
-              id: track.id,
-              label: track.label,
-              enabled: track.enabled,
-              muted: track.muted,
-              readyState: track.readyState
-            });
-            
-            // Save the track for debugging and further use
+            audioStreamManager.addTrackDirectly(track);
             this.receivedTracks.push(track);
-            
-            // Create a dedicated stream for this track if needed
-            if (!this.remoteStream) {
-              this.remoteStream = new MediaStream();
-            }
-            
-            // Add the track to our remote stream
-            this.remoteStream.addTrack(track);
-            
-            // Ensure the track is enabled
-            track.enabled = true;
-            
-            // Direct attach to audio service immediately
-            audioService.attachAudioTrack(track);
-            
-            // Create a dedicated audio element for immediate playback
-            this.createTrackAudioElement(track);
           }
         }
       });
@@ -1003,6 +919,11 @@ class JanusService {
   }
   
   disconnect(): void {
+    console.log("🔌 Disconnecting Janus service");
+    
+    // Clean up audio stream manager
+    audioStreamManager.cleanup();
+    
     // Clean up track listeners
     this.clearTrackListeners();
     
