@@ -264,7 +264,6 @@ export class ImprovedSipRegistration {
       authuser: user,
       refresh: true,
       register: true,
-      contact_params: null,
       headers: {
         "User-Agent": "Janus SIP Plugin",
         "X-Janus-SIP-Client": "Lovable WebRTC"
