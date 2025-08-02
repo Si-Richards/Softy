@@ -71,12 +71,23 @@ class JanusService {
     };
 
     sipPlugin.oncleanup = () => {
+      console.log('🧹 SIP plugin cleanup triggered');
       unifiedAudioManager.cleanup();
       this.localStream = null;
       this.remoteStream = null;
+      
+      // Notify registration manager about session destruction
+      if (this.sipRegistration) {
+        this.sipRegistration.onSessionDestroyed();
+      }
     };
 
     this.sessionManager.setSipPlugin(sipPlugin);
+    
+    // Update registration manager with new plugin reference
+    if (this.sipRegistration) {
+      this.sipRegistration.updateSipPlugin(sipPlugin);
+    }
   }
 
   private handleSipMessage(msg: any, jsep?: any): void {
@@ -185,6 +196,20 @@ class JanusService {
     if (!this.sipRegistration) {
       throw new Error("SIP registration manager not initialized");
     }
+    
+    // Validate session state before attempting registration
+    if (!this.sessionManager.isConnected()) {
+      throw new Error("Janus session not connected - cannot register");
+    }
+    
+    const sipPlugin = this.sessionManager.getSipPlugin();
+    if (!sipPlugin) {
+      throw new Error("SIP plugin not attached - cannot register");
+    }
+    
+    // Ensure registration manager has current plugin reference
+    this.sipRegistration.updateSipPlugin(sipPlugin);
+    
     return this.sipRegistration.register(username, password, sipHost);
   }
 

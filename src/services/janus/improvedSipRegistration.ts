@@ -89,8 +89,28 @@ export class ImprovedSipRegistration {
 
   private async attemptRegistration(username: string, password: string, sipHost: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      // Validate SIP plugin and session handle before attempting registration
       if (!this.sipPlugin) {
         reject(new Error('SIP plugin not available'));
+        return;
+      }
+
+      // Check if plugin handle is still valid (not destroyed)
+      if (!this.sipPlugin.getPlugin || !this.sipPlugin.getId) {
+        reject(new Error('SIP plugin handle is invalid - session may have been destroyed'));
+        return;
+      }
+
+      // Additional validation for Janus session state
+      try {
+        const pluginId = this.sipPlugin.getId();
+        if (!pluginId) {
+          reject(new Error('SIP plugin ID is invalid - session not properly established'));
+          return;
+        }
+        console.log(`🔗 Using SIP plugin handle ID: ${pluginId}`);
+      } catch (error) {
+        reject(new Error('Failed to validate SIP plugin handle - session may be destroyed'));
         return;
       }
 
@@ -111,6 +131,12 @@ export class ImprovedSipRegistration {
           console.log(`🔄 Retrying registration (${this.retryAttempts}/${this.maxRetries})`);
           
           setTimeout(() => {
+            // Re-validate plugin handle before retry
+            if (!this.sipPlugin || !this.sipPlugin.getId) {
+              reject(new Error('Cannot retry - SIP plugin handle is invalid'));
+              return;
+            }
+            
             this.attemptRegistration(username, password, sipHost)
               .then(resolve)
               .catch(reject);
@@ -120,29 +146,43 @@ export class ImprovedSipRegistration {
         }
       }, 30000);
 
-      // Send registration request
-      this.sipPlugin.send({
-        message: request,
-        success: () => {
-          console.log('📤 Registration request sent successfully');
-          // Don't resolve here - wait for actual registration event
-        },
-        error: (error: any) => {
-          this.clearRegistrationTimer();
-          
-          const errorMsg = `Registration request failed: ${error}`;
-          console.error('❌', errorMsg);
-          
-          // Handle "Already registered" specifically
-          if (error.toString().includes('already registered') || 
-              error.toString().includes('Already registered')) {
-            console.log('🔄 Already registered error - will unregister first');
-            this.handleAlreadyRegisteredError(username, password, sipHost, resolve, reject);
-          } else {
-            reject(new Error(errorMsg));
+      // Send registration request with additional error handling
+      try {
+        this.sipPlugin.send({
+          message: request,
+          success: () => {
+            console.log('📤 Registration request sent successfully');
+            // Don't resolve here - wait for actual registration event
+          },
+          error: (error: any) => {
+            this.clearRegistrationTimer();
+            
+            const errorString = error?.toString() || String(error);
+            console.error('❌ Registration request error:', errorString);
+            
+            // Handle "Missing session or Sofia stack" specifically
+            if (errorString.includes('Missing session') || errorString.includes('Sofia stack')) {
+              console.error('🚨 Session destroyed during registration - handle is invalid');
+              reject(new Error('Session destroyed - SIP plugin handle is no longer valid'));
+              return;
+            }
+            
+            // Handle "Already registered" specifically
+            if (errorString.includes('already registered') || 
+                errorString.includes('Already registered')) {
+              console.log('🔄 Already registered error - will unregister first');
+              this.handleAlreadyRegisteredError(username, password, sipHost, resolve, reject);
+            } else {
+              reject(new Error(`Registration request failed: ${errorString}`));
+            }
           }
-        }
-      });
+        });
+      } catch (sendError) {
+        this.clearRegistrationTimer();
+        const errorMsg = `Failed to send registration request: ${sendError}`;
+        console.error('❌', errorMsg);
+        reject(new Error(errorMsg));
+      }
     });
   }
 
@@ -319,6 +359,23 @@ export class ImprovedSipRegistration {
     return this.registeredCredentials.username === credentials.username &&
            this.registeredCredentials.password === credentials.password &&
            this.registeredCredentials.sipHost === credentials.sipHost;
+  }
+
+  // Session lifecycle methods
+  onSessionDestroyed(): void {
+    console.log('🧹 Session destroyed - resetting SIP registration state');
+    this.clearRegistrationTimer();
+    this.registeredCredentials = null;
+    this.registrationInProgress = false;
+    this.registrationPromise = null;
+    this.unregistrationPromise = null;
+    this.retryAttempts = 0;
+    // Don't reset sipPlugin reference here - let the session manager handle it
+  }
+
+  updateSipPlugin(newSipPlugin: any): void {
+    console.log('🔄 Updating SIP plugin reference');
+    this.sipPlugin = newSipPlugin;
   }
 
   // Reset state
