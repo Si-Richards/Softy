@@ -42,6 +42,9 @@ class JanusService {
       this.configureSipPlugin(sipPlugin);
       this.sipRegistration = new ImprovedSipRegistration(sipPlugin);
       
+      // Add delay for SIP plugin Sofia stack initialization
+      await this.waitForSipPluginReady();
+      
       if (options.success) options.success();
       return true;
     } catch (error: any) {
@@ -51,6 +54,16 @@ class JanusService {
       await this.disconnect();
       throw new Error(errorMsg);
     }
+  }
+
+  private async waitForSipPluginReady(): Promise<void> {
+    console.log('🕐 Waiting for SIP plugin Sofia stack to initialize...');
+    return new Promise(resolve => {
+      setTimeout(() => {
+        console.log('✅ SIP plugin should be ready now');
+        resolve();
+      }, 1000); // 1 second delay for Sofia stack initialization
+    });
   }
 
   private configureSipPlugin(sipPlugin: any): void {
