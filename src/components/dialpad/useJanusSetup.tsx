@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import improvedJanusService from "@/services/ImprovedJanusService";
+import janusService from "@/services/JanusService";
 import { useIncomingCall } from '@/hooks/useIncomingCall';
 import { useJanusInitialization } from '@/hooks/useJanusInitialization';
 import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
@@ -31,32 +31,32 @@ export const useJanusSetup = () => {
     unifiedAudioManager.initialize();
     
     // Set up Janus event handlers
-    improvedJanusService.setOnIncomingCall(handleIncomingCall);
+    janusService.setOnIncomingCall(handleIncomingCall);
 
-    improvedJanusService.setOnCallConnected(() => {
+    janusService.setOnCallConnected(() => {
       // This is handled by useCallControls
     });
 
-    improvedJanusService.setOnCallEnded(() => {
+    janusService.setOnCallEnded(() => {
       // Call handleCallEnded from useIncomingCall to update history
       handleCallEnded();
     });
 
-    improvedJanusService.setOnError(handleError);
+    janusService.setOnError(handleError);
 
     // Check if Janus is already initialized
-    if (improvedJanusService.isJanusConnected()) {
+    if (janusService.isJanusConnected()) {
       setIsJanusConnected(true);
       
-      if (improvedJanusService.isRegistered()) {
+      if (janusService.isRegistered()) {
         setIsRegistered(true);
       }
     }
 
     // Setup periodic check (every 10 seconds) for connection status
     const checkConnectionInterval = setInterval(() => {
-      const connected = improvedJanusService.isJanusConnected();
-      const registered = improvedJanusService.isRegistered();
+      const connected = janusService.isJanusConnected();
+      const registered = janusService.isRegistered();
       
       setIsJanusConnected(connected);
       setIsRegistered(registered);
@@ -79,7 +79,7 @@ export const useJanusSetup = () => {
     handleRejectCall,
     initializeJanus,
     registerWithJanus,
-    janusService: improvedJanusService,
+    janusService,
     notificationsEnabled
   };
 };

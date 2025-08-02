@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useCallHistory } from "@/hooks/useCallHistory";
-import improvedJanusService from "@/services/ImprovedJanusService";
+import janusService from "@/services/JanusService";
 import { PhoneIncoming, BellRing } from "lucide-react";
 import { AudioCallOptions } from '@/services/janus/sip/types';
 import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
@@ -120,7 +120,7 @@ export const useIncomingCall = () => {
         const audioOptions = getAudioOptions();
         console.log("Using audio options for incoming call:", audioOptions);
         
-        await improvedJanusService.acceptCall(incomingCall.jsep, audioOptions);
+        await janusService.acceptCall(incomingCall.jsep, audioOptions);
         toast({
           title: "Call Accepted",
           description: "You have accepted the call",
@@ -130,7 +130,7 @@ export const useIncomingCall = () => {
         const savedAudioOutput = audioOptions.audioOutput;
         if (savedAudioOutput) {
           setTimeout(() => {
-            const remoteStream = improvedJanusService.getRemoteStream();
+            const remoteStream = janusService.getRemoteStream();
             if (remoteStream) {
               try {
                 // Use unified audio manager
@@ -178,7 +178,7 @@ export const useIncomingCall = () => {
       });
     }
     
-    improvedJanusService.hangup();
+    janusService.hangup();
     setIncomingCall(null);
     setCallStartTime(null);
     

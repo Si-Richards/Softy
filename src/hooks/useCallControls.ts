@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import improvedJanusService from "@/services/ImprovedJanusService";
+import janusService from "@/services/JanusService";
 import { useCallHistory } from "./useCallHistory";
 import { AudioCallOptions } from "@/services/janus/sip/types";
 import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
@@ -25,7 +25,7 @@ export const useCallControls = () => {
   useEffect(() => {
     if (isCallActive) {
       const interval = setInterval(() => {
-        const remoteStream = improvedJanusService.getRemoteStream();
+        const remoteStream = janusService.getRemoteStream();
         if (remoteStream) {
           console.log("Remote stream audio monitoring:");
           console.log("- Audio tracks count:", remoteStream.getAudioTracks().length);
@@ -92,7 +92,7 @@ export const useCallControls = () => {
     if (isCallActive) {
       try {
         if (isJanusConnected) {
-          await improvedJanusService.hangup();
+          await janusService.hangup();
         }
         
         // Log the call to history when ended
@@ -162,7 +162,7 @@ export const useCallControls = () => {
           });
           
           // Fixed: Pass audioOptions as the second parameter, with false for isVideoCall
-          await improvedJanusService.call(formattedNumber, false, audioOptions);
+          await janusService.call(formattedNumber, false, audioOptions);
           setIsCallActive(true);
           setCallStartTime(new Date());
           
@@ -176,14 +176,14 @@ export const useCallControls = () => {
           // Ensure audio output is set correctly
           const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
           setTimeout(() => {
-            const remoteStream = improvedJanusService.getRemoteStream();
+            const remoteStream = janusService.getRemoteStream();
             if (remoteStream && savedAudioOutput) {
               unifiedAudioManager.setAudioOutput(savedAudioOutput).catch(e => console.warn("Audio output error:", e));
             }
           }, 1000); // Short delay to ensure stream is available
           
           const interval = setInterval(() => {
-            const remoteStream = improvedJanusService.getRemoteStream();
+            const remoteStream = janusService.getRemoteStream();
             if (remoteStream) {
               console.log("Remote stream audio monitoring:");
               console.log("- Audio tracks count:", remoteStream.getAudioTracks().length);
@@ -249,8 +249,8 @@ export const useCallControls = () => {
     const newMutedState = !muted;
     setMuted(newMutedState);
     
-    if (improvedJanusService.getLocalStream()) {
-      improvedJanusService.getLocalStream()?.getAudioTracks().forEach(track => {
+    if (janusService.getLocalStream()) {
+      janusService.getLocalStream()?.getAudioTracks().forEach(track => {
         console.log("Setting audio track enabled:", !newMutedState);
         track.enabled = !newMutedState;
       });
