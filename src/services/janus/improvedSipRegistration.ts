@@ -116,12 +116,12 @@ export class ImprovedSipRegistration {
 
       // Check if SIP plugin operations are supported (indicates Sofia stack readiness)
       if (!this.isPluginReady()) {
-        console.log('⏳ SIP plugin not ready yet, waiting...');
+        console.log('⏳ SIP plugin not ready yet, waiting longer...');
         setTimeout(() => {
           this.attemptRegistration(username, password, sipHost)
             .then(resolve)
             .catch(reject);
-        }, 500);
+        }, 2000); // Increased from 500ms to 2000ms for Sofia stack
         return;
       }
 
@@ -171,16 +171,18 @@ export class ImprovedSipRegistration {
             const errorString = error?.toString() || String(error);
             console.error('❌ Registration request error:', errorString);
             
-            // Handle "Missing session or Sofia stack" specifically
+            // Handle "Missing session or Sofia stack" error specifically
             if (errorString.includes('Missing session') || errorString.includes('Sofia stack')) {
-              console.error('🚨 Session destroyed during registration - handle is invalid');
-              reject(new Error('Session destroyed - SIP plugin handle is no longer valid'));
-              return;
-            }
-            
+              console.log('🔄 Sofia stack not ready, retrying with longer delay...');
+              setTimeout(() => {
+                this.attemptRegistration(username, password, sipHost)
+                  .then(resolve)
+                  .catch(reject);
+              }, 5000); // 5 second delay for Sofia stack recovery
+            } 
             // Handle "Already registered" specifically
-            if (errorString.includes('already registered') || 
-                errorString.includes('Already registered')) {
+            else if (errorString.includes('already registered') || 
+                     errorString.includes('Already registered')) {
               console.log('🔄 Already registered error - will unregister first');
               this.handleAlreadyRegisteredError(username, password, sipHost, resolve, reject);
             } else {
@@ -389,15 +391,35 @@ export class ImprovedSipRegistration {
     this.sipPlugin = newSipPlugin;
   }
 
-  // Plugin readiness check to ensure Sofia stack is initialized
+  // Enhanced plugin readiness check to ensure Sofia stack is initialized
   private isPluginReady(): boolean {
-    if (!this.sipPlugin) return false;
+    if (!this.sipPlugin) {
+      console.warn('🔧 No SIP plugin available');
+      return false;
+    }
     
     try {
-      // Try to access plugin methods - if they fail, Sofia stack isn't ready
-      return typeof this.sipPlugin.send === 'function' && 
-             typeof this.sipPlugin.getId === 'function' &&
-             this.sipPlugin.getId() !== null;
+      // Comprehensive readiness checks for Sofia stack
+      const hasBasicMethods = typeof this.sipPlugin.send === 'function' && 
+                             typeof this.sipPlugin.getId === 'function' &&
+                             this.sipPlugin.getId() !== null;
+      
+      const hasPluginInfo = this.sipPlugin.getPlugin() === 'janus.plugin.sip';
+      
+      const isPluginAttached = this.sipPlugin.webrtcStuff !== undefined;
+      
+      const isReady = hasBasicMethods && hasPluginInfo && isPluginAttached;
+      
+      if (!isReady) {
+        console.warn('🔧 Plugin readiness check details:', {
+          hasBasicMethods,
+          hasPluginInfo,
+          isPluginAttached,
+          pluginId: this.sipPlugin.getId()
+        });
+      }
+      
+      return isReady;
     } catch (error) {
       console.warn('🔧 Plugin readiness check failed:', error);
       return false;

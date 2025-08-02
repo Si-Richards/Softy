@@ -58,12 +58,43 @@ class JanusService {
 
   private async waitForSipPluginReady(): Promise<void> {
     console.log('🕐 Waiting for SIP plugin Sofia stack to initialize...');
-    return new Promise(resolve => {
-      setTimeout(() => {
-        console.log('✅ SIP plugin should be ready now');
-        resolve();
-      }, 1000); // 1 second delay for Sofia stack initialization
-    });
+    
+    // Extended delay for Sofia stack initialization (3 seconds)
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Health check to verify Sofia stack is ready
+    const maxHealthChecks = 5;
+    let healthCheckAttempts = 0;
+    
+    while (healthCheckAttempts < maxHealthChecks) {
+      if (await this.performSofiaStackHealthCheck()) {
+        console.log('✅ SIP plugin Sofia stack is ready and operational');
+        return;
+      }
+      
+      healthCheckAttempts++;
+      console.log(`🔄 Sofia stack health check ${healthCheckAttempts}/${maxHealthChecks}...`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.warn('⚠️ Sofia stack health checks completed, proceeding anyway');
+  }
+
+  private async performSofiaStackHealthCheck(): Promise<boolean> {
+    try {
+      const sipPlugin = this.sessionManager.getSipPlugin();
+      if (!sipPlugin || !sipPlugin.getId()) {
+        return false;
+      }
+      
+      // Check if the plugin can receive basic SIP operations
+      return typeof sipPlugin.send === 'function' &&
+             typeof sipPlugin.getId === 'function' &&
+             sipPlugin.getPlugin() === 'janus.plugin.sip';
+    } catch (error) {
+      console.warn('🔧 Sofia stack health check failed:', error);
+      return false;
+    }
   }
 
   private configureSipPlugin(sipPlugin: any): void {
