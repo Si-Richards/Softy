@@ -1,7 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import janusService from "@/services/JanusService";
+import improvedJanusService from "@/services/ImprovedJanusService";
 
 export const useJanusInitialization = () => {
   const [isJanusConnected, setIsJanusConnected] = useState(false);
@@ -12,11 +12,11 @@ export const useJanusInitialization = () => {
   // Check initial state on mount
   useEffect(() => {
     // Check if already connected
-    if (janusService.isJanusConnected()) {
+    if (improvedJanusService.isJanusConnected()) {
       console.log("Janus already connected on mount");
       setIsJanusConnected(true);
       
-      if (janusService.isRegistered()) {
+      if (improvedJanusService.isRegistered()) {
         console.log("SIP already registered on mount");
         setIsRegistered(true);
       }
@@ -28,7 +28,7 @@ export const useJanusInitialization = () => {
       setErrorMessage(null);
       console.log("Initializing Janus connection...");
       
-      await janusService.initialize({
+      await improvedJanusService.initialize({
         server: 'wss://devrtc.voicehost.io:443/janus',
         apiSecret: 'overlord',
         success: () => {
@@ -81,7 +81,7 @@ export const useJanusInitialization = () => {
       // Log registration attempt with detailed parameters
       console.log(`Registration parameters: username=${username}, host=${host}`);
       
-      await janusService.register(username, password, host);
+      await improvedJanusService.register(username, password, host);
       
       // Registration status will be updated by event handlers
       // No need for timeout since we have proper event handling now

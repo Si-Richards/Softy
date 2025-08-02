@@ -1,8 +1,9 @@
 import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
-import audioService from '@/services/AudioService';
-import { audioStreamManager } from './janus/audioStreamManager';
+import { ImprovedSessionManager } from './janus/improvedSessionManager';
+import { unifiedAudioManager } from './janus/unifiedAudioManager';
+import { ImprovedSipRegistration } from './janus/improvedSipRegistration';
 
 class JanusService {
   private janus: any = null;

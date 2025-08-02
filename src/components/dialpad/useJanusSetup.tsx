@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import janusService from "@/services/JanusService";
+import improvedJanusService from "@/services/ImprovedJanusService";
 import { useIncomingCall } from '@/hooks/useIncomingCall';
 import { useJanusInitialization } from '@/hooks/useJanusInitialization';
-import { audioStreamManager } from '@/services/janus/audioStreamManager';
+import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
 
 export const useJanusSetup = () => {
   const {
@@ -27,36 +27,36 @@ export const useJanusSetup = () => {
 
   // Perform a connection status check on component mount and periodically
   useEffect(() => {
-    // Ensure AudioStreamManager is initialized
-    audioStreamManager.initialize();
+    // Ensure UnifiedAudioManager is initialized
+    unifiedAudioManager.initialize();
     
     // Set up Janus event handlers
-    janusService.setOnIncomingCall(handleIncomingCall);
+    improvedJanusService.setOnIncomingCall(handleIncomingCall);
 
-    janusService.setOnCallConnected(() => {
+    improvedJanusService.setOnCallConnected(() => {
       // This is handled by useCallControls
     });
 
-    janusService.setOnCallEnded(() => {
+    improvedJanusService.setOnCallEnded(() => {
       // Call handleCallEnded from useIncomingCall to update history
       handleCallEnded();
     });
 
-    janusService.setOnError(handleError);
+    improvedJanusService.setOnError(handleError);
 
     // Check if Janus is already initialized
-    if (janusService.isJanusConnected()) {
+    if (improvedJanusService.isJanusConnected()) {
       setIsJanusConnected(true);
       
-      if (janusService.isRegistered()) {
+      if (improvedJanusService.isRegistered()) {
         setIsRegistered(true);
       }
     }
 
     // Setup periodic check (every 10 seconds) for connection status
     const checkConnectionInterval = setInterval(() => {
-      const connected = janusService.isJanusConnected();
-      const registered = janusService.isRegistered();
+      const connected = improvedJanusService.isJanusConnected();
+      const registered = improvedJanusService.isRegistered();
       
       setIsJanusConnected(connected);
       setIsRegistered(registered);
@@ -79,7 +79,7 @@ export const useJanusSetup = () => {
     handleRejectCall,
     initializeJanus,
     registerWithJanus,
-    janusService,
+    janusService: improvedJanusService,
     notificationsEnabled
   };
 };

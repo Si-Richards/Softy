@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useCallHistory } from "@/hooks/useCallHistory";
-import janusService from "@/services/JanusService";
+import improvedJanusService from "@/services/ImprovedJanusService";
 import { PhoneIncoming, BellRing } from "lucide-react";
 import { AudioCallOptions } from '@/services/janus/sip/types';
-import { AudioElementHandler } from '@/services/janus/utils/audioElementHandler';
+import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
 
 export const useIncomingCall = () => {
   const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
@@ -120,7 +120,7 @@ export const useIncomingCall = () => {
         const audioOptions = getAudioOptions();
         console.log("Using audio options for incoming call:", audioOptions);
         
-        await janusService.acceptCall(incomingCall.jsep, audioOptions);
+        await improvedJanusService.acceptCall(incomingCall.jsep, audioOptions);
         toast({
           title: "Call Accepted",
           description: "You have accepted the call",
@@ -130,19 +130,15 @@ export const useIncomingCall = () => {
         const savedAudioOutput = audioOptions.audioOutput;
         if (savedAudioOutput) {
           setTimeout(() => {
-            const remoteStream = janusService.getRemoteStream();
+            const remoteStream = improvedJanusService.getRemoteStream();
             if (remoteStream) {
               try {
-                // Use our consistent audio element handler
-                AudioElementHandler.getAudioElement().srcObject = remoteStream;
+                // Use unified audio manager
+                unifiedAudioManager.setRemoteStream(remoteStream);
                 if (savedAudioOutput) {
-                  AudioElementHandler.setAudioOutput(savedAudioOutput)
+                  unifiedAudioManager.setAudioOutput(savedAudioOutput)
                     .catch(e => console.warn("Error setting audio output:", e));
                 }
-                
-                // Try to play the audio
-                AudioElementHandler.playStream(remoteStream)
-                  .catch(e => console.warn("Error starting playback:", e));
               } catch (error) {
                 console.error("Error handling audio for incoming call:", error);
               }
@@ -182,7 +178,7 @@ export const useIncomingCall = () => {
       });
     }
     
-    janusService.hangup();
+    improvedJanusService.hangup();
     setIncomingCall(null);
     setCallStartTime(null);
     
