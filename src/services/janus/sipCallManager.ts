@@ -225,15 +225,65 @@ export class SipCallManager {
     audio.autoplay = true;
     audio.srcObject = stream;
     audio.volume = 1.0;
-    document.body.appendChild(audio);
     
+    // Set output device if specified
+    const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
+    if (savedAudioOutput && 'setSinkId' in HTMLAudioElement.prototype) {
+      (audio as any).setSinkId(savedAudioOutput)
+        .catch((e: any) => console.warn("Error setting audio output:", e));
+    }
+    
+    document.body.appendChild(audio);
     console.log("🎵 Audio element created and appended");
     
     // Try to play
     audio.play().catch(e => {
-      console.log("🎵 Autoplay failed, adding controls:", e.message);
+      console.log("🎵 Autoplay failed - user interaction needed:", e.message);
       audio.controls = true;
+      audio.style.display = 'block';
+      audio.style.position = 'fixed';
+      audio.style.bottom = '10px';
+      audio.style.right = '10px';
+      audio.style.zIndex = '1000';
+      
+      // Show user interaction prompt
+      this.showUserInteractionPrompt();
     });
+  }
+
+  /**
+   * Show a simple prompt for user interaction to enable audio
+   */
+  private showUserInteractionPrompt(): void {
+    // Only show if not already shown
+    if (document.getElementById('audio-enable-prompt')) return;
+    
+    const prompt = document.createElement('div');
+    prompt.id = 'audio-enable-prompt';
+    prompt.style.position = 'fixed';
+    prompt.style.top = '20px';
+    prompt.style.right = '20px';
+    prompt.style.background = 'rgba(0,0,0,0.8)';
+    prompt.style.color = 'white';
+    prompt.style.padding = '15px';
+    prompt.style.borderRadius = '8px';
+    prompt.style.zIndex = '10000';
+    prompt.style.cursor = 'pointer';
+    prompt.textContent = 'Click to enable call audio';
+    
+    prompt.onclick = () => {
+      const audio = document.getElementById('remoteAudio') as HTMLAudioElement;
+      if (audio) {
+        audio.play()
+          .then(() => {
+            console.log("🎵 Audio enabled after user interaction");
+            prompt.remove();
+          })
+          .catch(e => console.warn("Still couldn't play audio:", e));
+      }
+    };
+    
+    document.body.appendChild(prompt);
   }
 
   async hangup(): Promise<void> {
