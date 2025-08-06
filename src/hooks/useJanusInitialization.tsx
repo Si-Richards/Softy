@@ -83,9 +83,27 @@ export const useJanusInitialization = () => {
       
       await janusService.register(username, password, host);
       
-      // Registration status will be updated by event handlers
-      // No need for timeout since we have proper event handling now
-      console.log("SIP registration request sent, waiting for server response...");
+      // Set a longer timeout to verify registration was successful
+      // Some SIP servers may take longer to respond
+      setTimeout(() => {
+        if (janusService.isRegistered()) {
+          console.log("SIP registration confirmed successful");
+          setIsRegistered(true);
+          toast({
+            title: "SIP Registration Successful",
+            description: "You are now registered with the SIP server",
+          });
+        } else {
+          console.warn("SIP registration check failed");
+          setIsRegistered(false);
+          setErrorMessage("Registration didn't complete properly. Please try again.");
+          toast({
+            title: "Registration Failed",
+            description: "Registration timed out. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }, 5000); // Increased to 5 seconds for slower servers
     } catch (error) {
       console.error("Registration error:", error);
       setErrorMessage("Failed to register with SIP server");

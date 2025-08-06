@@ -2,7 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
-import { audioStreamManager } from "@/services/janus/audioStreamManager";
+import { AudioOutputHandler } from "@/services/janus/utils/audioOutputHandler";
+import audioService from "@/services/AudioService";
 import userInteractionService from "@/services/UserInteractionService";
 import AudioStatusIndicator from "@/components/audio/AudioStatusIndicator";
 
@@ -38,15 +39,12 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
         // If we're in a call, try to play audio now that we have interaction
         if (isCallActive) {
           console.log("AudioStatus: In call with user interaction - attempting to play audio");
-          audioStreamManager.forcePlay()
-            .then(() => {
-              console.log("Audio playback after interaction succeeded");
-              setIsAudioPaused(false);
+          audioService.forcePlayAudio()
+            .then(success => {
+              console.log("Audio playback after interaction:", success ? "succeeded" : "failed");
+              setIsAudioPaused(!success);
             })
-            .catch(e => {
-              console.warn("Play after interaction error:", e);
-              setIsAudioPaused(true);
-            });
+            .catch(e => console.warn("Play after interaction error:", e));
         }
       });
     }
@@ -56,16 +54,12 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
       if (!document.hidden && isCallActive && browserHasInteracted) {
         console.log("Document became visible during call - checking audio status");
         setTimeout(() => {
-          const audioElement = audioStreamManager.getAudioElement();
-          const isAudioCurrentlyPlaying = audioElement && !audioElement.paused && audioElement.srcObject;
+          const isAudioCurrentlyPlaying = audioService.isAudioPlaying();
           if (!isAudioCurrentlyPlaying) {
             console.log("Audio not playing after visibility change, attempting to resume");
-            audioStreamManager.forcePlay()
-              .then(() => setIsAudioPaused(false))
-              .catch(e => {
-                console.warn("Resume after visibility change failed:", e);
-                setIsAudioPaused(true);
-              });
+            audioService.forcePlayAudio()
+              .then(success => setIsAudioPaused(!success))
+              .catch(e => console.warn("Resume after visibility change failed:", e));
           }
         }, 300);
       }
@@ -84,8 +78,8 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
       try {
         const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
         if (savedAudioOutput) {
-          // Set the audio stream manager's output device
-          await audioStreamManager.setAudioOutput(savedAudioOutput);
+          // Set the audio service's output device
+          await audioService.setAudioOutput(savedAudioOutput);
         }
       } catch (error) {
         console.error("Error setting audio output device:", error);
@@ -109,8 +103,15 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
         console.log("No user interaction yet, showing audio prompt");
         setIsAudioPaused(true);
         
-        // User will need to interact via our UI
-        setIsAudioPaused(true);
+        // Try to prompt for interaction
+        AudioOutputHandler.promptForUserInteraction()
+          .then(interacted => {
+            if (interacted) {
+              console.log("User interacted with prompt, trying playback");
+              setBrowserHasInteracted(true);
+              setIsAudioPaused(false);
+            }
+          });
         
         return;
       }
@@ -118,9 +119,26 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
       // Small delay to ensure everything is initialized
       setTimeout(async () => {
         try {
-          await audioStreamManager.forcePlay();
-          console.log("Auto-play: Audio started successfully");
-          setIsAudioPaused(false);
+          // First try direct audio service method
+          const success = await audioService.forcePlayAudio();
+          
+          if (success) {
+            console.log("Auto-play: Audio started successfully via audioService");
+            setIsAudioPaused(false);
+          } else {
+            // If the audio service method failed, try the AudioOutputHandler
+            console.log("Auto-play: Audio service method failed, trying AudioOutputHandler");
+            const handlerSuccess = await AudioOutputHandler.checkAndPlayRemoteAudio();
+            
+            if (handlerSuccess) {
+              console.log("Auto-play: Audio started successfully via AudioOutputHandler");
+              setIsAudioPaused(false);
+            } else {
+              // Last resort - we'll show the button UI
+              console.log("Auto-play: All automatic methods failed, showing button UI");
+              setIsAudioPaused(true);
+            }
+          }
         } catch (error) {
           console.error("Auto-play: Error starting audio playback:", error);
           setIsAudioPaused(true);
@@ -146,8 +164,7 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
 
     // Start checking the audio status periodically
     const checkAudioStatus = () => {
-      const audioElement = audioStreamManager.getAudioElement();
-      const isPlaying = audioElement && !audioElement.paused && audioElement.srcObject;
+      const isPlaying = audioService.isAudioPlaying();
       
       // If we have a stream but audio is paused, try to automatically resume
       if (!isPlaying) {
@@ -157,10 +174,14 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
         if (userInteractionService.userHasInteracted()) {
           console.log("User has interacted, attempting to auto-play");
           
-          audioStreamManager.forcePlay()
-            .then(() => {
-              console.log("Periodic check: Successfully resumed audio");
-              setIsAudioPaused(false);
+          audioService.forcePlayAudio()
+            .then(success => {
+              if (success) {
+                console.log("Periodic check: Successfully resumed audio");
+                setIsAudioPaused(false);
+              } else {
+                setIsAudioPaused(true);
+              }
             })
             .catch(() => setIsAudioPaused(true));
         } else {
@@ -200,25 +221,36 @@ const AudioStatus: React.FC<AudioStatusProps> = ({
       // First, ensure the button click event is completed and browser knows user interacted
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Use AudioStreamManager for consistent playback
-      await audioStreamManager.forcePlay();
-      console.log("Audio playback started successfully");
-      setIsAudioPaused(false);
+      // Try two different methods to start audio playback
+      
+      // Method 1: Audio Service
+      console.log("Trying method 1: Audio Service");
+      const success = await audioService.forcePlayAudio();
+      
+      if (success) {
+        console.log("Audio playback started successfully via audioService");
+        setIsAudioPaused(false);
+        return;
+      }
+      
+      // Method 2: AudioOutputHandler
+      console.log("Method 1 failed, trying method 2: AudioOutputHandler");
+      const handlerSuccess = await AudioOutputHandler.checkAndPlayRemoteAudio();
+      
+      if (handlerSuccess) {
+        console.log("Audio playback started successfully via AudioOutputHandler");
+        setIsAudioPaused(false);
+        return;
+      }
+      
+      // Last resort - show audio controls
+      console.log("All methods failed, showing audio controls");
+      audioService.showAudioControls();
       
     } catch (error) {
-      console.error("Error starting audio playbook:", error);
-      setIsAudioPaused(true);
-      
+      console.error("Error starting audio playback:", error);
       // Show audio controls as a fallback
-      const audioElement = audioStreamManager.getAudioElement();
-      if (audioElement) {
-        audioElement.controls = true;
-        audioElement.style.display = 'block';
-        audioElement.style.position = 'fixed';
-        audioElement.style.bottom = '10px';
-        audioElement.style.right = '10px';
-        audioElement.style.zIndex = '9999';
-      }
+      audioService.showAudioControls();
     }
   };
 

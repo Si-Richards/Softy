@@ -4,7 +4,7 @@ import { useCallHistory } from "@/hooks/useCallHistory";
 import janusService from "@/services/JanusService";
 import { PhoneIncoming, BellRing } from "lucide-react";
 import { AudioCallOptions } from '@/services/janus/sip/types';
-import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
+import { AudioElementHandler } from '@/services/janus/utils/audioElementHandler';
 
 export const useIncomingCall = () => {
   const [incomingCall, setIncomingCall] = useState<{ from: string; jsep: any } | null>(null);
@@ -133,12 +133,16 @@ export const useIncomingCall = () => {
             const remoteStream = janusService.getRemoteStream();
             if (remoteStream) {
               try {
-                // Use unified audio manager
-                unifiedAudioManager.setRemoteStream(remoteStream);
+                // Use our consistent audio element handler
+                AudioElementHandler.getAudioElement().srcObject = remoteStream;
                 if (savedAudioOutput) {
-                  unifiedAudioManager.setAudioOutput(savedAudioOutput)
+                  AudioElementHandler.setAudioOutput(savedAudioOutput)
                     .catch(e => console.warn("Error setting audio output:", e));
                 }
+                
+                // Try to play the audio
+                AudioElementHandler.playStream(remoteStream)
+                  .catch(e => console.warn("Error starting playback:", e));
               } catch (error) {
                 console.error("Error handling audio for incoming call:", error);
               }

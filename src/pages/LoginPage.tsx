@@ -8,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -102,45 +101,33 @@ const LoginPage = () => {
               <Label htmlFor="username">Username</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="username" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="pl-10" tabIndex={1} />
+                <Input id="username" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="pl-10" />
               </div>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <Label htmlFor="password">Password</Label>
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline">
+                  Forgot password?
+                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" tabIndex={2} />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)} 
-                  className="absolute right-3 top-3"
-                  tabIndex={3}
-                >
+                <Input id="password" type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3">
                   {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                </button>
-              </div>
-              <div className="text-right">
-                <button 
-                  type="button" 
-                  onClick={handleForgotPassword} 
-                  className="text-xs text-primary hover:underline"
-                  tabIndex={4}
-                >
-                  Forgot password?
                 </button>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox id="rememberMe" checked={rememberMe} onCheckedChange={checked => setRememberMe(checked === true)} tabIndex={5} />
+              <Checkbox id="rememberMe" checked={rememberMe} onCheckedChange={checked => setRememberMe(checked === true)} />
               <label htmlFor="rememberMe" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Remember me
               </label>
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isLoading} tabIndex={6}>
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Logging in..." : "Sign In"}
             </Button>
           </CardFooter>
@@ -148,5 +135,4 @@ const LoginPage = () => {
       </Card>
     </div>;
 };
-
 export default LoginPage;

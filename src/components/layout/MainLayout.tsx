@@ -39,19 +39,13 @@ const MainLayout = () => {
         if (username && password) {
           console.log("Found stored credentials, attempting automatic registration");
           
-          // Extended delay for auto-registration to ensure full initialization
+          // Slight delay before auto-connecting to ensure components are ready
           const timer = setTimeout(() => {
-            console.log('🚀 Starting auto-registration with extended delay...');
-            
             janusService.initialize({
               server: 'wss://devrtc.voicehost.io:443/janus',
               apiSecret: 'overlord',
               success: async () => {
                 try {
-                  // Additional delay before SIP registration to ensure Sofia stack is ready
-                  console.log('⏳ Waiting for Sofia stack before auto-registration...');
-                  await new Promise(resolve => setTimeout(resolve, 2000));
-                  
                   await janusService.register(username, password, sipHost || "hpbx.sipconvergence.co.uk:5060");
                   toast({
                     title: "Auto-connected",
@@ -59,14 +53,13 @@ const MainLayout = () => {
                   });
                 } catch (error) {
                   console.error("Auto-registration failed:", error);
-                  // Don't show toast for auto-registration failures to avoid spam
                 }
               },
               error: (error) => {
                 console.error("Auto-connection failed:", error);
               }
             });
-          }, 2000); // Increased from 1000ms to 2000ms
+          }, 1000);
           
           return () => clearTimeout(timer);
         }

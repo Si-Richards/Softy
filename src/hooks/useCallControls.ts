@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import janusService from "@/services/JanusService";
 import { useCallHistory } from "./useCallHistory";
 import { AudioCallOptions } from "@/services/janus/sip/types";
-import { unifiedAudioManager } from '@/services/janus/unifiedAudioManager';
+import { AudioOutputHandler } from '@/services/janus/utils/audioOutputHandler';
 
 export const useCallControls = () => {
   const [isCallActive, setIsCallActive] = useState(false);
@@ -47,7 +47,7 @@ export const useCallControls = () => {
           // Apply audio output device if supported
           const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
           if (savedAudioOutput) {
-            unifiedAudioManager.setAudioOutput(savedAudioOutput).catch(e => console.warn("Audio output error:", e));
+            AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
           }
         }
       }, 3000);
@@ -178,7 +178,7 @@ export const useCallControls = () => {
           setTimeout(() => {
             const remoteStream = janusService.getRemoteStream();
             if (remoteStream && savedAudioOutput) {
-              unifiedAudioManager.setAudioOutput(savedAudioOutput).catch(e => console.warn("Audio output error:", e));
+              AudioOutputHandler.setupRemoteAudio(remoteStream, savedAudioOutput);
             }
           }, 1000); // Short delay to ensure stream is available
           
