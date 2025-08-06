@@ -55,6 +55,9 @@ export class SipCallManager {
             }
           };
 
+          // ULTRA BASIC: Set ontrack handler FIRST, before any createOffer
+          this.setupBasicAudioHandler();
+          
           // Follow exact createOffer structure from Janus SIP demo
           this.sipState.getSipPlugin().createOffer({
             media: {
@@ -64,10 +67,7 @@ export class SipCallManager {
             },
             simulcast: false,
             success: (jsep: any) => {
-              console.log("Created offer with JSEP:", jsep);
-              
-              // Set up ontrack handler before sending (critical timing)
-              this.setupPeerConnectionHandlers();
+              console.log("✅ BASIC: Created offer with JSEP:", jsep);
               
               // Match call request from Janus SIP demo
               const message = {
@@ -85,7 +85,7 @@ export class SipCallManager {
                 message,
                 jsep,
                 success: () => {
-                  console.log(`Calling ${formattedUri}`);
+                  console.log(`✅ BASIC: Calling ${formattedUri}`);
                   resolve();
                 },
                 error: (error: any) => {
@@ -141,10 +141,10 @@ export class SipCallManager {
               data: false
             },
             success: (ourjsep: any) => {
-              console.log("Created answer with JSEP:", ourjsep);
+              console.log("✅ BASIC: Created answer with JSEP:", ourjsep);
               
-              // Set up ontrack handler before sending (critical timing)
-              this.setupPeerConnectionHandlers();
+              // ULTRA BASIC: Set ontrack handler FIRST, before sending answer
+              this.setupBasicAudioHandler();
               
               const message = { 
                 request: "accept",
@@ -180,111 +180,76 @@ export class SipCallManager {
   }
 
   /**
-   * Ultra simple audio setup - just assign stream to audio element
+   * MOST BASIC audio handler setup - called IMMEDIATELY 
    */
-  private setupPeerConnectionHandlers(): void {
+  private setupBasicAudioHandler(): void {
     const sipPlugin = this.sipState.getSipPlugin();
     if (!sipPlugin?.webrtcStuff?.pc) {
-      console.error("❌ No peer connection available");
+      console.error("❌ BASIC: No peer connection available");
       return;
     }
     
     const pc = sipPlugin.webrtcStuff.pc;
-    console.log("🎵 Setting up ULTRA SIMPLE audio handler");
+    console.log("🔥 BASIC: Setting up IMMEDIATE audio handler");
     
-    // Only set ontrack - nothing else
+    // IMMEDIATELY set ontrack - before any SDP exchange
     pc.ontrack = (event) => {
-      console.log("🎵 TRACK EVENT:", {
+      console.log("🔥 BASIC: TRACK EVENT RECEIVED:", {
         kind: event.track.kind,
         hasStreams: !!event.streams?.length,
-        streamId: event.streams?.[0]?.id
+        streamId: event.streams?.[0]?.id,
+        trackState: event.track.readyState
       });
       
       if (event.track.kind === 'audio' && event.streams?.[0]) {
-        console.log("🎵 AUDIO TRACK FOUND - creating element");
-        this.createAudioElement(event.streams[0]);
+        console.log("🔥 BASIC: AUDIO TRACK FOUND - creating element NOW");
+        this.createBasicAudioElement(event.streams[0]);
       }
     };
     
-    console.log("✅ Simple ontrack handler set");
+    console.log("✅ BASIC: ontrack handler set IMMEDIATELY");
   }
 
   /**
-   * Create audio element and assign stream - simplest possible
+   * MOST BASIC audio element creation - no fancy features
    */
-  private createAudioElement(stream: MediaStream): void {
-    console.log("🎵 Creating audio element for stream:", stream.id);
+  private createBasicAudioElement(stream: MediaStream): void {
+    console.log("🔥 BASIC: Creating audio element for stream:", stream.id);
     
-    // Remove existing
-    const existing = document.getElementById("remoteAudio");
-    if (existing) existing.remove();
+    // Remove ALL existing audio elements
+    document.querySelectorAll('audio').forEach(audio => audio.remove());
     
-    // Create new
+    // Create the most basic audio element possible
     const audio = document.createElement('audio');
-    audio.id = 'remoteAudio';
+    audio.id = 'basicRemoteAudio';
     audio.autoplay = true;
     audio.srcObject = stream;
     audio.volume = 1.0;
+    audio.muted = false;
     
-    // Set output device if specified
-    const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-    if (savedAudioOutput && 'setSinkId' in HTMLAudioElement.prototype) {
-      (audio as any).setSinkId(savedAudioOutput)
-        .catch((e: any) => console.warn("Error setting audio output:", e));
-    }
+    // Make it visible so user can click if needed
+    audio.controls = true;
+    audio.style.position = 'fixed';
+    audio.style.top = '10px';
+    audio.style.left = '10px';
+    audio.style.zIndex = '10000';
+    audio.style.backgroundColor = 'red';
+    audio.style.padding = '10px';
     
     document.body.appendChild(audio);
-    console.log("🎵 Audio element created and appended");
+    console.log("🔥 BASIC: Audio element created and visible");
     
-    // Try to play
-    audio.play().catch(e => {
-      console.log("🎵 Autoplay failed - user interaction needed:", e.message);
-      audio.controls = true;
-      audio.style.display = 'block';
-      audio.style.position = 'fixed';
-      audio.style.bottom = '10px';
-      audio.style.right = '10px';
-      audio.style.zIndex = '1000';
-      
-      // Show user interaction prompt
-      this.showUserInteractionPrompt();
-    });
+    // Force play immediately
+    audio.play()
+      .then(() => {
+        console.log("🔥 BASIC: Audio playing successfully!");
+      })
+      .catch(e => {
+        console.log("🔥 BASIC: Autoplay failed - showing controls:", e.message);
+        // Controls already visible - user can click
+      });
   }
 
-  /**
-   * Show a simple prompt for user interaction to enable audio
-   */
-  private showUserInteractionPrompt(): void {
-    // Only show if not already shown
-    if (document.getElementById('audio-enable-prompt')) return;
-    
-    const prompt = document.createElement('div');
-    prompt.id = 'audio-enable-prompt';
-    prompt.style.position = 'fixed';
-    prompt.style.top = '20px';
-    prompt.style.right = '20px';
-    prompt.style.background = 'rgba(0,0,0,0.8)';
-    prompt.style.color = 'white';
-    prompt.style.padding = '15px';
-    prompt.style.borderRadius = '8px';
-    prompt.style.zIndex = '10000';
-    prompt.style.cursor = 'pointer';
-    prompt.textContent = 'Click to enable call audio';
-    
-    prompt.onclick = () => {
-      const audio = document.getElementById('remoteAudio') as HTMLAudioElement;
-      if (audio) {
-        audio.play()
-          .then(() => {
-            console.log("🎵 Audio enabled after user interaction");
-            prompt.remove();
-          })
-          .catch(e => console.warn("Still couldn't play audio:", e));
-      }
-    };
-    
-    document.body.appendChild(prompt);
-  }
 
   async hangup(): Promise<void> {
     return new Promise<void>((resolve, reject) => {

@@ -627,28 +627,11 @@ class JanusService {
                     // Set the remote stream to the audio element
                     audioElement.srcObject = this.remoteStream;
                     
-                    // Try to force play the audio
-                    setTimeout(() => {
-                      console.log("Attempting to play audio after accepting call");
-                      audioElement.play()
-                        .catch(e => {
-                          console.warn("Audio play failed in acceptCall:", e);
-                          // Use AudioService as fallback
-                          audioService.attachStream(this.remoteStream);
-                          audioService.forcePlayAudio().catch(e => console.warn("Fallback play failed:", e));
-                        });
-                    }, 300);
+                    // DISABLED - SipCallManager handles all audio now
+                    console.log("✅ BASIC: Audio handled by SipCallManager");
                   } else {
-                    // Use AudioService for playback
-                    if (this.remoteStream) {
-                      audioService.attachStream(this.remoteStream);
-                      
-                      // Try to auto-play immediately
-                      setTimeout(() => {
-                        audioService.forcePlayAudio()
-                          .catch(e => console.warn("Auto-play error in acceptCall:", e));
-                      }, 300);
-                    }
+                    // DISABLED - SipCallManager handles all audio now  
+                    console.log("✅ BASIC: Audio handled by SipCallManager");
                   }
                   
                   resolve();
