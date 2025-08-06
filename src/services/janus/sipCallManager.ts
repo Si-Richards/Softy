@@ -66,6 +66,9 @@ export class SipCallManager {
             success: (jsep: any) => {
               console.log("Created offer with JSEP:", jsep);
               
+              // Set up ontrack handler immediately after offer creation (Janus pattern)
+              this.setupPeerConnectionHandlers();
+              
               // Match call request from Janus SIP demo
               const message = {
                 request: "call",
@@ -83,9 +86,6 @@ export class SipCallManager {
                 jsep,
                 success: () => {
                   console.log(`Calling ${formattedUri}`);
-                  
-                  // Don't set up handlers here - wait for remote JSEP
-                  
                   resolve();
                 },
                 error: (error: any) => {
@@ -142,6 +142,10 @@ export class SipCallManager {
             },
             success: (ourjsep: any) => {
               console.log("Created answer with JSEP:", ourjsep);
+              
+              // Set up ontrack handler immediately after answer creation (Janus pattern)
+              this.setupPeerConnectionHandlers();
+              
               const message = { 
                 request: "accept",
                 headers: {
@@ -154,9 +158,6 @@ export class SipCallManager {
                 jsep: ourjsep,
                 success: () => {
                   console.log("Call accepted successfully");
-                  
-                  // Don't set up handlers here - wait for remote JSEP
-                  
                   resolve();
                 },
                 error: (error: any) => {
@@ -189,20 +190,14 @@ export class SipCallManager {
     }
     
     const pc = sipPlugin.webrtcStuff.pc;
-    console.log("Setting up peer connection handlers:", pc);
+    console.log("Setting up peer connection handlers on PC:", pc);
     
-    // Check if already set up to avoid duplicates
-    if (pc.ontrack) {
-      console.log("ontrack handler already exists, skipping setup");
-      return;
-    }
+    // Always set up ontrack - don't check if exists to avoid missing streams
+    console.log("Setting up ontrack handler");
     
     // ICE connection state monitoring
     pc.oniceconnectionstatechange = () => {
       console.log("ICE connection state:", pc.iceConnectionState);
-      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
-        console.log("ICE connection established");
-      }
     };
     
     // Connection state monitoring
@@ -210,64 +205,105 @@ export class SipCallManager {
       console.log("Peer connection state:", pc.connectionState);
     };
     
-    // Track handler - this is where audio tracks arrive
+    // Track handler - this is the critical part for audio
     pc.ontrack = (event) => {
-      console.log("=== TRACK RECEIVED ===", event);
+      console.log("=== ONTRACK EVENT FIRED ===");
+      console.log("Track:", event.track);
       console.log("Track kind:", event.track.kind);
       console.log("Track ID:", event.track.id);
       console.log("Track enabled:", event.track.enabled);
       console.log("Track muted:", event.track.muted);
-      console.log("Track ready state:", event.track.readyState);
+      console.log("Track readyState:", event.track.readyState);
+      console.log("Streams:", event.streams);
       console.log("Streams count:", event.streams?.length || 0);
       
-      if (event.track.kind === 'audio' && event.streams?.length > 0) {
-        const stream = event.streams[0];
-        console.log("Audio stream received:", stream);
+      if (event.track.kind === 'audio') {
+        console.log("=== AUDIO TRACK DETECTED ===");
         
-        // Create or get audio element
-        let audio = document.getElementById("remoteAudio") as HTMLAudioElement;
-        if (!audio) {
-          console.log("Creating new audio element");
-          audio = document.createElement('audio');
-          audio.id = 'remoteAudio';
-          audio.autoplay = true;
-          audio.setAttribute('playsinline', '');
-          audio.controls = false;
-          document.body.appendChild(audio);
-        }
-        
-        // Attach stream to audio element
-        audio.srcObject = stream;
-        console.log("Stream attached to audio element");
-        
-        // Attempt to play
-        audio.play()
-          .then(() => {
-            console.log("Audio playing successfully");
-          })
-          .catch(err => {
-            console.error("Auto-play failed:", err);
-            // Show controls for manual play
-            audio.controls = true;
-            audio.style.display = 'block';
-            audio.style.position = 'fixed';
-            audio.style.bottom = '10px';
-            audio.style.right = '10px';
-            audio.style.zIndex = '9999';
+        if (event.streams && event.streams.length > 0) {
+          const stream = event.streams[0];
+          console.log("Processing audio stream:", stream.id);
+          console.log("Stream active:", stream.active);
+          console.log("Stream audio tracks:", stream.getAudioTracks().length);
+          
+          // Ensure we have a single audio element
+          let audio = document.getElementById("remoteAudio") as HTMLAudioElement;
+          if (!audio) {
+            console.log("Creating remoteAudio element");
+            audio = document.createElement('audio');
+            audio.id = 'remoteAudio';
+            audio.autoplay = true;
+            audio.setAttribute('playsinline', '');
+            audio.controls = false;
+            audio.volume = 1.0;
+            document.body.appendChild(audio);
+          }
+          
+          // Clear any existing source
+          if (audio.srcObject) {
+            console.log("Clearing existing audio source");
+            audio.srcObject = null;
+          }
+          
+          // Set the new stream
+          audio.srcObject = stream;
+          console.log("Audio stream assigned to element");
+          
+          // Log track details
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`Stream audio track ${idx}:`, {
+              id: track.id,
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              label: track.label
+            });
           });
-        
-        // Track event listeners
-        event.track.addEventListener('unmute', () => {
-          console.log("Audio track unmuted");
-        });
-        
-        event.track.addEventListener('ended', () => {
-          console.log("Audio track ended");
-        });
+          
+          // Attempt playback
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log("✅ Audio playback started successfully");
+              })
+              .catch(err => {
+                console.error("❌ Audio auto-play failed:", err);
+                // Show audio controls as fallback
+                audio.controls = true;
+                audio.style.display = 'block';
+                audio.style.position = 'fixed';
+                audio.style.bottom = '20px';
+                audio.style.right = '20px';
+                audio.style.zIndex = '9999';
+                audio.style.backgroundColor = 'white';
+                audio.style.border = '2px solid red';
+                audio.style.borderRadius = '8px';
+                audio.style.padding = '5px';
+              });
+          }
+          
+          // Set up track event listeners
+          event.track.onended = () => {
+            console.log("Audio track ended");
+          };
+          
+          event.track.onmute = () => {
+            console.log("Audio track muted");
+          };
+          
+          event.track.onunmute = () => {
+            console.log("Audio track unmuted");
+          };
+        } else {
+          console.warn("Audio track received but no streams available");
+        }
+      } else {
+        console.log("Non-audio track received:", event.track.kind);
       }
     };
     
-    console.log("Peer connection handlers set up successfully");
+    console.log("✅ Peer connection handlers configured");
   }
 
   async hangup(): Promise<void> {
@@ -312,15 +348,11 @@ export class SipCallManager {
     sipPlugin.handleRemoteJsep({
       jsep: jsep,
       success: () => {
-        console.log("Remote JSEP processed successfully");
-        
-        // Now is the right time to set up ontrack handler
-        setTimeout(() => {
-          this.setupPeerConnectionHandlers();
-        }, 100);
+        console.log("✅ Remote JSEP processed successfully");
+        // ontrack handler should already be set up from offer/answer creation
       },
       error: (error: any) => {
-        console.error(`Error handling remote JSEP: ${error}`);
+        console.error(`❌ Error handling remote JSEP: ${error}`);
       }
     });
   }
