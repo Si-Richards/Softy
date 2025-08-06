@@ -131,27 +131,19 @@ const QuickAccessPanel: React.FC<QuickAccessPanelProps> = ({
     });
   };
 
-  // Floating trigger button outside of sheet
-  const TriggerButton = () => (
-    <SheetTrigger asChild>
-      <Button 
-        variant="outline" 
-        size="icon"
-        className="fixed right-0 top-1/2 transform -translate-y-1/2 rounded-l-md rounded-r-none border-r-0 bg-white shadow-lg"
-        onClick={() => setIsOpen(true)}
-        disabled={isCallActive}
-      >
-        <ChevronsLeft className="h-4 w-4" />
-        <span className="sr-only">Open quick access</span>
-      </Button>
-    </SheetTrigger>
-  );
-
   return (
-    <>
-      <TriggerButton />
-      
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="fixed right-0 top-1/2 transform -translate-y-1/2 rounded-l-md rounded-r-none border-r-0 bg-white shadow-lg z-50"
+          disabled={isCallActive}
+        >
+          <ChevronsLeft className="h-4 w-4" />
+          <span className="sr-only">Open quick access</span>
+        </Button>
+      </SheetTrigger>
         <SheetContent 
           side="right" 
           className="w-[240px] p-3"
@@ -194,8 +186,7 @@ const QuickAccessPanel: React.FC<QuickAccessPanelProps> = ({
             ))}
           </div>
         </SheetContent>
-      </Sheet>
-    </>
+    </Sheet>
   );
 };
 
