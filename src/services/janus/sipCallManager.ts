@@ -1,14 +1,12 @@
 
 import { SipState } from './sip/sipState';
-import { MediaConfigHandler } from './mediaConfig';
 import { formatE164Number } from './utils/phoneNumberUtils';
 import { AudioCallOptions } from './sip/types';
 
 export class SipCallManager {
-  private mediaConfig: MediaConfigHandler;
-
   constructor(private sipState: SipState) {
-    this.mediaConfig = new MediaConfigHandler();
+    // Set up audio handler immediately
+    this.setupAudioHandler();
   }
 
   async call(uri: string, audioOptions?: AudioCallOptions): Promise<void> {
@@ -23,84 +21,34 @@ export class SipCallManager {
         return;
       }
 
-      // Format the number properly in E.164 format with SIP URI
       const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
 
-      // Get the configured audio devices from localStorage or options param
-      const constraints = this.mediaConfig.getCallMediaConstraints(audioOptions);
-
-      console.log("Getting user media with constraints:", JSON.stringify(constraints));
+      // Basic audio constraints
+      const constraints = { audio: true, video: false };
       
       navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
-          console.log("Got local media stream:", stream);
-          console.log("Audio tracks:", stream.getAudioTracks().length);
+          console.log("📞 Got local media stream for call");
           
-          // Log audio track settings
-          stream.getAudioTracks().forEach((track, idx) => {
-            console.log(`Audio track ${idx} settings:`, track.getSettings());
-          });
-          
-          // Ensure audio tracks are enabled
-          stream.getAudioTracks().forEach(track => {
-            console.log("Audio track enabled:", track.enabled);
-            track.enabled = true;
-          });
-
-          // Configure SDP constraints based on Janus SIP demo
-          const sdpConstraints = {
-            'mandatory': {
-              'OfferToReceiveAudio': true,
-              'OfferToReceiveVideo': false
-            }
-          };
-
-          // ULTRA BASIC: Set ontrack handler IMMEDIATELY
-          this.setupBasicAudioHandler();
-          
-          // Follow exact createOffer structure from Janus SIP demo
           this.sipState.getSipPlugin().createOffer({
-            media: {
-              audioSend: true, audioRecv: true,
-              videoSend: false, videoRecv: false,
-              data: false
-            },
-            simulcast: false,
+            media: { audioSend: true, audioRecv: true, videoSend: false, videoRecv: false },
             success: (jsep: any) => {
-              console.log("✅ BASIC: Created offer with JSEP:", jsep);
+              console.log("📞 Created offer JSEP");
               
-              // Match call request from Janus SIP demo
-              const message = {
-                request: "call",
-                uri: formattedUri,
-                headers: {
-                  "User-Agent": "Janus SIP Plugin",
-                  "X-Janus-SIP-Client": "Lovable WebRTC"
-                },
-                autoaccept: false,
-                srtp: "sdes_optional",
-            };
-
               this.sipState.getSipPlugin().send({
-                message,
+                message: { request: "call", uri: formattedUri },
                 jsep,
                 success: () => {
-                  console.log(`✅ BASIC: Calling ${formattedUri}`);
+                  console.log(`📞 Calling ${formattedUri}`);
                   resolve();
                 },
-                error: (error: any) => {
-                  reject(new Error(`Error calling: ${error}`));
-                }
+                error: (error: any) => reject(new Error(`Call error: ${error}`))
               });
             },
-            error: (error: any) => {
-              reject(new Error(`WebRTC error: ${error}`));
-            }
+            error: (error: any) => reject(new Error(`Offer error: ${error}`))
           });
         })
-        .catch((error) => {
-          reject(new Error(`Media error: ${error}`));
-        });
+        .catch((error) => reject(new Error(`Media error: ${error}`)));
     });
   }
 
@@ -111,193 +59,91 @@ export class SipCallManager {
         return;
       }
 
-      console.log("SipCallManager: Accepting call with JSEP:", jsep);
-      
-      // Get media constraints for answering calls with selected audio device
-      const constraints = this.mediaConfig.getCallMediaConstraints(audioOptions);
-      
-      console.log("Accepting call with constraints:", JSON.stringify(constraints));
+      const constraints = { audio: true, video: false };
       
       navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
-          console.log("Got local media stream for accepting call:", stream);
+          console.log("📞 Got local media stream for accept");
           
-          // Log audio track settings
-          stream.getAudioTracks().forEach((track, idx) => {
-            console.log(`Audio track ${idx} settings:`, track.getSettings());
-          });
-          
-          // Ensure audio tracks are enabled
-          stream.getAudioTracks().forEach(track => {
-            track.enabled = true;
-          });
-          
-          // Match createAnswer from Janus SIP demo
           this.sipState.getSipPlugin().createAnswer({
             jsep: jsep,
-            media: { 
-              audioSend: true, audioRecv: true,
-              videoSend: false, videoRecv: false,
-              data: false
-            },
+            media: { audioSend: true, audioRecv: true, videoSend: false, videoRecv: false },
             success: (ourjsep: any) => {
-              console.log("✅ BASIC: Created answer with JSEP:", ourjsep);
+              console.log("📞 Created answer JSEP");
               
-              // ULTRA BASIC: Set ontrack handler BEFORE sending answer
-              this.setupBasicAudioHandler();
-              
-              const message = { 
-                request: "accept",
-                headers: {
-                  "User-Agent": "Janus SIP Plugin",
-                  "X-Janus-SIP-Client": "Lovable WebRTC"
-                }
-              };
               this.sipState.getSipPlugin().send({
-                message,
+                message: { request: "accept" },
                 jsep: ourjsep,
                 success: () => {
-                  console.log("Call accepted successfully");
+                  console.log("📞 Call accepted");
                   resolve();
                 },
-                error: (error: any) => {
-                  console.error(`Error accepting call: ${error}`);
-                  reject(new Error(`Error accepting call: ${error}`));
-                }
+                error: (error: any) => reject(new Error(`Accept error: ${error}`))
               });
             },
-            error: (error: any) => {
-              console.error(`WebRTC error when creating answer: ${error}`);
-              reject(new Error(`WebRTC error: ${error}`));
-            }
+            error: (error: any) => reject(new Error(`Answer error: ${error}`))
           });
         })
-        .catch((error) => {
-          console.error(`Media error when accepting call: ${error}`);
-          reject(new Error(`Media error when accepting call: ${error}`));
-        });
+        .catch((error) => reject(new Error(`Media error: ${error}`)));
     });
   }
 
   /**
-   * ULTRA-SIMPLE audio handler setup - called IMMEDIATELY at construction
+   * Set up the absolute simplest audio handler possible
    */
-  private setupBasicAudioHandler(): void {
-    const sipPlugin = this.sipState.getSipPlugin();
-    if (!sipPlugin?.webrtcStuff?.pc) {
-      console.log("⚠️ BASIC: No peer connection yet - will setup ontrack when available");
-      return;
-    }
-    
-    const pc = sipPlugin.webrtcStuff.pc;
-    console.log("🔥 BASIC: Setting up ULTRA-SIMPLE audio handler");
-    
-    // CLEAR any existing handlers first
-    pc.ontrack = null;
-    
-    // Set the SIMPLEST possible ontrack handler
-    pc.ontrack = (event) => {
-      console.log("🔥🔥🔥 TRACK RECEIVED:", {
-        kind: event.track.kind,
-        readyState: event.track.readyState,
-        streamCount: event.streams?.length || 0,
-        streamId: event.streams?.[0]?.id
-      });
-      
-      if (event.track.kind === 'audio') {
-        console.log("🔥🔥🔥 AUDIO TRACK - CREATING ELEMENT NOW");
-        
-        if (event.streams && event.streams.length > 0) {
-          this.createBasicAudioElement(event.streams[0]);
-        } else {
-          // Create stream from track if no stream provided
-          const stream = new MediaStream([event.track]);
-          this.createBasicAudioElement(stream);
-        }
+  private setupAudioHandler(): void {
+    // This will be called when peer connection exists
+    setTimeout(() => {
+      const sipPlugin = this.sipState.getSipPlugin();
+      if (!sipPlugin?.webrtcStuff?.pc) {
+        console.log("🔄 No peer connection yet, retrying audio handler setup...");
+        this.setupAudioHandler();
+        return;
       }
-    };
-    
-    console.log("✅ BASIC: Ultra-simple ontrack handler ACTIVE");
+      
+      const pc = sipPlugin.webrtcStuff.pc;
+      console.log("🎧 Setting up basic audio handler");
+      
+      pc.ontrack = (event) => {
+        console.log("🎵 TRACK RECEIVED:", event.track.kind, event.track.readyState);
+        
+        if (event.track.kind === 'audio' && event.streams?.[0]) {
+          console.log("🎵 AUDIO TRACK - Creating element");
+          this.createAudioElement(event.streams[0]);
+        }
+      };
+      
+      console.log("✅ Audio handler active");
+    }, 500);
   }
 
   /**
-   * ULTRA-SIMPLE audio element creation - no tricks, just basic audio
+   * Create the simplest possible audio element
    */
-  private createBasicAudioElement(stream: MediaStream): void {
-    console.log("🔥🔥🔥 CREATING AUDIO ELEMENT for stream:", stream.id);
-    console.log("🔥🔥🔥 Stream tracks:", stream.getTracks().map(t => ({ kind: t.kind, state: t.readyState })));
+  private createAudioElement(stream: MediaStream): void {
+    console.log("🎵 Creating audio element for stream:", stream.id);
     
-    // Remove ALL existing audio elements to avoid conflicts
-    document.querySelectorAll('audio').forEach(audio => {
-      console.log("Removing existing audio element:", audio.id);
-      audio.remove();
-    });
+    // Remove existing audio elements
+    document.querySelectorAll('#callAudio').forEach(el => el.remove());
     
-    // Create the simplest possible audio element
     const audio = document.createElement('audio');
-    audio.id = 'ultraBasicAudio';
+    audio.id = 'callAudio';
     audio.autoplay = true;
-    (audio as any).playsInline = true; // Mobile Safari compatibility
-    audio.controls = true; // Always show controls
+    audio.controls = true;
     audio.volume = 1.0;
-    audio.muted = false;
-    
-    // Assign the stream
     audio.srcObject = stream;
     
-    // Make it VERY visible
+    // Make it visible for debugging
     audio.style.position = 'fixed';
-    audio.style.top = '50px';
-    audio.style.left = '50px';
-    audio.style.zIndex = '99999';
-    audio.style.backgroundColor = 'lime';
-    audio.style.border = '5px solid red';
-    audio.style.padding = '20px';
-    audio.style.borderRadius = '10px';
+    audio.style.top = '100px';
+    audio.style.right = '20px';
+    audio.style.zIndex = '9999';
+    audio.style.border = '2px solid red';
     
-    // Add to page
     document.body.appendChild(audio);
-    console.log("🔥🔥🔥 Audio element added to DOM");
+    console.log("✅ Audio element created and added to DOM");
     
-    // Log stream state every second
-    const logInterval = setInterval(() => {
-      console.log("🎵 Stream state:", {
-        tracks: stream.getTracks().length,
-        audioTracks: stream.getAudioTracks().length,
-        active: stream.active,
-        element: {
-          paused: audio.paused,
-          currentTime: audio.currentTime,
-          volume: audio.volume,
-          muted: audio.muted,
-          readyState: audio.readyState
-        }
-      });
-    }, 2000);
-    
-    // Try to play
-    audio.play()
-      .then(() => {
-        console.log("🔥🔥🔥 AUDIO PLAYING SUCCESSFULLY!");
-        clearInterval(logInterval);
-      })
-      .catch(e => {
-        console.log("🔥🔥🔥 Autoplay blocked:", e.message, "- User must click controls");
-      });
-      
-    // Add text overlay
-    const overlay = document.createElement('div');
-    overlay.innerText = 'AUDIO ELEMENT - CLICK TO PLAY';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '10px';
-    overlay.style.left = '50px';
-    overlay.style.zIndex = '100000';
-    overlay.style.color = 'red';
-    overlay.style.fontSize = '20px';
-    overlay.style.fontWeight = 'bold';
-    overlay.style.backgroundColor = 'yellow';
-    overlay.style.padding = '10px';
-    document.body.appendChild(overlay);
+    audio.play().catch(e => console.log("Autoplay blocked:", e.message));
   }
 
 
