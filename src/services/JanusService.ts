@@ -121,8 +121,8 @@ class JanusService {
           });
         },
         onremotestream: (stream: MediaStream) => {
-          // Deprecated - audio handling moved to SipCallManager
-          console.log("Deprecated onremotestream - audio handled by SipCallManager");
+          // COMPLETELY DISABLED - audio handled by SipCallManager only
+          console.log("⚠️ DISABLED onremotestream - SipCallManager handles audio");
         },
         oncleanup: () => {
           console.log("SIP plugin cleaned up");
@@ -201,16 +201,8 @@ class JanusService {
         this.analyzeSDP(jsep.sdp);
       }
       
-      this.sipPlugin?.handleRemoteJsep({ 
-        jsep: jsep,
-        success: () => {
-          console.log("Remote JSEP processed successfully");
-          // Audio handling centralized in SipCallManager
-        },
-        error: (error: any) => {
-          console.error("Error handling remote JSEP:", error);
-        }
-      });
+      // COMPLETELY DISABLED - SipCallManager handles JSEP
+      console.log("⚠️ DISABLED handleRemoteJsep in JanusService - SipCallManager handles this");
     }
   }
   

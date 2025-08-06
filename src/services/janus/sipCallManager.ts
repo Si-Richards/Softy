@@ -55,7 +55,7 @@ export class SipCallManager {
             }
           };
 
-          // ULTRA BASIC: Set ontrack handler FIRST, before any createOffer
+          // ULTRA BASIC: Set ontrack handler IMMEDIATELY
           this.setupBasicAudioHandler();
           
           // Follow exact createOffer structure from Janus SIP demo
@@ -143,7 +143,7 @@ export class SipCallManager {
             success: (ourjsep: any) => {
               console.log("✅ BASIC: Created answer with JSEP:", ourjsep);
               
-              // ULTRA BASIC: Set ontrack handler FIRST, before sending answer
+              // ULTRA BASIC: Set ontrack handler BEFORE sending answer
               this.setupBasicAudioHandler();
               
               const message = { 
@@ -180,74 +180,124 @@ export class SipCallManager {
   }
 
   /**
-   * MOST BASIC audio handler setup - called IMMEDIATELY 
+   * ULTRA-SIMPLE audio handler setup - called IMMEDIATELY at construction
    */
   private setupBasicAudioHandler(): void {
     const sipPlugin = this.sipState.getSipPlugin();
     if (!sipPlugin?.webrtcStuff?.pc) {
-      console.error("❌ BASIC: No peer connection available");
+      console.log("⚠️ BASIC: No peer connection yet - will setup ontrack when available");
       return;
     }
     
     const pc = sipPlugin.webrtcStuff.pc;
-    console.log("🔥 BASIC: Setting up IMMEDIATE audio handler");
+    console.log("🔥 BASIC: Setting up ULTRA-SIMPLE audio handler");
     
-    // IMMEDIATELY set ontrack - before any SDP exchange
+    // CLEAR any existing handlers first
+    pc.ontrack = null;
+    
+    // Set the SIMPLEST possible ontrack handler
     pc.ontrack = (event) => {
-      console.log("🔥 BASIC: TRACK EVENT RECEIVED:", {
+      console.log("🔥🔥🔥 TRACK RECEIVED:", {
         kind: event.track.kind,
-        hasStreams: !!event.streams?.length,
-        streamId: event.streams?.[0]?.id,
-        trackState: event.track.readyState
+        readyState: event.track.readyState,
+        streamCount: event.streams?.length || 0,
+        streamId: event.streams?.[0]?.id
       });
       
-      if (event.track.kind === 'audio' && event.streams?.[0]) {
-        console.log("🔥 BASIC: AUDIO TRACK FOUND - creating element NOW");
-        this.createBasicAudioElement(event.streams[0]);
+      if (event.track.kind === 'audio') {
+        console.log("🔥🔥🔥 AUDIO TRACK - CREATING ELEMENT NOW");
+        
+        if (event.streams && event.streams.length > 0) {
+          this.createBasicAudioElement(event.streams[0]);
+        } else {
+          // Create stream from track if no stream provided
+          const stream = new MediaStream([event.track]);
+          this.createBasicAudioElement(stream);
+        }
       }
     };
     
-    console.log("✅ BASIC: ontrack handler set IMMEDIATELY");
+    console.log("✅ BASIC: Ultra-simple ontrack handler ACTIVE");
   }
 
   /**
-   * MOST BASIC audio element creation - no fancy features
+   * ULTRA-SIMPLE audio element creation - no tricks, just basic audio
    */
   private createBasicAudioElement(stream: MediaStream): void {
-    console.log("🔥 BASIC: Creating audio element for stream:", stream.id);
+    console.log("🔥🔥🔥 CREATING AUDIO ELEMENT for stream:", stream.id);
+    console.log("🔥🔥🔥 Stream tracks:", stream.getTracks().map(t => ({ kind: t.kind, state: t.readyState })));
     
-    // Remove ALL existing audio elements
-    document.querySelectorAll('audio').forEach(audio => audio.remove());
+    // Remove ALL existing audio elements to avoid conflicts
+    document.querySelectorAll('audio').forEach(audio => {
+      console.log("Removing existing audio element:", audio.id);
+      audio.remove();
+    });
     
-    // Create the most basic audio element possible
+    // Create the simplest possible audio element
     const audio = document.createElement('audio');
-    audio.id = 'basicRemoteAudio';
+    audio.id = 'ultraBasicAudio';
     audio.autoplay = true;
-    audio.srcObject = stream;
+    (audio as any).playsInline = true; // Mobile Safari compatibility
+    audio.controls = true; // Always show controls
     audio.volume = 1.0;
     audio.muted = false;
     
-    // Make it visible so user can click if needed
-    audio.controls = true;
+    // Assign the stream
+    audio.srcObject = stream;
+    
+    // Make it VERY visible
     audio.style.position = 'fixed';
-    audio.style.top = '10px';
-    audio.style.left = '10px';
-    audio.style.zIndex = '10000';
-    audio.style.backgroundColor = 'red';
-    audio.style.padding = '10px';
+    audio.style.top = '50px';
+    audio.style.left = '50px';
+    audio.style.zIndex = '99999';
+    audio.style.backgroundColor = 'lime';
+    audio.style.border = '5px solid red';
+    audio.style.padding = '20px';
+    audio.style.borderRadius = '10px';
     
+    // Add to page
     document.body.appendChild(audio);
-    console.log("🔥 BASIC: Audio element created and visible");
+    console.log("🔥🔥🔥 Audio element added to DOM");
     
-    // Force play immediately
+    // Log stream state every second
+    const logInterval = setInterval(() => {
+      console.log("🎵 Stream state:", {
+        tracks: stream.getTracks().length,
+        audioTracks: stream.getAudioTracks().length,
+        active: stream.active,
+        element: {
+          paused: audio.paused,
+          currentTime: audio.currentTime,
+          volume: audio.volume,
+          muted: audio.muted,
+          readyState: audio.readyState
+        }
+      });
+    }, 2000);
+    
+    // Try to play
     audio.play()
       .then(() => {
-        console.log("🔥 BASIC: Audio playing successfully!");
+        console.log("🔥🔥🔥 AUDIO PLAYING SUCCESSFULLY!");
+        clearInterval(logInterval);
       })
       .catch(e => {
-        console.log("🔥 BASIC: Autoplay failed - showing controls:", e.message);
-        // Controls already visible - user can click
+        console.log("🔥🔥🔥 Autoplay blocked:", e.message, "- User must click controls");
       });
+      
+    // Add text overlay
+    const overlay = document.createElement('div');
+    overlay.innerText = 'AUDIO ELEMENT - CLICK TO PLAY';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '10px';
+    overlay.style.left = '50px';
+    overlay.style.zIndex = '100000';
+    overlay.style.color = 'red';
+    overlay.style.fontSize = '20px';
+    overlay.style.fontWeight = 'bold';
+    overlay.style.backgroundColor = 'yellow';
+    overlay.style.padding = '10px';
+    document.body.appendChild(overlay);
   }
 
 
