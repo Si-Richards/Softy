@@ -5,7 +5,14 @@ import { AudioCallOptions } from './sip/types';
 
 export class SipCallManager {
   constructor(private sipState: SipState) {
-    // Set up audio handler immediately
+    // Audio handler will be set up when needed
+  }
+
+  /**
+   * Ensures audio handler is ready before making calls
+   */
+  ensureAudioHandlerReady(): void {
+    console.log("🎧 Ensuring SipCallManager audio handler is ready");
     this.setupAudioHandler();
   }
 
@@ -21,17 +28,30 @@ export class SipCallManager {
         return;
       }
 
+      console.log("📞 Starting call to:", uri, "with audio options:", audioOptions);
       const formattedUri = formatE164Number(uri, this.sipState.getCurrentCredentials()?.sipHost);
+      console.log("📞 Formatted URI:", formattedUri);
 
-      // Basic audio constraints
-      const constraints = { audio: true, video: false };
-      
-      navigator.mediaDevices.getUserMedia(constraints)
+      // Enhanced audio constraints with fallback
+      this.getMediaWithFallback(audioOptions)
         .then((stream) => {
-          console.log("📞 Got local media stream for call");
+          console.log("📞 Got local media stream for call:", stream.id);
+          
+          // Log audio tracks and ensure they're enabled
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`📞 Audio track ${idx} settings:`, track.getSettings());
+            track.enabled = true;
+          });
           
           this.sipState.getSipPlugin().createOffer({
-            media: { audioSend: true, audioRecv: true, videoSend: false, videoRecv: false },
+            media: { 
+              audioSend: true, 
+              audioRecv: true, 
+              videoSend: false, 
+              videoRecv: false,
+              audioSendCodec: "opus",
+              audioRecvCodec: "opus"
+            },
             success: (jsep: any) => {
               console.log("📞 Created offer JSEP");
               
@@ -39,16 +59,25 @@ export class SipCallManager {
                 message: { request: "call", uri: formattedUri },
                 jsep,
                 success: () => {
-                  console.log(`📞 Calling ${formattedUri}`);
+                  console.log(`📞 Calling ${formattedUri} - request sent`);
                   resolve();
                 },
-                error: (error: any) => reject(new Error(`Call error: ${error}`))
+                error: (error: any) => {
+                  console.error("📞 Error sending call request:", error);
+                  reject(new Error(`Call request failed: ${error}`));
+                }
               });
             },
-            error: (error: any) => reject(new Error(`Offer error: ${error}`))
+            error: (error: any) => {
+              console.error("📞 Error creating offer:", error);
+              reject(new Error(`Failed to create offer: ${error}`));
+            }
           });
         })
-        .catch((error) => reject(new Error(`Media error: ${error}`)));
+        .catch((error) => {
+          console.error("📞 Media access failed:", error);
+          reject(error);
+        });
     });
   }
 
@@ -59,15 +88,28 @@ export class SipCallManager {
         return;
       }
 
-      const constraints = { audio: true, video: false };
+      console.log("📞 Accepting call with audio options:", audioOptions);
       
-      navigator.mediaDevices.getUserMedia(constraints)
+      this.getMediaWithFallback(audioOptions)
         .then((stream) => {
-          console.log("📞 Got local media stream for accept");
+          console.log("📞 Got local media stream for accept:", stream.id);
+          
+          // Log audio tracks and ensure they're enabled
+          stream.getAudioTracks().forEach((track, idx) => {
+            console.log(`📞 Accept audio track ${idx} settings:`, track.getSettings());
+            track.enabled = true;
+          });
           
           this.sipState.getSipPlugin().createAnswer({
             jsep: jsep,
-            media: { audioSend: true, audioRecv: true, videoSend: false, videoRecv: false },
+            media: { 
+              audioSend: true, 
+              audioRecv: true, 
+              videoSend: false, 
+              videoRecv: false,
+              audioSendCodec: "opus",
+              audioRecvCodec: "opus"
+            },
             success: (ourjsep: any) => {
               console.log("📞 Created answer JSEP");
               
@@ -75,16 +117,25 @@ export class SipCallManager {
                 message: { request: "accept" },
                 jsep: ourjsep,
                 success: () => {
-                  console.log("📞 Call accepted");
+                  console.log("📞 Call accepted successfully");
                   resolve();
                 },
-                error: (error: any) => reject(new Error(`Accept error: ${error}`))
+                error: (error: any) => {
+                  console.error("📞 Error sending accept:", error);
+                  reject(new Error(`Accept request failed: ${error}`));
+                }
               });
             },
-            error: (error: any) => reject(new Error(`Answer error: ${error}`))
+            error: (error: any) => {
+              console.error("📞 Error creating answer:", error);
+              reject(new Error(`Failed to create answer: ${error}`));
+            }
           });
         })
-        .catch((error) => reject(new Error(`Media error: ${error}`)));
+        .catch((error) => {
+          console.error("📞 Media access failed for accept:", error);
+          reject(error);
+        });
     });
   }
 
@@ -162,6 +213,91 @@ export class SipCallManager {
         }
       });
     });
+  }
+
+  /**
+   * Enhanced media access with fallback logic for audio device constraints
+   */
+  private async getMediaWithFallback(audioOptions?: AudioCallOptions): Promise<MediaStream> {
+    console.log("📞 Getting media with fallback, options:", audioOptions);
+    
+    // Check if devices are available before trying exact constraints
+    let availableDevices: MediaDeviceInfo[] = [];
+    try {
+      availableDevices = await navigator.mediaDevices.enumerateDevices();
+      console.log("📞 Available audio input devices:", 
+        availableDevices.filter(d => d.kind === 'audioinput').map(d => ({id: d.deviceId, label: d.label}))
+      );
+    } catch (error) {
+      console.warn("📞 Could not enumerate devices:", error);
+    }
+
+    // Primary constraints with specific device
+    let primaryConstraints: MediaStreamConstraints = {
+      audio: audioOptions?.audioInput ? {
+        deviceId: { exact: audioOptions.audioInput },
+        echoCancellation: audioOptions.echoCancellation ?? true,
+        noiseSuppression: audioOptions.noiseSuppression ?? true,
+        autoGainControl: audioOptions.autoGainControl ?? true
+      } : {
+        echoCancellation: audioOptions?.echoCancellation ?? true,
+        noiseSuppression: audioOptions?.noiseSuppression ?? true,
+        autoGainControl: audioOptions?.autoGainControl ?? true
+      },
+      video: false
+    };
+
+    // Fallback constraints without specific device
+    const fallbackConstraints: MediaStreamConstraints = {
+      audio: {
+        echoCancellation: audioOptions?.echoCancellation ?? true,
+        noiseSuppression: audioOptions?.noiseSuppression ?? true,
+        autoGainControl: audioOptions?.autoGainControl ?? true
+      },
+      video: false
+    };
+
+    // Try primary constraints first
+    try {
+      console.log("📞 Trying primary constraints:", JSON.stringify(primaryConstraints));
+      const stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
+      console.log("✅ Primary constraints succeeded");
+      return stream;
+    } catch (error: any) {
+      console.warn("📞 Primary constraints failed:", error.name, error.message);
+      
+      // If it's a device constraint issue, try fallback
+      if (error.name === 'OverconstrainedError' || error.name === 'NotFoundError' || 
+          error.message.includes('deviceId') || error.message.includes('device')) {
+        
+        console.log("📞 Trying fallback constraints (no specific device)");
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+          console.log("✅ Fallback constraints succeeded");
+          return stream;
+        } catch (fallbackError: any) {
+          console.error("📞 Fallback constraints also failed:", fallbackError.name, fallbackError.message);
+          
+          // Provide specific error messages
+          if (fallbackError.name === 'NotAllowedError') {
+            throw new Error("NotAllowedError: Microphone access denied. Please allow microphone permissions.");
+          } else if (fallbackError.name === 'NotFoundError') {
+            throw new Error("NotFoundError: No microphone found. Please connect a microphone.");
+          } else {
+            throw new Error(`Media access failed: ${fallbackError.message}`);
+          }
+        }
+      } else {
+        // Re-throw non-device related errors
+        if (error.name === 'NotAllowedError') {
+          throw new Error("NotAllowedError: Microphone access denied. Please allow microphone permissions.");
+        } else if (error.name === 'NotFoundError') {
+          throw new Error("NotFoundError: No microphone found. Please connect a microphone.");
+        } else {
+          throw new Error(`Media access failed: ${error.message}`);
+        }
+      }
+    }
   }
 
   /**

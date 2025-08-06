@@ -2,7 +2,7 @@ import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
 import audioService from '@/services/AudioService';
-import { SipCallManager } from './janus/sip/sipCallManager';
+import { SipCallManager } from './janus/sipCallManager';
 import { SipState } from './janus/sip/sipState';
 
 class JanusService {
@@ -103,7 +103,8 @@ class JanusService {
           this.sipState.setSipPlugin(pluginHandle);
           console.log("SIP plugin attached:", pluginHandle);
           
-          // Audio handling now centralized in SipCallManager
+          // Ensure SipCallManager audio handler is set up
+          this.sipCallManager.ensureAudioHandlerReady();
           
           resolve();
         },
@@ -159,6 +160,12 @@ class JanusService {
       case "registered":
         console.log("SIP Registration successful");
         this.registered = true;
+        this.sipState.setRegistered(true);
+        this.sipState.setCurrentCredentials({
+          username: result.username || "unknown",
+          password: "***",
+          sipHost: "unknown"
+        });
         if (this.eventHandlers.onRegistrationSuccess) {
           this.eventHandlers.onRegistrationSuccess();
         }
@@ -167,6 +174,7 @@ class JanusService {
       case "registration_failed":
         console.error("SIP Registration failed:", result.code, result.reason);
         this.registered = false;
+        this.sipState.setRegistered(false);
         if (this.eventHandlers.onRegistrationFailed) {
           this.eventHandlers.onRegistrationFailed(
             `Registration failed: ${result.code} - ${result.reason}`
@@ -357,10 +365,16 @@ class JanusService {
     }
   }
   
-  // Updated call method to use audio devices and improve SDP offer
+  // Delegate call to SipCallManager with enhanced error handling
   async call(destination: string, isVideoCall: boolean = false, audioOptions?: AudioCallOptions): Promise<void> {
+    console.log("🔄 JanusService.call() delegating to SipCallManager for:", destination);
+    
     if (!this.sipPlugin) {
       throw new Error("SIP plugin not attached");
+    }
+
+    if (!this.sipState.isRegistered()) {
+      throw new Error("Not registered with SIP server");
     }
     
     // Get the saved audio input device if not provided
@@ -383,126 +397,32 @@ class JanusService {
     } catch (error) {
       console.error("Error parsing audio settings:", error);
     }
-    
-    const callRequest = {
-      request: "call",
-      uri: destination.indexOf("sip:") === 0 ? destination : `sip:${destination}`,
-      video: isVideoCall
-    };
-    
-    return new Promise<void>((resolve, reject) => {
-      // Get media constraints for the call
-      const constraints = {
-        audio: audioOptions?.audioInput ? 
-          { 
-            deviceId: { exact: audioOptions.audioInput },
-            echoCancellation: audioOptions.echoCancellation ?? true,
-            noiseSuppression: audioOptions.noiseSuppression ?? true,
-            autoGainControl: audioOptions.autoGainControl ?? true
-          } : {
-            echoCancellation: audioOptions?.echoCancellation ?? true,
-            noiseSuppression: audioOptions?.noiseSuppression ?? true,
-            autoGainControl: audioOptions?.autoGainControl ?? true
-          },
-        video: isVideoCall ? (localStorage.getItem('selectedVideoInput') ? 
-          { deviceId: { exact: localStorage.getItem('selectedVideoInput') } } : true) : false
-      };
+
+    try {
+      // Delegate to SipCallManager which handles all the WebRTC complexity
+      await this.sipCallManager.call(destination, audioOptions);
+      console.log("✅ SipCallManager call completed successfully");
+    } catch (error: any) {
+      console.error("❌ SipCallManager call failed:", error.message);
       
-      console.log("Getting user media with constraints:", JSON.stringify(constraints));
-      
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-          console.log("Got local media stream for call:", stream);
-          
-          // Log audio tracks and ensure they're enabled
-          stream.getAudioTracks().forEach((track, idx) => {
-            console.log(`Audio track ${idx} settings:`, track.getSettings());
-            track.enabled = true;
-          });
-          
-          // Create SDP offer with explicit sendrecv for audio
-          this.sipPlugin.createOffer({
-            media: {
-              audioSend: true,
-              audioRecv: true,
-              videoSend: isVideoCall,
-              videoRecv: isVideoCall,
-              audioSendCodec: "opus",   // Prefer Opus for better audio quality
-              audioRecvCodec: "opus",
-              data: false
-            },
-            // Add explicit specification of SDP direction attributes
-            customizeSdp: (jsep: any) => {
-              // Make sure the SDP explicitly allows bidirectional audio
-              if (jsep && jsep.sdp) {
-                const sdpLines = jsep.sdp.split("\r\n");
-                let audioFound = false;
-                
-                // Find the audio m-line
-                for (let i = 0; i < sdpLines.length; i++) {
-                  if (sdpLines[i].startsWith("m=audio")) {
-                    audioFound = true;
-                  }
-                  
-                  // If we're in the audio section and there's a direction line, ensure it's sendrecv
-                  if (audioFound && sdpLines[i].startsWith("a=")) {
-                    if (sdpLines[i].startsWith("a=sendonly") || 
-                        sdpLines[i].startsWith("a=recvonly") || 
-                        sdpLines[i].startsWith("a=inactive")) {
-                      sdpLines[i] = "a=sendrecv";
-                      console.log("Modified SDP direction to sendrecv for audio");
-                    }
-                    
-                    // If we find a media attribute that's not direction, we're past the point where we'd add it
-                    if (sdpLines[i].startsWith("a=rtpmap") || 
-                        sdpLines[i].startsWith("a=fmtp") || 
-                        sdpLines[i].startsWith("a=rtcp")) {
-                      // If we haven't seen a direction attribute yet, add one
-                      sdpLines.splice(i, 0, "a=sendrecv");
-                      console.log("Added explicit sendrecv direction to audio section");
-                      break;
-                    }
-                  }
-                  
-                  // If we've found a new media section, we're done with audio
-                  if (audioFound && sdpLines[i].startsWith("m=") && !sdpLines[i].startsWith("m=audio")) {
-                    break;
-                  }
-                }
-                
-                jsep.sdp = sdpLines.join("\r\n");
-                console.log("Modified SDP:", jsep.sdp);
-              }
-            },
-            success: (jsep: any) => {
-              console.log("Got SDP offer", jsep);
-              this.sipPlugin.send({
-                message: callRequest,
-                jsep: jsep,
-                success: () => {
-                  console.log("Call request sent");
-                  resolve();
-                },
-                error: (error: any) => {
-                  console.error("Error sending call request:", error);
-                  reject(new Error(`Call failed: ${error}`));
-                }
-              });
-            },
-            error: (error: any) => {
-              console.error("Error creating SDP offer:", error);
-              reject(new Error(`Failed to create offer: ${error}`));
-            }
-          });
-        })
-        .catch(error => {
-          console.error("Error getting user media:", error);
-          reject(new Error(`Failed to get user media: ${error}`));
-        });
-    });
+      // Provide user-friendly error messages
+      if (error.message.includes("OverconstrainedError") || error.message.includes("deviceId")) {
+        throw new Error("Audio device not available. Please check your microphone settings.");
+      } else if (error.message.includes("NotAllowedError")) {
+        throw new Error("Microphone access denied. Please allow microphone permissions.");
+      } else if (error.message.includes("NotFoundError")) {
+        throw new Error("No microphone found. Please connect a microphone.");
+      } else if (error.message.includes("Not registered")) {
+        throw new Error("Not connected to phone server. Please check your connection.");
+      } else {
+        throw new Error(`Call failed: ${error.message}`);
+      }
+    }
   }
   
   async acceptCall(jsep: any, audioOptions?: AudioCallOptions): Promise<void> {
+    console.log("🔄 JanusService.acceptCall() delegating to SipCallManager");
+    
     if (!this.sipPlugin) {
       throw new Error("SIP plugin not attached");
     }
@@ -514,145 +434,23 @@ class JanusService {
         audioInput: savedAudioInput || undefined
       };
     }
-    
-    return new Promise<void>((resolve, reject) => {
-      // Get media access with specified audio device
-      const constraints = {
-        audio: audioOptions?.audioInput ? 
-          { 
-            deviceId: { exact: audioOptions.audioInput },
-            echoCancellation: audioOptions.echoCancellation ?? true,
-            noiseSuppression: audioOptions.noiseSuppression ?? true,
-            autoGainControl: audioOptions.autoGainControl ?? true
-          } : {
-            echoCancellation: audioOptions?.echoCancellation ?? true,
-            noiseSuppression: audioOptions?.noiseSuppression ?? true,
-            autoGainControl: audioOptions?.autoGainControl ?? true
-          },
-        video: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0
-      };
+
+    try {
+      // Delegate to SipCallManager
+      await this.sipCallManager.acceptCall(jsep, audioOptions);
+      console.log("✅ SipCallManager acceptCall completed successfully");
+    } catch (error: any) {
+      console.error("❌ SipCallManager acceptCall failed:", error.message);
       
-      console.log("Getting user media for accepting call:", constraints);
-      console.log("Incoming JSEP:", jsep);
-      
-      // Analyze the SDP
-      this.analyzeSDP(jsep.sdp);
-      
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-          console.log("Got local stream for accepting call", stream);
-          
-          // Ensure audio tracks are enabled
-          stream.getAudioTracks().forEach(track => {
-            console.log("Local audio track settings:", track.getSettings());
-            track.enabled = true;
-          });
-          
-          this.sipPlugin.createAnswer({
-            jsep: jsep,
-            media: { 
-              audioSend: true, 
-              audioRecv: true,
-              videoSend: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
-              videoRecv: jsep.type !== "offer" || jsep.sdp.indexOf("m=video") > 0,
-              audioSendCodec: "opus",
-              audioRecvCodec: "opus"
-            },
-            // Customize SDP to ensure audio directions are set correctly
-            customizeSdp: (jsep: any) => {
-              if (jsep && jsep.sdp) {
-                const sdpLines = jsep.sdp.split("\r\n");
-                let audioFound = false;
-                
-                for (let i = 0; i < sdpLines.length; i++) {
-                  if (sdpLines[i].startsWith("m=audio")) {
-                    audioFound = true;
-                  }
-                  
-                  if (audioFound && sdpLines[i].startsWith("a=")) {
-                    if (sdpLines[i].startsWith("a=sendonly") || 
-                        sdpLines[i].startsWith("a=recvonly") || 
-                        sdpLines[i].startsWith("a=inactive")) {
-                      sdpLines[i] = "a=sendrecv";
-                      console.log("Modified answer SDP direction to sendrecv for audio");
-                    }
-                    
-                    if (sdpLines[i].startsWith("a=rtpmap") || 
-                        sdpLines[i].startsWith("a=fmtp") || 
-                        sdpLines[i].startsWith("a=rtcp")) {
-                      sdpLines.splice(i, 0, "a=sendrecv");
-                      console.log("Added explicit sendrecv direction to audio section in answer");
-                      break;
-                    }
-                  }
-                  
-                  if (audioFound && sdpLines[i].startsWith("m=") && !sdpLines[i].startsWith("m=audio")) {
-                    break;
-                  }
-                }
-                
-                jsep.sdp = sdpLines.join("\r\n");
-                console.log("Modified answer SDP:", jsep.sdp);
-              }
-            },
-            success: (ourjsep: any) => {
-              const body = { request: "accept" };
-              this.sipPlugin.send({
-                message: body,
-                jsep: ourjsep,
-                success: () => {
-                  console.log("Call accepted");
-                  
-                  // Audio handling centralized in SipCallManager
-                  
-                  // Apply audio output device if specified and supported
-                  const savedAudioOutput = localStorage.getItem('selectedAudioOutput');
-                  if (savedAudioOutput && this.remoteStream) {
-                    // Find or create audio element to play the remote stream
-                    let audioElement = document.querySelector('audio#remoteAudio') as HTMLAudioElement;
-                    if (!audioElement) {
-                      audioElement = document.createElement('audio');
-                      audioElement.id = 'remoteAudio';
-                      audioElement.autoplay = true;
-                      document.body.appendChild(audioElement);
-                    }
-                    
-                    // Set the audio output device if the browser supports it
-                    if ('setSinkId' in HTMLAudioElement.prototype) {
-                      (audioElement as any).setSinkId(savedAudioOutput)
-                        .then(() => console.log("Audio output set to:", savedAudioOutput))
-                        .catch(e => console.error("Error setting audio output:", e));
-                    }
-                    
-                    // Set the remote stream to the audio element
-                    audioElement.srcObject = this.remoteStream;
-                    
-                    // DISABLED - SipCallManager handles all audio now
-                    console.log("✅ BASIC: Audio handled by SipCallManager");
-                  } else {
-                    // DISABLED - SipCallManager handles all audio now  
-                    console.log("✅ BASIC: Audio handled by SipCallManager");
-                  }
-                  
-                  resolve();
-                },
-                error: (error: any) => {
-                  console.error("Error accepting call:", error);
-                  reject(new Error(`Failed to accept call: ${error}`));
-                }
-              });
-            },
-            error: (error: any) => {
-              console.error("Error creating answer:", error);
-              reject(new Error(`Failed to create answer: ${error}`));
-            }
-          });
-        })
-        .catch(error => {
-          console.error("Error getting user media for call:", error);
-          reject(new Error(`Failed to get user media: ${error}`));
-        });
-    });
+      // Provide user-friendly error messages
+      if (error.message.includes("OverconstrainedError") || error.message.includes("deviceId")) {
+        throw new Error("Audio device not available. Please check your microphone settings.");
+      } else if (error.message.includes("NotAllowedError")) {
+        throw new Error("Microphone access denied. Please allow microphone permissions.");
+      } else {
+        throw new Error(`Failed to accept call: ${error.message}`);
+      }
+    }
   }
   
   /**
@@ -693,25 +491,20 @@ class JanusService {
   }
   
   async hangup(): Promise<void> {
+    console.log("🔄 JanusService.hangup() delegating to SipCallManager");
+    
     if (!this.sipPlugin) {
       return;
     }
     
-    const hangupMsg = { request: "hangup" };
-    
-    return new Promise<void>((resolve, reject) => {
-      this.sipPlugin.send({
-        message: hangupMsg,
-        success: () => {
-          console.log("Hangup request sent successfully");
-          resolve();
-        },
-        error: (error: any) => {
-          console.error("Error sending hangup request:", error);
-          reject(error);
-        }
-      });
-    });
+    try {
+      // Delegate to SipCallManager
+      await this.sipCallManager.hangup();
+      console.log("✅ SipCallManager hangup completed successfully");
+    } catch (error: any) {
+      console.error("❌ SipCallManager hangup failed:", error.message);
+      throw new Error(`Hangup failed: ${error.message}`);
+    }
   }
   
   isJanusConnected(): boolean {
