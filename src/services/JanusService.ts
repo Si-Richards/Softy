@@ -2,6 +2,8 @@ import { JanusEventHandlers } from './janus/eventHandlers';
 import type { JanusOptions, SipCredentials } from './janus/types';
 import type { AudioCallOptions } from './janus/sip/types';
 import audioService from '@/services/AudioService';
+import { SipCallManager } from './janus/sip/sipCallManager';
+import { SipState } from './janus/sip/sipState';
 
 class JanusService {
   private janus: any = null;
@@ -14,10 +16,14 @@ class JanusService {
   private trackListeners: Map<string, () => void> = new Map();
   private pcListeners: Map<string, any> = new Map();
   private receivedTracks: MediaStreamTrack[] = [];
+  private sipState: SipState;
+  private sipCallManager: SipCallManager;
 
   constructor() {
     this.eventHandlers = new JanusEventHandlers();
     this.opaqueId = "softphone-" + Math.floor(Math.random() * 10000);
+    this.sipState = new SipState();
+    this.sipCallManager = new SipCallManager(this.sipState);
   }
 
   async initialize(options: JanusOptions): Promise<boolean> {
@@ -94,6 +100,7 @@ class JanusService {
         opaqueId: this.opaqueId,
         success: (pluginHandle: any) => {
           this.sipPlugin = pluginHandle;
+          this.sipState.setSipPlugin(pluginHandle);
           console.log("SIP plugin attached:", pluginHandle);
           
           // Audio handling now centralized in SipCallManager
@@ -201,8 +208,9 @@ class JanusService {
         this.analyzeSDP(jsep.sdp);
       }
       
-      // COMPLETELY DISABLED - SipCallManager handles JSEP
-      console.log("⚠️ DISABLED handleRemoteJsep in JanusService - SipCallManager handles this");
+      // Call SipCallManager to handle JSEP
+      console.log("🎵 Calling SipCallManager.handleRemoteJsep");
+      this.sipCallManager.handleRemoteJsep(jsep);
     }
   }
   
