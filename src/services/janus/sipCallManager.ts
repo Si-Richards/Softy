@@ -66,7 +66,7 @@ export class SipCallManager {
             success: (jsep: any) => {
               console.log("Created offer with JSEP:", jsep);
               
-              // Set up ontrack handler immediately after offer creation (Janus pattern)
+              // Set up ontrack handler before sending (critical timing)
               this.setupPeerConnectionHandlers();
               
               // Match call request from Janus SIP demo
@@ -143,7 +143,7 @@ export class SipCallManager {
             success: (ourjsep: any) => {
               console.log("Created answer with JSEP:", ourjsep);
               
-              // Set up ontrack handler immediately after answer creation (Janus pattern)
+              // Set up ontrack handler before sending (critical timing)
               this.setupPeerConnectionHandlers();
               
               const message = { 
@@ -180,101 +180,59 @@ export class SipCallManager {
   }
 
   /**
-   * Basic audio setup following Janus SIP demo pattern
+   * Ultra simple audio setup - just assign stream to audio element
    */
   private setupPeerConnectionHandlers(): void {
     const sipPlugin = this.sipState.getSipPlugin();
     if (!sipPlugin?.webrtcStuff?.pc) {
-      console.warn("No peer connection available for audio setup");
+      console.error("❌ No peer connection available");
       return;
     }
     
     const pc = sipPlugin.webrtcStuff.pc;
-    console.log("🎵 Setting up basic audio handlers");
+    console.log("🎵 Setting up ULTRA SIMPLE audio handler");
     
-    // Clear any existing handlers to avoid duplicates
-    pc.ontrack = null;
-    pc.oniceconnectionstatechange = null;
-    pc.onconnectionstatechange = null;
-    
-    // Basic connection monitoring
-    pc.oniceconnectionstatechange = () => {
-      console.log("ICE state:", pc.iceConnectionState);
-    };
-    
-    // Simple ontrack handler - basic audio only
+    // Only set ontrack - nothing else
     pc.ontrack = (event) => {
-      console.log("🎵 TRACK RECEIVED:", event.track.kind);
+      console.log("🎵 TRACK EVENT:", {
+        kind: event.track.kind,
+        hasStreams: !!event.streams?.length,
+        streamId: event.streams?.[0]?.id
+      });
       
       if (event.track.kind === 'audio' && event.streams?.[0]) {
-        const stream = event.streams[0];
-        console.log("🎵 Audio stream received:", stream.id);
-        
-        // Simple audio element setup
-        this.setupSimpleAudio(stream);
+        console.log("🎵 AUDIO TRACK FOUND - creating element");
+        this.createAudioElement(event.streams[0]);
       }
     };
     
-    console.log("✅ Basic audio handlers ready");
+    console.log("✅ Simple ontrack handler set");
   }
 
   /**
-   * Simple audio setup - no competing handlers
+   * Create audio element and assign stream - simplest possible
    */
-  private setupSimpleAudio(stream: MediaStream): void {
-    console.log("🎵 Setting up simple audio playback");
+  private createAudioElement(stream: MediaStream): void {
+    console.log("🎵 Creating audio element for stream:", stream.id);
     
-    // Remove any existing audio element
+    // Remove existing
     const existing = document.getElementById("remoteAudio");
-    if (existing) {
-      existing.remove();
-    }
+    if (existing) existing.remove();
     
-    // Create fresh audio element
+    // Create new
     const audio = document.createElement('audio');
     audio.id = 'remoteAudio';
     audio.autoplay = true;
-    audio.setAttribute('playsinline', '');
-    audio.controls = false;
-    audio.volume = 1.0;
-    audio.muted = false;
-    
-    // Set stream immediately
     audio.srcObject = stream;
+    audio.volume = 1.0;
     document.body.appendChild(audio);
     
-    console.log("🎵 Audio element created with stream");
+    console.log("🎵 Audio element created and appended");
     
-    // Simple play attempt
-    audio.play()
-      .then(() => {
-        console.log("✅ Audio playing");
-      })
-      .catch((error) => {
-        console.log("⚠️ Auto-play blocked, showing controls:", error.message);
-        audio.controls = true;
-        audio.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          z-index: 9999;
-          border: 2px solid red;
-          border-radius: 8px;
-          background: white;
-          padding: 10px;
-        `;
-      });
-    
-    // Basic track monitoring
-    stream.getAudioTracks().forEach(track => {
-      console.log("🎵 Audio track:", {
-        id: track.id,
-        enabled: track.enabled,
-        muted: track.muted,
-        state: track.readyState
-      });
-      
-      track.onended = () => console.log("🎵 Track ended");
+    // Try to play
+    audio.play().catch(e => {
+      console.log("🎵 Autoplay failed, adding controls:", e.message);
+      audio.controls = true;
     });
   }
 
