@@ -92,29 +92,26 @@ export class SipCallManager {
    * Set up the absolute simplest audio handler possible
    */
   private setupAudioHandler(): void {
-    // This will be called when peer connection exists
-    setTimeout(() => {
-      const sipPlugin = this.sipState.getSipPlugin();
-      if (!sipPlugin?.webrtcStuff?.pc) {
-        console.log("🔄 No peer connection yet, retrying audio handler setup...");
-        this.setupAudioHandler();
-        return;
+    const sipPlugin = this.sipState.getSipPlugin();
+    if (!sipPlugin?.webrtcStuff?.pc) {
+      console.log("🔄 No peer connection yet, retrying audio handler setup in 50ms...");
+      setTimeout(() => this.setupAudioHandler(), 50);
+      return;
+    }
+    
+    const pc = sipPlugin.webrtcStuff.pc;
+    console.log("🎧 Setting up basic audio handler - IMMEDIATE");
+    
+    pc.ontrack = (event) => {
+      console.log("🎵 TRACK RECEIVED:", event.track.kind, event.track.readyState, "at", new Date().toISOString());
+      
+      if (event.track.kind === 'audio' && event.streams?.[0]) {
+        console.log("🎵 AUDIO TRACK - Creating element for stream:", event.streams[0].id);
+        this.createAudioElement(event.streams[0]);
       }
-      
-      const pc = sipPlugin.webrtcStuff.pc;
-      console.log("🎧 Setting up basic audio handler");
-      
-      pc.ontrack = (event) => {
-        console.log("🎵 TRACK RECEIVED:", event.track.kind, event.track.readyState);
-        
-        if (event.track.kind === 'audio' && event.streams?.[0]) {
-          console.log("🎵 AUDIO TRACK - Creating element");
-          this.createAudioElement(event.streams[0]);
-        }
-      };
-      
-      console.log("✅ Audio handler active");
-    }, 500);
+    };
+    
+    console.log("✅ Audio handler active at", new Date().toISOString());
   }
 
   /**
@@ -178,7 +175,10 @@ export class SipCallManager {
       return;
     }
 
-    console.log("Handling remote JSEP:", jsep.type);
+    console.log("🎵 Handling remote JSEP:", jsep.type, "at", new Date().toISOString());
+    
+    // Ensure audio handler is set up BEFORE processing remote JSEP
+    this.setupAudioHandler();
     
     const sipPlugin = this.sipState.getSipPlugin();
     if (!sipPlugin) {
@@ -189,8 +189,24 @@ export class SipCallManager {
     sipPlugin.handleRemoteJsep({
       jsep: jsep,
       success: () => {
-        console.log("✅ Remote JSEP processed successfully");
-        // ontrack handler should already be set up from offer/answer creation
+        console.log("✅ Remote JSEP processed successfully at", new Date().toISOString());
+        
+        // Fallback: Check for existing streams if ontrack didn't fire
+        setTimeout(() => {
+          const pc = sipPlugin.webrtcStuff?.pc;
+          if (pc && pc.getRemoteStreams) {
+            const remoteStreams = pc.getRemoteStreams();
+            console.log("🔍 Checking for existing remote streams:", remoteStreams.length);
+            
+            remoteStreams.forEach((stream, index) => {
+              console.log(`🎵 Found existing remote stream ${index}:`, stream.id);
+              if (stream.getAudioTracks().length > 0) {
+                console.log("🎵 Creating audio element for existing stream");
+                this.createAudioElement(stream);
+              }
+            });
+          }
+        }, 100);
       },
       error: (error: any) => {
         console.error(`❌ Error handling remote JSEP: ${error}`);
